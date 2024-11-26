@@ -1,10 +1,12 @@
 /**
  * @name BetterTypingIndicator
+ * @version 1.1.0
  * @displayName BetterTypingIndicator
  * @website https://x.com/_Pharaoh2k
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterTypingIndicator.js
  * @authorId 874825550408089610
  * @author Pharaoh2k
+ * @Credits: Special thanks to l0c4lh057 , imafrogowo , davilarek for TypingIndicator plugin. This plugin is loosely derived from it.
  */
 
 module.exports = (() => {
@@ -22,11 +24,11 @@ module.exports = (() => {
             authors: [{
                 name: "Pharaoh2k",
                 github_username: "Pharaoh2k",
-                twitter_username: "_Pharaoh2k",
+                twitter_username: "Pharaoh2k",
                 discord_id: "874825550408089610"
             }],
-            version: "1.0.0",
-            description: "Shows an indicator in the channel list when someone is typing there. Includes customizable animations and settings."
+            version: "1.1.0",
+            description: "Shows an indicator in the channel list plus server/folder icons and home icon for DMs when someone is typing there. Includes customizable animations and settings."
         },
         defaultConfig: [{
                 type: "switch",
@@ -578,8 +580,65 @@ module.exports = (() => {
         // Webpack Modules
         const Modules = {
             get ChannelComponents() {
-                return BdApi.Webpack.getModule(m => m?.Z?.toString?.()?.includes('hasActiveThreads:c')) ||
-                    BdApi.Webpack.getModule(m => m?.default?.displayName === 'ChannelItem');
+                // Try multiple methods to find the channel component
+                return (
+                    // Method 1: Look for ChannelItem by display name (most reliable)
+                    BdApi.Webpack.getModule(m => m?.default?.displayName === 'ChannelItem') ||
+
+                    // Method 2:
+                    BdApi.Webpack.getModule(m => {
+                        const str = m?.toString?.();
+                        return str?.includes('containerDefault') && str?.includes('wrapper');
+                    }) ||
+
+                    // Method 3:			
+                    BdApi.Webpack.getModule(m => {
+                        if (!m) return false;
+                        for (const key in m) {
+                            const val = m[key];
+                            if (typeof val !== 'function') continue;
+                            const str = val.toString();
+                            return str.includes('channel:') && str.includes('guild:') && str.includes('selected:');
+                        }
+                        return false;
+                    }) ||
+
+                    // Method 4: Look for structural patterns that are less likely to change
+                    BdApi.Webpack.getModule(m => {
+                        // Check if it's a component that renders channel-like items
+                        if (!m?.Z?.type) return false;
+                        const proto = m?.Z?.type?.prototype;
+                        return (
+                            // Look for methods that channel components typically have
+                            typeof proto?.renderIcons === 'function' &&
+                            typeof proto?.renderChildren === 'function' &&
+                            // Check for typical channel props in render method
+                            proto?.render?.toString?.()?.includes('muted') &&
+                            proto?.render?.toString?.()?.includes('selected')
+                        );
+                    }) ||
+
+                    // Method 5: Find by component properties pattern
+                    BdApi.Webpack.getModule(m => {
+                        const component = m?.default || m?.Z;
+                        return component && (
+                            // Check for typical channel props
+                            Object.keys(component?.propTypes || {}).some(prop => ['channel', 'selected', 'muted', 'unread'].includes(prop))
+                        );
+                    }) ||
+
+                    // Method 6: Find by module structure (last resort)
+                    BdApi.Webpack.getModule(m => {
+                        const moduleKeys = Object.keys(m || {});
+                        return (
+                            moduleKeys.includes('Z') &&
+                            // Check if it has channel-related methods
+                            typeof m.Z?.type?.prototype?.render === 'function' &&
+                            // Verify it's likely a channel component
+                            m.Z?.type?.toString?.()?.includes('channel')
+                        );
+                    })
+                );
             },
 
             get GuildComponents() {
@@ -624,19 +683,19 @@ module.exports = (() => {
         // Unified CSS for all indicator types
         const css = `
     /* Base indicator styles */
-            .typing-indicator-dots,
-            .guild-typing-dots,
-            .folder-typing-dots,
-            .home-typing-dots {
-                transform: scale(0.8);
-            }
+    .typing-indicator-dots,
+    .guild-typing-dots,
+    .folder-typing-dots,
+    .home-typing-dots {
+        transform: scale(0.8);
+    }
     
-            .typing-indicator-svg,
-            guild-typing-svg,
-            .folder-typing-svg,
-             .home-typing-svg {
-                opacity: 0.7;
-            }
+    .typing-indicator-svg,
+    .guild-typing-svg,
+    .folder-typing-svg,
+    .home-typing-svg {
+        opacity: 0.7;
+    }
             
             /* Shared container styles */
             .typing-indicator-container {
@@ -656,25 +715,25 @@ module.exports = (() => {
                 transform: none !important; /* Remove transform */
                 z-index: 100 !important; /* Moderate z-index */
              }
-            .guild-typing-container,
-            .folder-typing-container,
-            .home-typing-container {
-                position: absolute !important;
-                bottom: 1px !important;
-                right: 1px !important;
-                z-index: 9999999 !important;
-                pointer-events: none !important;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                background: var(--indicator-background, #18191c) !important;
-                border-radius: 10px !important;
-                padding: 3px 6px !important;
-                transform: scale(0.9) !important;
-                min-width: 32px !important;
-                min-height: 7px !important;
-                width: auto !important;
-            }
+    .guild-typing-container,
+    .folder-typing-container,
+    .home-typing-container {
+        position: absolute !important;
+        bottom: 1px !important;
+        right: 1px !important;
+        z-index: 9999999 !important;
+        pointer-events: none !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: var(--indicator-background, #18191c) !important;
+        border-radius: 10px !important;
+        padding: 3px 6px !important;
+        transform: scale(0.9) !important;
+        min-width: 32px !important;
+        min-height: 7px !important;
+        width: auto !important;
+    }
             
             /* Animations */
             @keyframes typingBounce {
@@ -711,17 +770,17 @@ module.exports = (() => {
             svg circle:nth-child(2) { animation-delay: 0.2s; }
             svg circle:nth-child(3) { animation-delay: 0.4s; }
             
-            .typing-count-badge {
-                background-color: var(--brand-experiment);
-                color: white;
-                border-radius: 50%;
-                width: 18px;
-                height: 18px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 12px;
-                font-weight: bold;
+    .typing-count-badge {
+        background-color: var(--brand-experiment);
+        color: white;
+        border-radius: 50%;
+        width: 18px;
+        height: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: bold;
     }
             /* Tooltip styles */
             .typing-tooltip {
