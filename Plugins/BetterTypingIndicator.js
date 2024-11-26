@@ -22,7 +22,7 @@ module.exports = (() => {
             authors: [{
                 name: "Pharaoh2k",
                 github_username: "Pharaoh2k",
-                twitter_username: "Pharaoh2k",
+                twitter_username: "_Pharaoh2k",
                 discord_id: "874825550408089610"
             }],
             version: "1.0.0",
