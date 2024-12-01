@@ -1,9 +1,10 @@
 /**
  * @name BetterTypingIndicator
- * @version 2.0.0
+ * @version 2.1.0
  * @website https://x.com/_Pharaoh2k
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterTypingIndicator.js
  * @authorId 874825550408089610
+ * @description Shows an indicator in the channel list (w/tooltip) plus server/folder icons and home icon for DMs when someone is typing there.
  * @author Pharaoh2k
  * @Credits: Special thanks to l0c4lh057 for TypingIndicator plugin. This plugin is very loosely derived from his work.
  */
@@ -12,6 +13,7 @@ const { React, ReactDOM } = BdApi;
 
 // Constants and Config
 const TYPES = { CHANNEL: 'channel', GUILD: 'guild', FOLDER: 'folder', HOME: 'home' };
+const TYPING_EVENTS = ['TYPING_START', 'TYPING_STOP', 'MESSAGE_CREATE'];
 
 const CONFIG = {
     info: {
@@ -22,7 +24,7 @@ const CONFIG = {
             twitter_username: "_Pharaoh2k",
             discord_id: "874825550408089610"
         }],
-        version: "2.0.0",
+        version: "2.1.0",
         description: "Shows an indicator in the channel list (w/tooltip) plus server/folder icons and home icon for DMs when someone is typing there."
     },
     defaultConfig: [
@@ -50,15 +52,11 @@ const Modules = {
     RelationshipStore: BdApi.Webpack.getStore("RelationshipStore"),
     ChannelStore: BdApi.Webpack.getStore("ChannelStore"),
     MutedStore: BdApi.Webpack.getStore("UserGuildSettingsStore"),
-    FolderStore: BdApi.Webpack.getModule(m => m.getGuildFolders && m.getGuildFolderById),
+    FolderStore: BdApi.Webpack.getStore('SortedGuildStore'),
+
 
     getChannelComponents() {
         return (
-            BdApi.Webpack.getModule(m => m?.default?.displayName === 'ChannelItem') ||
-            BdApi.Webpack.getModule(m => {
-                const str = m?.toString?.();
-                return str?.includes('containerDefault') && str?.includes('wrapper');
-            }) ||
             BdApi.Webpack.getModule(m => {
                 if (!m) return false;
                 for (const key in m) {
@@ -68,31 +66,6 @@ const Modules = {
                     return str.includes('channel:') && str.includes('guild:') && str.includes('selected:');
                 }
                 return false;
-            }) ||
-            BdApi.Webpack.getModule(m => {
-                if (!m?.Z?.type) return false;
-                const proto = m?.Z?.type?.prototype;
-                return (
-                    typeof proto?.renderIcons === 'function' &&
-                    typeof proto?.renderChildren === 'function' &&
-                    proto?.render?.toString?.()?.includes('muted') &&
-                    proto?.render?.toString?.()?.includes('selected')
-                );
-            }) ||
-            BdApi.Webpack.getModule(m => {
-                const component = m?.default || m?.Z;
-                return component && (
-                    Object.keys(component?.propTypes || {}).some(prop => 
-                        ['channel', 'selected', 'muted', 'unread'].includes(prop))
-                );
-            }) ||
-            BdApi.Webpack.getModule(m => {
-                const moduleKeys = Object.keys(m || {});
-                return (
-                    moduleKeys.includes('Z') &&
-                    typeof m.Z?.type?.prototype?.render === 'function' &&
-                    m.Z?.type?.toString?.()?.includes('channel')
-                );
             })
         );
     },
@@ -102,12 +75,7 @@ const Modules = {
     },
 
     getFolderComponents() {
-        return BdApi.Webpack.getModule(m => m?.default?.displayName === 'Folder') || 
-               BdApi.Webpack.getModule(m => m?.FolderComponent);
-    },
-
-    getHomeComponent() {
-        return BdApi.Webpack.getModule(m => m?.default?.displayName === 'HomeIcon');
+        return BdApi.Webpack.getModule(m => m?.FolderComponent);
     }
 };
 
@@ -212,7 +180,7 @@ class ErrorBoundary extends React.Component {
         this.state = { hasError: false };
     }
     static getDerivedStateFromError() { return { hasError: true }; }
-    componentDidCatch(error) { console.error('TypingIndicator Error:', error); }
+
     render() { return this.state.hasError ? null : this.props.children; }
 }
 
@@ -413,23 +381,6 @@ function filterTypingUsers(users, settings, modules) {
         }, {});
 }
 
-// ReactTools implementation
-const ReactTools = {
-    getOwnerInstance(element) {
-        const key = Object.keys(element).find(k => k.startsWith("__reactInternalInstance$"));
-        if (!key) return null;
-        
-        let fiber = element[key];
-        while (fiber) {
-            if (fiber.return && fiber.return.stateNode) {
-                return fiber.return.stateNode;
-            }
-            fiber = fiber.return;
-        }
-        return null;
-    }
-};
-
 // Main Plugin Class
 class TypingIndicator {
     constructor() {
@@ -466,7 +417,7 @@ saveSettings(newSettings) {
         BdApi.injectCSS('typing-indicator-css', STYLES);
         await this.initializeModules();
         this.setupEventHandlers();
-    }
+	}
 
     stop() {
         BdApi.clearCSS('typing-indicator-css');
@@ -478,38 +429,66 @@ saveSettings(newSettings) {
         this.start();
     }
 
-    async initializeModules() {
-		this.cachedModules.FormItem = BdApi.Webpack.getByKeys("FormItem")?.FormItem;
-        this.cachedModules.FormSwitch = BdApi.Webpack.getByKeys("FormSwitch")?.FormSwitch;
-        this.cachedModules.ColorPicker = BdApi.Webpack.getModule(m => 
-            m?.toString?.().includes('ColorPicker')
-        );
-		
-        const components = {
-            channel: await Modules.getChannelComponents(),
-            guild: await Modules.getGuildComponents(),
-            folder: await Modules.getFolderComponents(),
-            home: await Modules.getHomeComponent()
-        };
+async initializeModules() {
 
-        if (Object.values(components).some(Boolean)) {
-            if (components.guild && this.settings.guildTypingIndicator) {
-                this.patchGuilds(components.guild);
-            }
-            if (components.folder && this.settings.folderTypingIndicator) {
-                this.patchFolders(components.folder);
-            }
-            if (components.home && this.settings.homeTypingIndicator) {
-                this.patchHome(components.home);
-            }
+    const moduleGetters = {
+        FormItem: () => BdApi.Webpack.getByKeys("FormItem")?.FormItem,
+        FormSwitch: () => BdApi.Webpack.getByKeys("FormSwitch")?.FormSwitch,
+        ColorPicker: () => BdApi.Webpack.getModule(m => m?.toString?.().includes('ColorPicker')),
+        channel: () => Modules.getChannelComponents(),
+        guild: () => Modules.getGuildComponents(),
+        folder: () => Modules.getFolderComponents()
+    };
+
+    Object.entries(moduleGetters)
+        .filter(([key]) => ['FormItem', 'FormSwitch', 'ColorPicker'].includes(key))
+        .forEach(([key, getter]) => {
+            this.cachedModules[key] = getter();
+        });
+
+    const components = Object.fromEntries(
+        await Promise.all(
+            ['channel', 'guild', 'folder'].map(async key => [
+                key,
+                await moduleGetters[key]()
+            ])
+        )
+    );
+
+    if (Object.values(components).some(Boolean)) {
+        if (components.guild && this.settings.guildTypingIndicator) {
+            this.patchGuilds(components.guild);
+        }
+        if (components.folder && this.settings.folderTypingIndicator) {
+            this.patchFolders(components.folder);
         }
     }
+}
 
-    setupEventHandlers() {
-        ['TYPING_START', 'TYPING_STOP', 'MESSAGE_CREATE'].forEach(event => {
-            Modules.Dispatcher.subscribe(event, this.handleTyping);
-        });
+handleEvents(action, dispatcher = Modules.Dispatcher) {
+    if (!dispatcher?.subscribe) {
+        console.error("Dispatcher not found");
+        return;
     }
+
+    TYPING_EVENTS.forEach(event => {
+        switch(action) {
+            case 'subscribe':
+                dispatcher.subscribe(event, this.handleTyping);
+                break;
+            case 'unsubscribe':
+                dispatcher.unsubscribe(event, this.handleTyping);
+                break;
+            default:
+                console.error(`Unknown event action: ${action}`);
+        }
+    });
+}
+
+
+setupEventHandlers() {
+    this.handleEvents('subscribe');
+}
 
     handleTyping(event) {
         if (event.type === 'MESSAGE_CREATE') {
@@ -650,28 +629,18 @@ saveSettings(newSettings) {
         this.setupTypingHandler(TYPES.HOME, Modules.Dispatcher);
     }
 
-    setupTypingHandler(type, dispatcher) {
-        if (!dispatcher?.subscribe) {
-            console.error("Dispatcher not found");
-            return;
-        }
+setupTypingHandler(type, dispatcher) {
+    this.handleEvents('subscribe', dispatcher);
+}
 
-        ['TYPING_START', 'TYPING_STOP', 'MESSAGE_CREATE'].forEach(event => {
-            dispatcher.subscribe(event, this.handleTyping);
-        });
-    }
-
-    cleanup() {
-        ['TYPING_START', 'TYPING_STOP', 'MESSAGE_CREATE'].forEach(event => {
-            Modules.Dispatcher.unsubscribe(event, this.handleTyping);
-        });
-
-        this.states.clear();
-        document.querySelectorAll('.typing-indicator-container').forEach(el => {
-            ReactDOM.unmountComponentAtNode(el);
-            el.remove();
-        });
-    }
+cleanup() {
+    this.handleEvents('unsubscribe');
+    this.states.clear();
+    document.querySelectorAll('.typing-indicator-container').forEach(el => {
+        ReactDOM.unmountComponentAtNode(el);
+        el.remove();
+    });
+}
 
     getSettingsPanel() {
         return React.createElement(ErrorBoundary, null,
