@@ -44,7 +44,7 @@ const CONFIG = {
 
 // Webpack Modules
 const Modules = {
-    Dispatcher: BdApi.Webpack.getModule(m => m.dispatch && m.subscribe),
+    Dispatcher: BdApi.Webpack.getByKeys("actionLogger"),
     TypingModule: BdApi.Webpack.getStore("TypingStore"),
     UserStore: BdApi.Webpack.getStore("UserStore"),
     RelationshipStore: BdApi.Webpack.getStore("RelationshipStore"),
