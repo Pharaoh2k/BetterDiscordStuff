@@ -394,12 +394,6 @@ class TypingIndicator {
         };
     }
 
-    /* Required Plugin Methods */
-    getName() { return CONFIG.info.name; }
-    getDescription() { return CONFIG.info.description; }
-    getVersion() { return CONFIG.info.version; }
-    getAuthor() { return CONFIG.info.authors.map(a => a.name).join(", "); }
-
     getSettings() {
         return {
             ...CONFIG.defaultConfig.reduce((acc, cfg) => ({ ...acc, [cfg.id]: cfg.value }), {}),
