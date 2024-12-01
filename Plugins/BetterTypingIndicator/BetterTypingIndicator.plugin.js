@@ -1,6 +1,6 @@
 /**
  * @name BetterTypingIndicator
- * @version 2.2.0
+ * @version 2.1.0
  * @website https://x.com/_Pharaoh2k
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterTypingIndicator.js
  * @authorId 874825550408089610
@@ -25,7 +25,7 @@ const CONFIG = {
             twitter_username: "_Pharaoh2k",
             discord_id: "874825550408089610"
         }],
-        version: "2.2.0",
+        version: "2.1.0",
         description: "Shows an indicator in the channel list (w/tooltip) plus server/folder icons and home icon for DMs when someone is typing there."
     },
     defaultConfig: [
@@ -416,7 +416,7 @@ class TypingIndicator {
             FormSwitch: null,
             ColorPicker: null
         };
-		this.observer = null;
+        this.observer = null;
     }
     
     getSettings() {
@@ -431,7 +431,7 @@ class TypingIndicator {
         BdApi.Data.save(CONFIG.info.name, "settings", this.settings);
         this.reload();
     }
-	
+    
     initializeMutationObserver() {
         // Create a new mutation observer
         this.observer = new MutationObserver((mutations) => {
@@ -448,14 +448,14 @@ class TypingIndicator {
                             const guildId = node.getAttribute('data-list-item-id').replace('guildsnav___', '');
                             this.updateIndicator(TYPES.GUILD, guildId);
                         }
-
+                        
                         // Also check children for dynamically loaded content
                         const channelItems = node.querySelectorAll('[data-list-item-id^="channels___"]');
                         channelItems.forEach(item => {
                             const channelId = item.getAttribute('data-list-item-id').replace('channels___', '');
                             this.updateIndicator(TYPES.CHANNEL, channelId);
                         });
-
+                        
                         const guildItems = node.querySelectorAll('[data-list-item-id^="guildsnav___"]');
                         guildItems.forEach(item => {
                             const guildId = item.getAttribute('data-list-item-id').replace('guildsnav___', '');
@@ -465,7 +465,7 @@ class TypingIndicator {
                 });
             });
         });
-
+        
         // Start observing with configuration
         this.observer.observe(document.body, {
             childList: true,
@@ -479,12 +479,12 @@ class TypingIndicator {
         BdApi.injectCSS('typing-indicator-css', STYLES);
         this.initializeModules();
         this.setupEventHandlers();
-		this.initializeMutationObserver();
+        this.initializeMutationObserver();
     }
     
     stop() {
         BdApi.clearCSS('typing-indicator-css');
-		if (this.observer) {
+        if (this.observer) {
             this.observer.disconnect(); // Cleanup observer
             this.observer = null;
         }
