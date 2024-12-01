@@ -34,10 +34,25 @@ const CONFIG = {
         { type: "switch", id: "showCount", name: "Show Count", note: "Show the number of typing users as a badge (Channel Typing Indicator option must be enabled too)", value: false },
         { type: "color", id: "dotColor", name: "Dot Color", note: "Color of the typing indicator dots", value: "#FFFFFF" },
         { type: "color", id: "indicatorBackground", name: "Indicator Background", note: "Background color for indicators", value: "#18191c" },
-        { type: "dropdown", id: "animationStyle", name: "Animation Style", note: "Choose animation style", value: "pulse", 
-          options: [{ label: "Bounce", value: "bounce" }, { label: "Pulse", value: "pulse" }, { label: "Wave", value: "wave" }] },
-        { type: "slider", id: "animationSpeed", name: "Animation Speed", note: "Adjust animation speed (seconds)", 
-          value: 1.4, min: 0.5, max: 3.0, markers: [0.5, 1.0, 1.5, 2.0, 2.5, 3.0], stickToMarkers: false },
+        {
+            type: "dropdown",
+            id: "animationStyle",
+            name: "Animation Style",
+            note: "Choose animation style",
+            value: "pulse",
+            options: [{ label: "Bounce", value: "bounce" }, { label: "Pulse", value: "pulse" }, { label: "Wave", value: "wave" }]
+        },
+        {
+            type: "slider",
+            id: "animationSpeed",
+            name: "Animation Speed",
+            note: "Adjust animation speed (seconds)",
+            value: 1.4,
+            min: 0.5,
+            max: 3.0,
+            markers: [0.5, 1.0, 1.5, 2.0, 2.5, 3.0],
+            stickToMarkers: false
+        },
         { type: "switch", id: "guildTypingIndicator", name: "Guild Typing Indicator", note: "Show typing indicator on guild icons", value: false },
         { type: "switch", id: "folderTypingIndicator", name: "Folder Typing Indicator", note: "Show typing indicator on folders", value: false },
         { type: "switch", id: "homeTypingIndicator", name: "Home/DMs Typing Indicator", note: "Show typing indicator on Home icon", value: false }
@@ -53,8 +68,7 @@ const Modules = {
     ChannelStore: BdApi.Webpack.getStore("ChannelStore"),
     MutedStore: BdApi.Webpack.getStore("UserGuildSettingsStore"),
     FolderStore: BdApi.Webpack.getStore('SortedGuildStore'),
-
-
+    
     getChannelComponents() {
         return (
             BdApi.Webpack.getModule(m => {
@@ -69,11 +83,11 @@ const Modules = {
             })
         );
     },
-
+    
     getGuildComponents() {
         return BdApi.Webpack.getModule(m => m?.Z?.type?.toString?.().includes('blobContainer'));
     },
-
+    
     getFolderComponents() {
         return BdApi.Webpack.getModule(m => m?.FolderComponent);
     }
@@ -180,7 +194,7 @@ class ErrorBoundary extends React.Component {
         this.state = { hasError: false };
     }
     static getDerivedStateFromError() { return { hasError: true }; }
-
+    
     render() { return this.state.hasError ? null : this.props.children; }
 }
 
@@ -188,7 +202,7 @@ const TypingIndicatorComponent = React.memo(function TypingIndicator({ type, use
     const containerRef = React.useRef();
     const tooltipText = getTooltipText(users);
     const userCount = Object.keys(users || {}).length;
-
+    
     React.useEffect(() => {
         if (containerRef.current) {
             BdApi.UI.createTooltip(containerRef.current, tooltipText, {
@@ -198,7 +212,7 @@ const TypingIndicatorComponent = React.memo(function TypingIndicator({ type, use
             });
         }
     }, [tooltipText]);
-
+    
     if (settings.showCount && userCount > 0) {
         return React.createElement('div', {
             ref: containerRef,
@@ -206,27 +220,27 @@ const TypingIndicatorComponent = React.memo(function TypingIndicator({ type, use
             'aria-label': tooltipText,
             style: {
                 backgroundColor: settings.indicatorBackground,
-				color: settings.dotColor
+                color: settings.dotColor
             }
         }, userCount);
     }
-
+    
     return React.createElement('div', {
-        ref: containerRef,
-        className: `${type}-typing-dots has-tooltip`,
-        'aria-label': tooltipText,
-        style: {
-            '--indicator-background': settings.indicatorBackground
-        }
-    },
-        React.createElement('svg', {
-            width: 24.5,
-            height: 7,
-            className: `${type}-typing-svg`,
-            style: { marginRight: 0 }
+            ref: containerRef,
+            className: `${type}-typing-dots has-tooltip`,
+            'aria-label': tooltipText,
+            style: {
+                '--indicator-background': settings.indicatorBackground
+            }
         },
+        React.createElement('svg', {
+                width: 24.5,
+                height: 7,
+                className: `${type}-typing-svg`,
+                style: { marginRight: 0 }
+            },
             React.createElement('g', null,
-                [3.5, 12.25, 19].map((cx, i) => 
+                [3.5, 12.25, 19].map((cx, i) =>
                     React.createElement('circle', {
                         key: i,
                         cx: cx,
@@ -242,16 +256,15 @@ const TypingIndicatorComponent = React.memo(function TypingIndicator({ type, use
     );
 });
 
-
 const SettingsPanel = React.memo(function SettingsPanel({ settings, onChange, modules }) {
     const { FormItem, FormSwitch, ColorPicker } = modules;
-
+    
     if (!FormItem || !FormSwitch) return null;
-
+    
     const components = {
         switch: ({ id, name, note }) => {
             const [isEnabled, setIsEnabled] = React.useState(settings[id]);
-
+            
             return React.createElement(FormSwitch, {
                 value: isEnabled,
                 checked: isEnabled,
@@ -259,13 +272,14 @@ const SettingsPanel = React.memo(function SettingsPanel({ settings, onChange, mo
                 children: name,
                 onChange: val => {
                     setIsEnabled(val);
-                    onChange({ [id]: val });
+                    onChange({
+                        [id]: val });
                 }
             });
         },
         color: ({ id, name, note }) => {
             const [colorValue, setColorValue] = React.useState(settings[id] || '#ffffff');
-
+            
             if (!ColorPicker) {
                 return React.createElement(FormItem, {
                     title: name,
@@ -276,12 +290,13 @@ const SettingsPanel = React.memo(function SettingsPanel({ settings, onChange, mo
                         onChange: e => {
                             const newColor = e.target.value;
                             setColorValue(newColor);
-                            onChange({ [id]: newColor });
+                            onChange({
+                                [id]: newColor });
                         }
                     })
                 });
             }
-
+            
             return React.createElement(FormItem, {
                 title: name,
                 note: note,
@@ -290,7 +305,8 @@ const SettingsPanel = React.memo(function SettingsPanel({ settings, onChange, mo
                     onChange: color => {
                         const hex = '#' + color.toString(16).padStart(6, '0');
                         setColorValue(hex);
-                        onChange({ [id]: hex });
+                        onChange({
+                            [id]: hex });
                     },
                     suggestedColors: [],
                     disabled: false,
@@ -300,7 +316,7 @@ const SettingsPanel = React.memo(function SettingsPanel({ settings, onChange, mo
         },
         dropdown: ({ id, name, note, options }) => {
             const [selectedValue, setSelectedValue] = React.useState(settings[id]);
-
+            
             return React.createElement(FormItem, {
                 title: name,
                 note: note,
@@ -309,7 +325,8 @@ const SettingsPanel = React.memo(function SettingsPanel({ settings, onChange, mo
                     onChange: e => {
                         const newValue = e.target.value;
                         setSelectedValue(newValue);
-                        onChange({ [id]: newValue });
+                        onChange({
+                            [id]: newValue });
                     },
                     className: 'bti-select'
                 }, options.map(opt =>
@@ -322,7 +339,7 @@ const SettingsPanel = React.memo(function SettingsPanel({ settings, onChange, mo
         },
         slider: ({ id, name, note, min, max }) => {
             const [sliderValue, setSliderValue] = React.useState(settings[id]);
-
+            
             return React.createElement(FormItem, {
                 title: name,
                 note: note,
@@ -338,7 +355,8 @@ const SettingsPanel = React.memo(function SettingsPanel({ settings, onChange, mo
                         onChange: e => {
                             const newValue = parseFloat(e.target.value);
                             setSliderValue(newValue);
-                            onChange({ [id]: newValue });
+                            onChange({
+                                [id]: newValue });
                         }
                     }),
                     React.createElement('span', null, sliderValue)
@@ -346,7 +364,7 @@ const SettingsPanel = React.memo(function SettingsPanel({ settings, onChange, mo
             });
         }
     };
-
+    
     return React.createElement('div', {
         className: 'bti-settings-panel'
     }, CONFIG.defaultConfig.map(config =>
@@ -361,9 +379,9 @@ function getTooltipText(users) {
     if (!users || !Object.keys(users).length) return 'Someone is typing...';
     const names = Object.values(users).map(u => u.username).filter(Boolean);
     if (names.length <= 2) return `${names.join(' and ')} ${names.length === 1 ? 'is' : 'are'} typing...`;
-    return names.length === 3 
-        ? `${names[0]}, ${names[1]}, and ${names[2]} are typing...`
-        : `${names.length} people are typing...`;
+    return names.length === 3 ?
+        `${names[0]}, ${names[1]}, and ${names[2]} are typing...` :
+        `${names.length} people are typing...`;
 }
 
 function filterTypingUsers(users, settings, modules) {
@@ -387,103 +405,102 @@ class TypingIndicator {
         this.states = new Map();
         this.settings = this.getSettings();
         this.handleTyping = this.handleTyping.bind(this);
-		this.cachedModules = {
+        this.cachedModules = {
             FormItem: null,
             FormSwitch: null,
             ColorPicker: null
         };
     }
-
+    
     getSettings() {
         return {
             ...CONFIG.defaultConfig.reduce((acc, cfg) => ({ ...acc, [cfg.id]: cfg.value }), {}),
             ...BdApi.Data.load(CONFIG.info.name, "settings")
         };
     }
-
-saveSettings(newSettings) {
-    this.settings = {...this.settings, ...newSettings};
-    BdApi.Data.save(CONFIG.info.name, "settings", this.settings);
-    this.reload();
-}
-
+    
+    saveSettings(newSettings) {
+        this.settings = { ...this.settings, ...newSettings };
+        BdApi.Data.save(CONFIG.info.name, "settings", this.settings);
+        this.reload();
+    }
+    
     async start() {
         BdApi.injectCSS('typing-indicator-css', STYLES);
         await this.initializeModules();
         this.setupEventHandlers();
-	}
-
+    }
+    
     stop() {
         BdApi.clearCSS('typing-indicator-css');
         this.cleanup();
     }
-
+    
     reload() {
         this.stop();
         this.start();
     }
-
-async initializeModules() {
-
-    const moduleGetters = {
-        FormItem: () => BdApi.Webpack.getByKeys("FormItem")?.FormItem,
-        FormSwitch: () => BdApi.Webpack.getByKeys("FormSwitch")?.FormSwitch,
-        ColorPicker: () => BdApi.Webpack.getModule(m => m?.toString?.().includes('ColorPicker')),
-        channel: () => Modules.getChannelComponents(),
-        guild: () => Modules.getGuildComponents(),
-        folder: () => Modules.getFolderComponents()
-    };
-
-    Object.entries(moduleGetters)
-        .filter(([key]) => ['FormItem', 'FormSwitch', 'ColorPicker'].includes(key))
-        .forEach(([key, getter]) => {
-            this.cachedModules[key] = getter();
-        });
-
-    const components = Object.fromEntries(
-        await Promise.all(
+    
+    async initializeModules() {
+        
+        const moduleGetters = {
+            FormItem: () => BdApi.Webpack.getByKeys("FormItem")?.FormItem,
+            FormSwitch: () => BdApi.Webpack.getByKeys("FormSwitch")?.FormSwitch,
+            ColorPicker: () => BdApi.Webpack.getModule(m => m?.toString?.().includes('ColorPicker')),
+            channel: () => Modules.getChannelComponents(),
+            guild: () => Modules.getGuildComponents(),
+            folder: () => Modules.getFolderComponents()
+        };
+        
+        Object.entries(moduleGetters)
+            .filter(([key]) => ['FormItem', 'FormSwitch', 'ColorPicker'].includes(key))
+            .forEach(([key, getter]) => {
+                this.cachedModules[key] = getter();
+            });
+        
+        const components = Object.fromEntries(
+            await Promise.all(
             ['channel', 'guild', 'folder'].map(async key => [
                 key,
                 await moduleGetters[key]()
             ])
-        )
-    );
-
-    if (Object.values(components).some(Boolean)) {
-        if (components.guild && this.settings.guildTypingIndicator) {
-            this.patchGuilds(components.guild);
-        }
-        if (components.folder && this.settings.folderTypingIndicator) {
-            this.patchFolders(components.folder);
+            )
+        );
+        
+        if (Object.values(components).some(Boolean)) {
+            if (components.guild && this.settings.guildTypingIndicator) {
+                this.patchGuilds(components.guild);
+            }
+            if (components.folder && this.settings.folderTypingIndicator) {
+                this.patchFolders(components.folder);
+            }
         }
     }
-}
-
-handleEvents(action, dispatcher = Modules.Dispatcher) {
-    if (!dispatcher?.subscribe) {
-        console.error("Dispatcher not found");
-        return;
-    }
-
-    TYPING_EVENTS.forEach(event => {
-        switch(action) {
-            case 'subscribe':
-                dispatcher.subscribe(event, this.handleTyping);
-                break;
-            case 'unsubscribe':
-                dispatcher.unsubscribe(event, this.handleTyping);
-                break;
-            default:
-                console.error(`Unknown event action: ${action}`);
+    
+    handleEvents(action, dispatcher = Modules.Dispatcher) {
+        if (!dispatcher?.subscribe) {
+            console.error("Dispatcher not found");
+            return;
         }
-    });
-}
-
-
-setupEventHandlers() {
-    this.handleEvents('subscribe');
-}
-
+        
+        TYPING_EVENTS.forEach(event => {
+            switch (action) {
+                case 'subscribe':
+                    dispatcher.subscribe(event, this.handleTyping);
+                    break;
+                case 'unsubscribe':
+                    dispatcher.unsubscribe(event, this.handleTyping);
+                    break;
+                default:
+                    console.error(`Unknown event action: ${action}`);
+            }
+        });
+    }
+    
+    setupEventHandlers() {
+        this.handleEvents('subscribe');
+    }
+    
     handleTyping(event) {
         if (event.type === 'MESSAGE_CREATE') {
             this.processTypingEvent({
@@ -495,32 +512,32 @@ setupEventHandlers() {
             this.processTypingEvent(event);
         }
     }
-
+    
     processTypingEvent(event) {
         if (!event?.channelId || !event?.userId) return;
-
+        
         const channel = Modules.ChannelStore.getChannel(event.channelId);
         if (!channel) return;
-
+        
         if (!this.settings.includeMuted && (
-            Modules.MutedStore.isMuted(channel.guild_id) ||
-            Modules.MutedStore.isChannelMuted(channel.id)
-        )) return;
-
+                Modules.MutedStore.isMuted(channel.guild_id) ||
+                Modules.MutedStore.isChannelMuted(channel.id)
+            )) return;
+        
         Object.values(TYPES).forEach(type => {
             const targetId = this.getTargetId(type, channel);
             if (!targetId || !this.settings[`${type}TypingIndicator`]) return;
-
+            
             if (event.type === 'TYPING_START') {
                 this.addTyping(type, targetId, event.userId);
             } else {
                 this.removeTyping(type, targetId, event.userId);
             }
-
+            
             requestAnimationFrame(() => this.updateIndicator(type, targetId));
         });
     }
-
+    
     getTargetId(type, channel) {
         switch (type) {
             case TYPES.CHANNEL:
@@ -538,7 +555,7 @@ setupEventHandlers() {
                 return null;
         }
     }
-
+    
     addTyping(type, targetId, userId) {
         if (!this.states.has(type)) {
             this.states.set(type, new Map());
@@ -549,7 +566,7 @@ setupEventHandlers() {
         }
         typeState.get(targetId).add(userId);
     }
-
+    
     removeTyping(type, targetId, userId) {
         const typeState = this.states.get(type);
         if (!typeState) return;
@@ -560,38 +577,38 @@ setupEventHandlers() {
             typeState.delete(targetId);
         }
     }
-
+    
     updateIndicator(type, targetId) {
         const element = document.querySelector(
-    type === TYPES.CHANNEL
-        ? `[data-list-item-id="channels___${targetId}"]`
-        : type === TYPES.HOME
-            ? `[data-list-item-id="${targetId}"]`
-            : `[data-list-item-id="guildsnav___${targetId}"]`
-);
+            type === TYPES.CHANNEL ?
+            `[data-list-item-id="channels___${targetId}"]` :
+            type === TYPES.HOME ?
+            `[data-list-item-id="${targetId}"]` :
+            `[data-list-item-id="guildsnav___${targetId}"]`
+        );
         if (!element) return;
-
+        
         const container = type === TYPES.CHANNEL ?
             element.querySelector('div[class*="children"]') :
             element;
-
+        
         if (!container) return;
-
+        
         const existing = container.querySelector(`.${type}-typing-container`);
         if (existing) {
             ReactDOM.unmountComponentAtNode(existing);
             existing.remove();
         }
-
+        
         const hasTyping = this.states.get(type)?.get(targetId)?.size > 0;
         if (hasTyping) {
             const indicator = document.createElement('div');
-			indicator.className = `${type}-typing-container typing-indicator-container has-tooltip`;
+            indicator.className = `${type}-typing-container typing-indicator-container has-tooltip`;
             indicator.style.setProperty('--indicator-background', this.settings.indicatorBackground);
-
+            
             const users = Modules.TypingModule.getTypingUsers(targetId);
             const filteredUsers = filterTypingUsers(users, this.settings, Modules);
-
+            
             ReactDOM.render(
                 React.createElement(ErrorBoundary, null,
                     React.createElement(TypingIndicatorComponent, {
@@ -602,46 +619,46 @@ setupEventHandlers() {
                 ),
                 indicator
             );
-
+            
             container.style.position = 'relative';
             container.appendChild(indicator);
         }
     }
-
+    
     patchGuilds(GuildComponent) {
         if (!GuildComponent?.Z) return;
         this.setupTypingHandler(TYPES.GUILD, Modules.Dispatcher);
     }
-
+    
     patchFolders(FolderComponent) {
         if (!FolderComponent) return;
         this.setupTypingHandler(TYPES.FOLDER, Modules.Dispatcher);
     }
-
+    
     patchHome(HomeComponent) {
         if (!HomeComponent) return;
         this.setupTypingHandler(TYPES.HOME, Modules.Dispatcher);
     }
-
-setupTypingHandler(type, dispatcher) {
-    this.handleEvents('subscribe', dispatcher);
-}
-
-cleanup() {
-    this.handleEvents('unsubscribe');
-    this.states.clear();
-    document.querySelectorAll('.typing-indicator-container').forEach(el => {
-        ReactDOM.unmountComponentAtNode(el);
-        el.remove();
-    });
-}
-
+    
+    setupTypingHandler(type, dispatcher) {
+        this.handleEvents('subscribe', dispatcher);
+    }
+    
+    cleanup() {
+        this.handleEvents('unsubscribe');
+        this.states.clear();
+        document.querySelectorAll('.typing-indicator-container').forEach(el => {
+            ReactDOM.unmountComponentAtNode(el);
+            el.remove();
+        });
+    }
+    
     getSettingsPanel() {
         return React.createElement(ErrorBoundary, null,
             React.createElement(SettingsPanel, {
                 settings: this.settings,
                 onChange: this.saveSettings.bind(this),
-				modules: this.cachedModules
+                modules: this.cachedModules
             })
         );
     }
