@@ -273,7 +273,8 @@ const SettingsPanel = React.memo(function SettingsPanel({ settings, onChange, mo
                 onChange: val => {
                     setIsEnabled(val);
                     onChange({
-                        [id]: val });
+                        [id]: val
+                    });
                 }
             });
         },
@@ -291,7 +292,8 @@ const SettingsPanel = React.memo(function SettingsPanel({ settings, onChange, mo
                             const newColor = e.target.value;
                             setColorValue(newColor);
                             onChange({
-                                [id]: newColor });
+                                [id]: newColor
+                            });
                         }
                     })
                 });
@@ -306,7 +308,8 @@ const SettingsPanel = React.memo(function SettingsPanel({ settings, onChange, mo
                         const hex = '#' + color.toString(16).padStart(6, '0');
                         setColorValue(hex);
                         onChange({
-                            [id]: hex });
+                            [id]: hex
+                        });
                     },
                     suggestedColors: [],
                     disabled: false,
@@ -326,7 +329,8 @@ const SettingsPanel = React.memo(function SettingsPanel({ settings, onChange, mo
                         const newValue = e.target.value;
                         setSelectedValue(newValue);
                         onChange({
-                            [id]: newValue });
+                            [id]: newValue
+                        });
                     },
                     className: 'bti-select'
                 }, options.map(opt =>
@@ -356,7 +360,8 @@ const SettingsPanel = React.memo(function SettingsPanel({ settings, onChange, mo
                             const newValue = parseFloat(e.target.value);
                             setSliderValue(newValue);
                             onChange({
-                                [id]: newValue });
+                                [id]: newValue
+                            });
                         }
                     }),
                     React.createElement('span', null, sliderValue)
@@ -427,7 +432,7 @@ class TypingIndicator {
     
     async start() {
         BdApi.injectCSS('typing-indicator-css', STYLES);
-        await this.initializeModules();
+        this.initializeModules();
         this.setupEventHandlers();
     }
     
@@ -441,8 +446,7 @@ class TypingIndicator {
         this.start();
     }
     
-    async initializeModules() {
-        
+    initializeModules() {
         const moduleGetters = {
             FormItem: () => BdApi.Webpack.getByKeys("FormItem")?.FormItem,
             FormSwitch: () => BdApi.Webpack.getByKeys("FormSwitch")?.FormSwitch,
@@ -458,14 +462,11 @@ class TypingIndicator {
                 this.cachedModules[key] = getter();
             });
         
-        const components = Object.fromEntries(
-            await Promise.all(
-            ['channel', 'guild', 'folder'].map(async key => [
-                key,
-                await moduleGetters[key]()
-            ])
-            )
-        );
+        const components = {
+            channel: moduleGetters.channel(),
+            guild: moduleGetters.guild(),
+            folder: moduleGetters.folder()
+        };
         
         if (Object.values(components).some(Boolean)) {
             if (components.guild && this.settings.guildTypingIndicator) {
