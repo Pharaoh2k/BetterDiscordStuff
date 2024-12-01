@@ -4,7 +4,7 @@
  * @website https://x.com/_Pharaoh2k
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterTypingIndicator.js
  * @authorId 874825550408089610
- * @description Shows an indicator in the channel list (w/tooltip) plus server/folder icons and home icon for DMs when someone is typing there.
+ * @description Shows an indicator in the channel list (w/tooltip), on server/folder icons and the home icon for DMs when someone is typing there.
  * @author Pharaoh2k
  * @Credits: Special thanks to l0c4lh057 for TypingIndicator plugin. This plugin is very loosely derived from his work.
  */
@@ -25,7 +25,7 @@ const CONFIG = {
             discord_id: "874825550408089610"
         }],
         version: "2.1.0",
-        description: "Shows an indicator in the channel list (w/tooltip) plus server/folder icons and home icon for DMs when someone is typing there."
+        description: "Shows an indicator in the channel list (w/tooltip), on server/folder icons and the home icon for DMs when someone is typing there."
     },
     defaultConfig: [
         { type: "switch", id: "channelTypingIndicator", name: "Channel Typing Indicator", note: "Show typing indicator on channels", value: true },
