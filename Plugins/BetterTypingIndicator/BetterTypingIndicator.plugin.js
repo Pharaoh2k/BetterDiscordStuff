@@ -1,6 +1,6 @@
 /**
  * @name BetterTypingIndicator
- * @version 2.2.1
+ * @version 2.2.2
  * @website https://x.com/_Pharaoh2k
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterTypingIndicator.js
  * @authorId 874825550408089610
@@ -9,7 +9,7 @@
  * @Credits: Special thanks to l0c4lh057 for TypingIndicator plugin. This plugin is very loosely derived from his work.
  */
 
-const { React, ReactDOM } = BdApi;
+const { DOM, React, ReactDOM } = BdApi;
 
 // Constants and Config
 const TYPES = { CHANNEL: 'channel', GUILD: 'guild', FOLDER: 'folder', HOME: 'home' };
@@ -463,13 +463,13 @@ class TypingIndicator {
     }
     
     async start() {
-        BdApi.injectCSS('typing-indicator-css', STYLES);
+        DOM.addStyle('typing-indicator-css', STYLES);
         this.initializeModules();
         this.setupEventHandlers();
     }
     
     stop() {
-        BdApi.clearCSS('typing-indicator-css');
+        DOM.removeStyle('typing-indicator-css');
         this.cleanup();
     }
     
