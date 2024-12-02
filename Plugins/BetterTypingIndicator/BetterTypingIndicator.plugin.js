@@ -1,6 +1,6 @@
 /**
  * @name BetterTypingIndicator
- * @version 2.2.0
+ * @version 2.2.1
  * @website https://x.com/_Pharaoh2k
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterTypingIndicator.js
  * @authorId 874825550408089610
@@ -25,7 +25,7 @@ const CONFIG = {
             twitter_username: "_Pharaoh2k",
             discord_id: "874825550408089610"
         }],
-        version: "2.2.0",
+        version: "2.2.1",
         description: "Shows an indicator in the channel list (w/tooltip) plus server/folder icons and home icon for DMs when someone is typing there."
     },
     defaultConfig: [
@@ -416,7 +416,6 @@ class TypingIndicator {
             FormSwitch: null,
             ColorPicker: null
         };
-        this.observer = null;
     }
     
     getSettings() {
@@ -432,62 +431,45 @@ class TypingIndicator {
         this.reload();
     }
     
-    initializeMutationObserver() {
-        // Create a new mutation observer
-        this.observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                mutation.addedNodes.forEach((node) => {
-                    if (node.nodeType === Node.ELEMENT_NODE) {
-                        // Check for new channels
-                        if (node.getAttribute('data-list-item-id')?.startsWith('channels___')) {
-                            const channelId = node.getAttribute('data-list-item-id').replace('channels___', '');
-                            this.updateIndicator(TYPES.CHANNEL, channelId);
-                        }
-                        // Check for new guilds
-                        else if (node.getAttribute('data-list-item-id')?.startsWith('guildsnav___')) {
-                            const guildId = node.getAttribute('data-list-item-id').replace('guildsnav___', '');
-                            this.updateIndicator(TYPES.GUILD, guildId);
-                        }
-                        
-                        // Also check children for dynamically loaded content
-                        const channelItems = node.querySelectorAll('[data-list-item-id^="channels___"]');
-                        channelItems.forEach(item => {
-                            const channelId = item.getAttribute('data-list-item-id').replace('channels___', '');
-                            this.updateIndicator(TYPES.CHANNEL, channelId);
-                        });
-                        
-                        const guildItems = node.querySelectorAll('[data-list-item-id^="guildsnav___"]');
-                        guildItems.forEach(item => {
-                            const guildId = item.getAttribute('data-list-item-id').replace('guildsnav___', '');
-                            this.updateIndicator(TYPES.GUILD, guildId);
-                        });
-                    }
+    observer(mutation) {
+        const { addedNodes } = mutation;
+        for (const node of addedNodes) {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                // Check for new channels
+                if (node.getAttribute('data-list-item-id')?.startsWith('channels___')) {
+                    const channelId = node.getAttribute('data-list-item-id').replace('channels___', '');
+                    this.updateIndicator(TYPES.CHANNEL, channelId);
+                }
+                // Check for new guilds
+                else if (node.getAttribute('data-list-item-id')?.startsWith('guildsnav___')) {
+                    const guildId = node.getAttribute('data-list-item-id').replace('guildsnav___', '');
+                    this.updateIndicator(TYPES.GUILD, guildId);
+                }
+                
+                // Check children for dynamically loaded content
+                const channelItems = node.querySelectorAll('[data-list-item-id^="channels___"]');
+                channelItems.forEach(item => {
+                    const channelId = item.getAttribute('data-list-item-id').replace('channels___', '');
+                    this.updateIndicator(TYPES.CHANNEL, channelId);
                 });
-            });
-        });
-        
-        // Start observing with configuration
-        this.observer.observe(document.body, {
-            childList: true,
-            subtree: true,
-            attributes: false,
-            characterData: false
-        });
+                
+                const guildItems = node.querySelectorAll('[data-list-item-id^="guildsnav___"]');
+                guildItems.forEach(item => {
+                    const guildId = item.getAttribute('data-list-item-id').replace('guildsnav___', '');
+                    this.updateIndicator(TYPES.GUILD, guildId);
+                });
+            }
+        }
     }
     
     async start() {
         BdApi.injectCSS('typing-indicator-css', STYLES);
         this.initializeModules();
         this.setupEventHandlers();
-        this.initializeMutationObserver();
     }
     
     stop() {
         BdApi.clearCSS('typing-indicator-css');
-        if (this.observer) {
-            this.observer.disconnect(); // Cleanup observer
-            this.observer = null;
-        }
         this.cleanup();
     }
     
