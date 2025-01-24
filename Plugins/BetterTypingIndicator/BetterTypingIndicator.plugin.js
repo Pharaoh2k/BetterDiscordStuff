@@ -1,6 +1,6 @@
 /**
  * @name BetterTypingIndicator
- * @version 2.2.2.1
+ * @version 2.2.2.2
  * @website https://x.com/_Pharaoh2k
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterTypingIndicator.js
  * @authorId 874825550408089610
@@ -23,7 +23,7 @@ const CONFIG = {
             github_username: "Pharaoh2k",
             discord_id: "874825550408089610"
         }],
-        version: "2.2.2.1",
+        version: "2.2.2.2",
         description: "Shows an indicator in the channel list (w/tooltip) plus server/folder icons and home icon for DMs when someone is typing there."
     },
     defaultConfig: [
@@ -550,10 +550,16 @@ class TypingIndicator {
         const channel = Modules.ChannelStore.getChannel(event.channelId);
         if (!channel) return;
         
-        if (!this.settings.includeMuted && (
+        if (
+            !this.settings.includeMuted && 
+            (
                 Modules.MutedStore.isMuted(channel.guild_id) ||
-                Modules.MutedStore.isChannelMuted(channel.id)
-            )) return;
+                Modules.MutedStore.isChannelMuted(channel.guild_id, channel.id)
+            )
+        ) {
+            return;
+        }
+
         
         Object.values(TYPES).forEach(type => {
             const targetId = this.getTargetId(type, channel);
