@@ -1,6 +1,6 @@
 /**
  * @name BetterTypingIndicator
- * @version 2.2.2.2
+ * @version 2.2.2.4
  * @website https://x.com/_Pharaoh2k
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterTypingIndicator.js
  * @authorId 874825550408089610
@@ -23,7 +23,7 @@ const CONFIG = {
             github_username: "Pharaoh2k",
             discord_id: "874825550408089610"
         }],
-        version: "2.2.2.2",
+        version: "2.2.2.4",
         description: "Shows an indicator in the channel list (w/tooltip) plus server/folder icons and home icon for DMs when someone is typing there."
     },
     defaultConfig: [
@@ -58,38 +58,16 @@ const CONFIG = {
     ]
 };
 
-// Webpack Modules
+
 const Modules = {
     Dispatcher: BdApi.Webpack.getByKeys("actionLogger"),
-    TypingModule: BdApi.Webpack.getStore("TypingStore"),
+    TypingStore: BdApi.Webpack.getStore("TypingStore"),
     UserStore: BdApi.Webpack.getStore("UserStore"),
     RelationshipStore: BdApi.Webpack.getStore("RelationshipStore"),
     ChannelStore: BdApi.Webpack.getStore("ChannelStore"),
     MutedStore: BdApi.Webpack.getStore("UserGuildSettingsStore"),
-    FolderStore: BdApi.Webpack.getStore('SortedGuildStore'),
-    
-    getChannelComponents() {
-        return (
-            BdApi.Webpack.getModule(m => {
-                if (!m) return false;
-                for (const key in m) {
-                    const val = m[key];
-                    if (typeof val !== 'function') continue;
-                    const str = val.toString();
-                    return str.includes('channel:') && str.includes('guild:') && str.includes('selected:');
-                }
-                return false;
-            })
-        );
-    },
-    
-    getGuildComponents() {
-        return BdApi.Webpack.getModule(m => m?.Z?.type?.toString?.().includes('blobContainer'));
-    },
-    
-    getFolderComponents() {
-        return BdApi.Webpack.getModule(m => m?.FolderComponent);
-    }
+    FolderStore: BdApi.Webpack.getStore('SortedGuildStore')
+
 };
 
 // CSS Styles
@@ -438,12 +416,12 @@ class TypingIndicator {
                     const channelId = node.getAttribute('data-list-item-id').replace('channels___', '');
                     this.updateIndicator(TYPES.CHANNEL, channelId);
                 }
-                // Check for new guilds
+                // Check for new guilds (and possibly folders, since they share list items)
                 else if (node.getAttribute('data-list-item-id')?.startsWith('guildsnav___')) {
-                    const guildId = node.getAttribute('data-list-item-id').replace('guildsnav___', '');
-                    this.updateIndicator(TYPES.GUILD, guildId);
+                    const guildOrFolderId = node.getAttribute('data-list-item-id').replace('guildsnav___', '');
+                    this.updateIndicator(TYPES.GUILD, guildOrFolderId);
+                    this.updateIndicator(TYPES.FOLDER, guildOrFolderId);
                 }
-                
                 // Check children for dynamically loaded content
                 const channelItems = node.querySelectorAll('[data-list-item-id^="channels___"]');
                 channelItems.forEach(item => {
@@ -453,14 +431,15 @@ class TypingIndicator {
                 
                 const guildItems = node.querySelectorAll('[data-list-item-id^="guildsnav___"]');
                 guildItems.forEach(item => {
-                    const guildId = item.getAttribute('data-list-item-id').replace('guildsnav___', '');
-                    this.updateIndicator(TYPES.GUILD, guildId);
+                    const guildOrFolderId = item.getAttribute('data-list-item-id').replace('guildsnav___', '');
+                    this.updateIndicator(TYPES.GUILD, guildOrFolderId);
+                    this.updateIndicator(TYPES.FOLDER, guildOrFolderId);
                 });
             }
         }
     }
     
-    async start() {
+    start() {
         DOM.addStyle('typing-indicator-css', STYLES);
         this.initializeModules();
         this.setupEventHandlers();
@@ -476,36 +455,11 @@ class TypingIndicator {
         this.start();
     }
     
+
     initializeModules() {
-        const moduleGetters = {
-            FormItem: () => BdApi.Webpack.getByKeys("FormItem")?.FormItem,
-            FormSwitch: () => BdApi.Webpack.getByKeys("FormSwitch")?.FormSwitch,
-            ColorPicker: () => BdApi.Webpack.getModule(m => m?.toString?.().includes('ColorPicker')),
-            channel: () => Modules.getChannelComponents(),
-            guild: () => Modules.getGuildComponents(),
-            folder: () => Modules.getFolderComponents()
-        };
-        
-        Object.entries(moduleGetters)
-            .filter(([key]) => ['FormItem', 'FormSwitch', 'ColorPicker'].includes(key))
-            .forEach(([key, getter]) => {
-                this.cachedModules[key] = getter();
-            });
-        
-        const components = {
-            channel: moduleGetters.channel(),
-            guild: moduleGetters.guild(),
-            folder: moduleGetters.folder()
-        };
-        
-        if (Object.values(components).some(Boolean)) {
-            if (components.guild && this.settings.guildTypingIndicator) {
-                this.patchGuilds(components.guild);
-            }
-            if (components.folder && this.settings.folderTypingIndicator) {
-                this.patchFolders(components.folder);
-            }
-        }
+        this.cachedModules.FormItem = BdApi.Webpack.getByKeys("FormItem")?.FormItem;
+        this.cachedModules.FormSwitch = BdApi.Webpack.getByKeys("FormSwitch")?.FormSwitch;
+        this.cachedModules.ColorPicker = BdApi.Webpack.getModule(m => m?.toString?.().includes('ColorPicker'));
     }
     
     handleEvents(action, dispatcher = Modules.Dispatcher) {
@@ -560,7 +514,7 @@ class TypingIndicator {
             return;
         }
 
-        
+
         Object.values(TYPES).forEach(type => {
             const targetId = this.getTargetId(type, channel);
             if (!targetId || !this.settings[`${type}TypingIndicator`]) return;
@@ -582,6 +536,7 @@ class TypingIndicator {
             case TYPES.GUILD:
                 return channel.guild_id;
             case TYPES.FOLDER:
+
                 if (!channel.guild_id) return null;
                 const folder = Modules.FolderStore.getGuildFolders()
                     .find(f => f.guildIds.includes(channel.guild_id));
@@ -616,18 +571,21 @@ class TypingIndicator {
     }
     
     updateIndicator(type, targetId) {
-        const element = document.querySelector(
-            type === TYPES.CHANNEL ?
-            `[data-list-item-id="channels___${targetId}"]` :
-            type === TYPES.HOME ?
-            `[data-list-item-id="${targetId}"]` :
-            `[data-list-item-id="guildsnav___${targetId}"]`
-        );
+        // Determine the element in the DOM
+        const selector =
+            (type === TYPES.CHANNEL)
+                ? `[data-list-item-id="channels___${targetId}"]`
+                : (type === TYPES.HOME)
+                    ? `[data-list-item-id="${targetId}"]`
+                    : `[data-list-item-id="guildsnav___${targetId}"]`;
+        
+        const element = document.querySelector(selector);
         if (!element) return;
         
-        const container = type === TYPES.CHANNEL ?
-            element.querySelector('div[class*="children"]') :
-            element;
+        const container =
+            (type === TYPES.CHANNEL)
+                ? element.querySelector('div[class*="children"]')
+                : element;
         
         if (!container) return;
         
@@ -643,7 +601,7 @@ class TypingIndicator {
             indicator.className = `${type}-typing-container typing-indicator-container has-tooltip`;
             indicator.style.setProperty('--indicator-background', this.settings.indicatorBackground);
             
-            const users = Modules.TypingModule.getTypingUsers(targetId);
+            const users = Modules.TypingStore.getTypingUsers(targetId);
             const filteredUsers = filterTypingUsers(users, this.settings, Modules);
             
             ReactDOM.render(
@@ -660,25 +618,6 @@ class TypingIndicator {
             container.style.position = 'relative';
             container.appendChild(indicator);
         }
-    }
-    
-    patchGuilds(GuildComponent) {
-        if (!GuildComponent?.Z) return;
-        this.setupTypingHandler(TYPES.GUILD, Modules.Dispatcher);
-    }
-    
-    patchFolders(FolderComponent) {
-        if (!FolderComponent) return;
-        this.setupTypingHandler(TYPES.FOLDER, Modules.Dispatcher);
-    }
-    
-    patchHome(HomeComponent) {
-        if (!HomeComponent) return;
-        this.setupTypingHandler(TYPES.HOME, Modules.Dispatcher);
-    }
-    
-    setupTypingHandler(type, dispatcher) {
-        this.handleEvents('subscribe', dispatcher);
     }
     
     cleanup() {
