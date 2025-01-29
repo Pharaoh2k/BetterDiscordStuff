@@ -1,6 +1,6 @@
 /**
  * @name BetterTypingIndicator
- * @version 2.2.2.4
+ * @version 2.2.2.4.1
  * @website https://x.com/_Pharaoh2k
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterTypingIndicator.js
  * @authorId 874825550408089610
@@ -9,7 +9,7 @@
  * @Credits: Special thanks to l0c4lh057 for TypingIndicator plugin. This plugin is very loosely derived from his work.
  */
 
-const { DOM, React, ReactDOM } = BdApi;
+const { Data, DOM, React, ReactDOM, Webpack, UI } = BdApi;
 
 // Constants and Config
 const TYPES = { CHANNEL: 'channel', GUILD: 'guild', FOLDER: 'folder', HOME: 'home' };
@@ -23,7 +23,7 @@ const CONFIG = {
             github_username: "Pharaoh2k",
             discord_id: "874825550408089610"
         }],
-        version: "2.2.2.4",
+        version: "2.2.2.4.1",
         description: "Shows an indicator in the channel list (w/tooltip) plus server/folder icons and home icon for DMs when someone is typing there."
     },
     defaultConfig: [
@@ -60,13 +60,13 @@ const CONFIG = {
 
 
 const Modules = {
-    Dispatcher: BdApi.Webpack.getByKeys("actionLogger"),
-    TypingStore: BdApi.Webpack.getStore("TypingStore"),
-    UserStore: BdApi.Webpack.getStore("UserStore"),
-    RelationshipStore: BdApi.Webpack.getStore("RelationshipStore"),
-    ChannelStore: BdApi.Webpack.getStore("ChannelStore"),
-    MutedStore: BdApi.Webpack.getStore("UserGuildSettingsStore"),
-    FolderStore: BdApi.Webpack.getStore('SortedGuildStore')
+    Dispatcher: Webpack.getByKeys("actionLogger"),
+    TypingStore: Webpack.getStore("TypingStore"),
+    UserStore: Webpack.getStore("UserStore"),
+    RelationshipStore: Webpack.getStore("RelationshipStore"),
+    ChannelStore: Webpack.getStore("ChannelStore"),
+    MutedStore: Webpack.getStore("UserGuildSettingsStore"),
+    FolderStore: Webpack.getStore('SortedGuildStore')
 
 };
 
@@ -182,7 +182,7 @@ const TypingIndicatorComponent = React.memo(function TypingIndicator({ type, use
     
     React.useEffect(() => {
         if (containerRef.current) {
-            BdApi.UI.createTooltip(containerRef.current, tooltipText, {
+            UI.createTooltip(containerRef.current, tooltipText, {
                 style: 'primary',
                 side: 'top',
                 preventFlip: true
@@ -397,13 +397,13 @@ class TypingIndicator {
     getSettings() {
         return {
             ...CONFIG.defaultConfig.reduce((acc, cfg) => ({ ...acc, [cfg.id]: cfg.value }), {}),
-            ...BdApi.Data.load(CONFIG.info.name, "settings")
+            ...Data.load(CONFIG.info.name, "settings")
         };
     }
     
     saveSettings(newSettings) {
         this.settings = { ...this.settings, ...newSettings };
-        BdApi.Data.save(CONFIG.info.name, "settings", this.settings);
+        Data.save(CONFIG.info.name, "settings", this.settings);
         this.reload();
     }
     
@@ -457,9 +457,9 @@ class TypingIndicator {
     
 
     initializeModules() {
-        this.cachedModules.FormItem = BdApi.Webpack.getByKeys("FormItem")?.FormItem;
-        this.cachedModules.FormSwitch = BdApi.Webpack.getByKeys("FormSwitch")?.FormSwitch;
-        this.cachedModules.ColorPicker = BdApi.Webpack.getModule(m => m?.toString?.().includes('ColorPicker'));
+        this.cachedModules.FormItem = Webpack.getByKeys("FormItem")?.FormItem;
+        this.cachedModules.FormSwitch = Webpack.getByKeys("FormSwitch")?.FormSwitch;
+        this.cachedModules.ColorPicker = Webpack.getModule(m => m?.toString?.().includes('ColorPicker'));
     }
     
     handleEvents(action, dispatcher = Modules.Dispatcher) {
