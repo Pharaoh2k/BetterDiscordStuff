@@ -9,9 +9,8 @@
  * @Credits: Special thanks to l0c4lh057 for TypingIndicator plugin. This plugin is very loosely derived from his work.
  */
 
-const { Data, DOM, React, ReactDOM, Webpack, UI } = BdApi;
-
 // Constants and Config
+const { Data, DOM, React, ReactDOM, Webpack, UI } = BdApi;
 const TYPES = { CHANNEL: 'channel', GUILD: 'guild', FOLDER: 'folder', HOME: 'home' };
 const TYPING_EVENTS = ['TYPING_START', 'TYPING_STOP', 'MESSAGE_CREATE'];
 
