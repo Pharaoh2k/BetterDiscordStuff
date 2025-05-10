@@ -2,7 +2,7 @@
  * @name DownloadAudio
  * @version 1.0.0
  * @website https://x.com/_Pharaoh2k
- * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterTypingIndicator/BetterTypingIndicator.plugin.js
+ * @source https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/refs/heads/main/Plugins/AudioDownloader.plugin.js
  * @authorId 874825550408089610
  * @description Adds “Download audio” to the right-click menu on messages containing voice-notes or audio attachments.
  * @author Pharaoh2k
