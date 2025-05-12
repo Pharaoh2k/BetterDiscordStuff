@@ -1,7 +1,7 @@
 /**
  * @name BetterRelativeTimestamps
- * @version 1.0.1
- * @description Relative timestamps with live tooltip, smart cadence, i18n, and seamless toggle of “relative-only”.
+ * @version 1.0.2
+ * @description Relative timestamps with live tooltip, smart cadence, and seamless toggle of “relative-only”.
  * @author  Pharaoh2k
  * @website https://x.com/_Pharaoh2k
  * @source  https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterRelativeTimestamps.plugin.js
@@ -16,36 +16,15 @@ module.exports = class BetterRelativeTimestamps {
 	}
 
 	static panelConfig = [
-		{
-			type : 'switch',
-			id   : 'showInTimestamp',
-			name : BetterRelativeTimestamps._msg('BRT_SHOW_ALONGSIDE', 'Show alongside absolute time'),
-			note : BetterRelativeTimestamps._msg(
-				'BRT_SHOW_ALONGSIDE_NOTE',
-				'Appends “– 5 m ago” next to Discord’s default timestamp.'
-			),
-			value: true
-		},
-		{
-			type : 'switch',
-			id   : 'relativeOnly',
-			name : BetterRelativeTimestamps._msg('BRT_RELATIVE_ONLY', 'Show relative time only'),
-			note : BetterRelativeTimestamps._msg(
-				'BRT_RELATIVE_ONLY_NOTE',
-				'Hide Discord’s built-in absolute time completely.'
-			),
-			value: false
-		},
-		{
-			type : 'switch',
-			id   : 'hideSeconds',
-			name : BetterRelativeTimestamps._msg('BRT_HIDE_SECS', 'Hide seconds'),
-			note : BetterRelativeTimestamps._msg(
-				'BRT_HIDE_SECS_NOTE',
-				'Skip the seconds unit in the relative string.'
-			),
-			value: false
-		}
+		{type:'switch', id:'showInTimestamp',
+		name:'Show alongside absolute time',
+		note:'Appends “– 5 m ago” next to Discord’s default timestamp.', value:true},
+		{type:'switch', id:'relativeOnly',
+		name:'Show relative time only',
+		note:'Hide Discord’s built‑in absolute time completely.', value:false},
+		{type:'switch', id:'hideSeconds',
+		name:'Hide seconds',
+		note:'Skip the seconds unit in the relative string.', value:false}
 	];
 
 	load () {
@@ -60,10 +39,6 @@ module.exports = class BetterRelativeTimestamps {
 		this.timerHandle  = null;
 		this.mObserver    = null;
 		this.iObserver    = null;
-
-		this.scanQueue    = [];
-		this.queueBusy    = false;
-
 		this.rtfLong      = new Intl.RelativeTimeFormat(undefined,
 			{ numeric:'auto', style:'long' });
 	}
@@ -71,7 +46,7 @@ module.exports = class BetterRelativeTimestamps {
 	start () {
 		this.injectStyle();
 		this.observeMutations();
-		this.enqueueScan(document.body);
+		this.convertExisting(document.body);
 		this.scheduleTick();
 	}
 
@@ -85,10 +60,11 @@ module.exports = class BetterRelativeTimestamps {
 		this.iObserver = new IntersectionObserver(this.onIntersect, { threshold:0 });
 
 		const debounced = BdApi.Utils.debounce(muts=>{
-			if (muts.some(m=>m.addedNodes.length))
-				this.enqueueScan(document.body);
-		}, 50);
-
+			if (muts.some(m=>m.addedNodes.length)) {
+				this.convertExisting(document.body);
+				this.scheduleTick();
+			}
+		}, 200);
 
 		const chat = document.querySelector('[aria-label="Messages"]') || document.body;
 		this.mObserver = new MutationObserver(debounced);
@@ -107,44 +83,6 @@ module.exports = class BetterRelativeTimestamps {
 		this.iObserver?.disconnect();
 		clearTimeout(this.timerHandle);
 		this.timerHandle = null;
-	}
-	enqueueScan (root) {
-		const nodes = root.querySelectorAll('time[datetime]:not(.brt-handled)');
-		if (nodes.length) {
-			nodes.forEach(n => this.scanQueue.push(n));
-			this.drainQueue(true);          // true = do immediate burst
-		}
-	}
-
-	drainQueue (burstFirst = false) {
-		if (this.queueBusy) return;
-		this.queueBusy = true;
-
-		const CHUNK_MS   = 8;              // slice length
-		const BURST_CAP  = 150;            // upfront nodes (≈ viewport)
-
-		let processedInBurst = 0;
-
-		const work = () => {
-			const start = performance.now();
-
-			while (this.scanQueue.length &&
-			       (processedInBurst < BURST_CAP || performance.now() - start < CHUNK_MS))
-			{
-				this.attachRelative(this.scanQueue.shift());
-				processedInBurst++;
-			}
-
-			if (this.scanQueue.length)
-				setTimeout(work, 0);
-			else
-				this.queueBusy = false;
-		};
-
-		if (burstFirst)
-			work();
-		else
-			setTimeout(work, 0);
 	}
 
 	breakDown (sec) {
@@ -172,13 +110,25 @@ module.exports = class BetterRelativeTimestamps {
 		if (!vis.length)
 			return { visual:'Just now', aria:'just now', next:500 };
 
-		const next = firstUnit.name === 'second'
-		             ? 500
-		             : (firstUnit.s - (sec % firstUnit.s)) * 1_000;
+		let next;
+		if (firstUnit.name === 'second')
+			next = 500;
+		else {
+			const elapsed = sec % firstUnit.s;
+			next = (firstUnit.s - elapsed) * 1_000;
+		}
 
-		return { visual:`${vis.join(' ')} ago`, aria:aria.join(', '), next };
+		return {
+			visual : `${vis.join(' ')} ago`,
+			aria   : aria.join(', '),
+			next
+		};
 	}
 
+	convertExisting (root) {
+		root.querySelectorAll('time[datetime]:not(.brt-handled)')
+		    .forEach(el => this.attachRelative(el));
+	}
 
 	attachRelative (timeEl) {
 		if (!this.settings.showInTimestamp && !this.settings.relativeOnly) return;
@@ -276,7 +226,7 @@ module.exports = class BetterRelativeTimestamps {
 				this.settings[id] = val;
 				BdApi.Data.save(this.settingsKey, this.settings);
 				this.removeAllRelatives();
-				this.enqueueScan(document.body);
+				this.convertExisting(document.body);
 				this.scheduleTick();
 			}
 		});
