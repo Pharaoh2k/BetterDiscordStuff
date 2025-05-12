@@ -12,7 +12,7 @@ module.exports = class BetterRelativeTimestamps {
 
 
 	static _msg(key, fallback) {
-		return BdApi?.I18n?.Messages?.[key] ?? fallback;
+		return BdApi.Webpack.getModule(BdApi.Webpack.Filters.byProps("Messages"))?.Messages?.[key] || fallback;
 	}
 
 	static panelConfig = [
