@@ -590,7 +590,9 @@ class TypingIndicator {
         
         const existing = container.querySelector(`.${type}-typing-container`);
         if (existing) {
-            ReactDOM.unmountComponentAtNode(existing);
+            if (ReactDOM.unmountComponentAtNode) {
+                ReactDOM.unmountComponentAtNode(existing);
+            }
             existing.remove();
         }
         
@@ -603,16 +605,19 @@ class TypingIndicator {
             const users = Modules.TypingStore.getTypingUsers(targetId);
             const filteredUsers = filterTypingUsers(users, this.settings, Modules);
             
-            ReactDOM.render(
-                React.createElement(ErrorBoundary, null,
-                    React.createElement(TypingIndicatorComponent, {
-                        type: type,
-                        users: filteredUsers,
-                        settings: this.settings
-                    })
-                ),
-                indicator
-            );
+            // Try React 18 method first
+            if (ReactDOM.createRoot) {
+                const root = ReactDOM.createRoot(indicator);
+                root.render(
+                    React.createElement(ErrorBoundary, null,
+                        React.createElement(TypingIndicatorComponent, {
+                            type: type,
+                            users: filteredUsers,
+                            settings: this.settings
+                        })
+                    )
+                );
+            }
             
             container.style.position = 'relative';
             container.appendChild(indicator);
@@ -623,7 +628,9 @@ class TypingIndicator {
         this.handleEvents('unsubscribe');
         this.states.clear();
         document.querySelectorAll('.typing-indicator-container').forEach(el => {
-            ReactDOM.unmountComponentAtNode(el);
+            if (ReactDOM.unmountComponentAtNode) {
+                ReactDOM.unmountComponentAtNode(el);
+            }
             el.remove();
         });
     }
