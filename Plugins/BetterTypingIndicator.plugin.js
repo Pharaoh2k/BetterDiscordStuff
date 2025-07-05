@@ -233,15 +233,40 @@ const TypingIndicatorComponent = React.memo(function TypingIndicator({ type, use
 });
 
 const SettingsPanel = React.memo(function SettingsPanel({ settings, onChange, modules }) {
-    const { FormItem, FormSwitch, ColorPicker } = modules;
+    const { FormItem, FormSwitch, ColorPicker } = modules || {};
     
-    if (!FormItem || !FormSwitch) return null;
-    
+    // Fallback components in case BetterDiscord's Form components are not yet loaded
+    const FallbackFormItem = ({ title, note, children }) =>
+        React.createElement('div', {
+            className: 'bti-form-item',
+            style: { marginBottom: 16, color: 'var(--header-primary)' }
+        },
+            React.createElement('div', { style: { fontWeight: '600', marginBottom: 4, color: 'var(--header-primary)' } }, title),
+            note && React.createElement('div', { style: { fontSize: 12, opacity: 0.7, marginBottom: 8, color: 'var(--header-secondary)' } }, note),
+            children
+        );
+
+    const FallbackFormSwitch = ({ value, checked, children, note, onChange }) =>
+        React.createElement(FallbackFormItem, { title: children, note },
+            React.createElement('label', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+                React.createElement('input', {
+                    type: 'checkbox',
+                    checked: checked,
+                    onChange: e => onChange(e.target.checked)
+                })
+            )
+        );
+
+    // Choose whichever implementation is available
+    const FI = FormItem || FallbackFormItem;
+    const FS = FormSwitch || FallbackFormSwitch;
+    const CP = ColorPicker; // ColorPicker already has a vanilla fallback later on
+
     const components = {
         switch: ({ id, name, note }) => {
             const [isEnabled, setIsEnabled] = React.useState(settings[id]);
             
-            return React.createElement(FormSwitch, {
+            return React.createElement(FS, {
                 value: isEnabled,
                 checked: isEnabled,
                 note: note,
@@ -257,8 +282,8 @@ const SettingsPanel = React.memo(function SettingsPanel({ settings, onChange, mo
         color: ({ id, name, note }) => {
             const [colorValue, setColorValue] = React.useState(settings[id] || '#ffffff');
             
-            if (!ColorPicker) {
-                return React.createElement(FormItem, {
+            if (!CP) {
+                return React.createElement(FI, {
                     title: name,
                     note: note,
                     children: React.createElement('input', {
@@ -275,10 +300,10 @@ const SettingsPanel = React.memo(function SettingsPanel({ settings, onChange, mo
                 });
             }
             
-            return React.createElement(FormItem, {
+            return React.createElement(FI, {
                 title: name,
                 note: note,
-                children: React.createElement(ColorPicker, {
+                children: React.createElement(CP, {
                     color: parseInt(colorValue.replace('#', ''), 16),
                     onChange: color => {
                         const hex = '#' + color.toString(16).padStart(6, '0');
@@ -296,7 +321,7 @@ const SettingsPanel = React.memo(function SettingsPanel({ settings, onChange, mo
         dropdown: ({ id, name, note, options }) => {
             const [selectedValue, setSelectedValue] = React.useState(settings[id]);
             
-            return React.createElement(FormItem, {
+            return React.createElement(FI, {
                 title: name,
                 note: note,
                 children: React.createElement('select', {
@@ -308,7 +333,14 @@ const SettingsPanel = React.memo(function SettingsPanel({ settings, onChange, mo
                             [id]: newValue
                         });
                     },
-                    className: 'bti-select'
+                    className: 'bti-select',
+                    style: {
+                        backgroundColor: 'var(--background-tertiary)',
+                        color: 'var(--header-primary)',
+                        border: '1px solid var(--background-modifier-border)',
+                        borderRadius: 4,
+                        padding: 4
+                    }
                 }, options.map(opt =>
                     React.createElement('option', {
                         key: opt.value,
@@ -320,7 +352,7 @@ const SettingsPanel = React.memo(function SettingsPanel({ settings, onChange, mo
         slider: ({ id, name, note, min, max }) => {
             const [sliderValue, setSliderValue] = React.useState(settings[id]);
             
-            return React.createElement(FormItem, {
+            return React.createElement(FI, {
                 title: name,
                 note: note,
                 children: React.createElement('div', {
@@ -338,6 +370,10 @@ const SettingsPanel = React.memo(function SettingsPanel({ settings, onChange, mo
                             onChange({
                                 [id]: newValue
                             });
+                        },
+                        style: {
+                            width: '100%',
+                            accentColor: 'var(--brand-experiment)'
                         }
                     }),
                     React.createElement('span', null, sliderValue)
