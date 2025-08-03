@@ -973,19 +973,20 @@ function CreateTabListContextMenu(props, e) {
 					}),
 					/* @__PURE__ */ React.createElement(
 						"span",
-						{ 
+					   {   
+							className: "channelTabs-tabName",
 							style: { 
-								flex: 1,
-								overflow: "hidden",
-								textOverflow: "ellipsis",
-								whiteSpace: "nowrap",
-								fontWeight: tab.selected ? "600" : "normal",
-								fontSize: "14px",
-								paddingRight: "8px"
-							} 
-						},
-						tab.name
-					),
+							flex: 1,
+							overflow: "hidden",
+							textOverflow: "ellipsis",
+							whiteSpace: "nowrap",
+							fontWeight: tab.selected ? "700" : "normal",
+							fontSize: "14px",
+							paddingRight: "8px"
+						} 
+					},
+					tab.name
+				),
 					/* @__PURE__ */ React.createElement(
 						"div",
 						{ style: { display: "flex", gap: "4px", flexShrink: 0, marginRight: "4px" } },
