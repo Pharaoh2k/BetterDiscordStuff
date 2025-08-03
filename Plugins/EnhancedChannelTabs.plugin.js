@@ -35,7 +35,7 @@ const CHANGES = {
 		    "Fixed Hamburger menu chekboxes real-time update"
 		Added:
 		    "Vertical tabs menu, similar to Visual Studio's"
-			"Per tabs history implementation, instead of global (must disable 'Primary Forward/Back Navigation' option).
+                    "Per tabs history implementation (just like a real browser), instead of global (must disable 'Primary Forward/Back Navigation' option).
 	"2.7.2": {
 		fixed: [
 			"Fixed incorrectly hiding the top bar in certain cases",
@@ -4867,4 +4867,5 @@ html:not(.platform-win) #channelTabs-settingsMenu {
 	}
 	//#endregion
 };
+
 /*@end@*/
