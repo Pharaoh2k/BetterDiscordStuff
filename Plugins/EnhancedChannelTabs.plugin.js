@@ -35,9 +35,9 @@ const CHANGES = {
 		    "Fixed Hamburger menu chekboxes real-time update",
 			],
 		Added: [
-		    "Vertical tabs menu, similar to Visual Studio",
-		    "Per tabs history implementation (just like a real browser), instead of global (must disable 'Primary Forward/Back Navigation' option)",
-		    "Undo/Reopen Closed Tabs (with navigation history persistence)",
+		    "Added Vertical tabs menu, similar to Visual Studio",
+		    "Added Per tabs history implementation (just like a real browser), instead of global (must disable 'Primary Forward/Back Navigation' option)",
+		    "Added Undo/Reopen Closed Tabs (with navigation history persistence)",
 		],
 	},
 	"2.7.2": {
