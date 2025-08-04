@@ -40,6 +40,28 @@ const CHANGES = {
 		    "Added Undo/Reopen Closed Tabs (with navigation history persistence)",
 		],
 	},
+	"2.7.7": {
+		fixed: ["Fixed tab icons in compact mode"],
+	},
+	"2.7.6": {
+		fixed: [
+			"Fixed image viewer buttons not being interactable",
+			"Fixed tabs not updating after popping out a voice call",
+			"Fixed favorite groups not having a background",
+			"Fixed server icons",
+		],
+		improved: ["Stop caching icons"],
+	},
+	"2.7.4": {
+		fixed: [
+			"Fixed being able to drag the window in the settings",
+			"Fixed the icons and textbox component",
+			"Fixed undefined username",
+		],
+	},
+	"2.7.3": {
+		fixed: ["Fixed for the new update to Discord"],
+	},
 	"2.7.2": {
 		fixed: [
 			"Fixed incorrectly hiding the top bar in certain cases",
@@ -5814,3 +5836,4 @@ html:not(.platform-win) #channelTabs-settingsMenu {
 	//#endregion
 };
 /*@end@*/
+
