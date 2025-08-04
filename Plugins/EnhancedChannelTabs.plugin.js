@@ -31,10 +31,10 @@
 @else@*/
 const CHANGES = {
 	"3.0.0": {
-		Fixed: [
+		fixed: [
 		    "Fixed Hamburger menu chekboxes real-time update",
 			],
-		Added: [
+		added: [
 		    "Added Vertical tabs menu, similar to Visual Studio",
 		    "Added Per tabs history implementation (just like a real browser), instead of global (must disable 'Primary Forward/Back Navigation' option)",
 		    "Added Undo/Reopen Closed Tabs (with navigation history persistence)",
@@ -5836,4 +5836,5 @@ html:not(.platform-win) #channelTabs-settingsMenu {
 	//#endregion
 };
 /*@end@*/
+
 
