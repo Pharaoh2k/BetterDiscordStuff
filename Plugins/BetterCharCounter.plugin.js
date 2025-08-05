@@ -2,7 +2,7 @@
  * @name BetterCharCounter
  * @version 1.0.1
  * @website https://x.com/_Pharaoh2k
- * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterCharCounter/BetterCharCounter.plugin.js - v1.0.3
+ * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterCharCounter/BetterCharCounter.plugin.js
  * @authorId 874825550408089610
  * @description Adds a character counter to most Discord inputs with real-time updates and customizable display threshold.
  * @author Pharaoh2k
@@ -166,9 +166,9 @@ module.exports = (() => {
         constructor() {
             this.settings = this.loadSettings();
             this.patches = [];
-            this.observer = null;
             this.cleanups = new WeakMap();
             this._debouncedReload = BdApi.Utils.debounce(() => this.reload(), 300);
+            this.focusHandler = null;
         }
 
         getName() { return CONFIG.info.name; }
@@ -295,7 +295,18 @@ module.exports = (() => {
             this.patchCustomStatus();
             this.patchNotes();
             this.patchNickname();
-            this.startObserver();
+            
+            setTimeout(() => this.addCountersToExistingInputs(), 500);
+            
+            this.focusHandler = (e) => {
+                const input = e.target;
+                if ((input.matches("[role='textbox']") || input.matches("textarea") || input.matches("[contenteditable='true']")) 
+                    && !input.closest(".charCounter-added")) {
+                    this.addCounterToElement(input);
+                }
+            };
+            document.addEventListener("focusin", this.focusHandler, true);
+            
             this.showChangelog();
         }
 
@@ -305,10 +316,10 @@ module.exports = (() => {
                 try { unpatch(); } catch (e) { }
             });
             this.patches = [];
-
-            if (this.observer) {
-                this.observer.disconnect();
-                this.observer = null;
+            
+            if (this.focusHandler) {
+                document.removeEventListener("focusin", this.focusHandler, true);
+                this.focusHandler = null;
             }
 
             document.querySelectorAll(".charCounter-counter").forEach(el => el.remove());
@@ -495,6 +506,7 @@ module.exports = (() => {
 
                 counterEl._input = input;
                 counterEl._type = type;
+                counterEl._lastLength = -1; // Track last length to avoid redundant updates
                 
                 this.updateCounter(counterEl, type);
                 
@@ -504,21 +516,12 @@ module.exports = (() => {
                 
                 const updateFunc = this.createThrottledUpdate(counterEl, type);
                 
-                const events = ['input', 'keydown', 'keyup', 'paste', 'cut', 'compositionupdate'];
+                const events = ['keydown', 'keyup', 'paste', 'cut'];
                 events.forEach(event => {
                     input.addEventListener(event, updateFunc);
                 });
                 
-                const observer = new MutationObserver(updateFunc);
-                observer.observe(input, {
-                    characterData: true,
-                    childList: true,
-                    subtree: true,
-                    characterDataOldValue: true
-                });
-                
                 this.cleanups.set(counterEl, {
-                    observer,
                     updateFunc,
                     events,
                     input
@@ -529,12 +532,9 @@ module.exports = (() => {
         cleanupCounter(counterEl) {
             const cleanup = this.cleanups.get(counterEl);
             if (!cleanup) return;
-
-            if (cleanup.observer) {
-                cleanup.observer.disconnect();
-            }
             
-            if (cleanup.input && cleanup.updateFunc && cleanup.events) {
+            // Remove event listeners
+            if (cleanup.input && cleanup.updateFunc && cleanup.events && cleanup.events.length > 0) {
                 cleanup.events.forEach(event => {
                     cleanup.input.removeEventListener(event, cleanup.updateFunc);
                 });
@@ -546,14 +546,22 @@ module.exports = (() => {
         updateCounter(counterEl, type) {
             if (!counterEl || !counterEl.parentElement) return;
             
-            const input = this.findInputElement(counterEl.parentElement);
+            const input = counterEl._input || this.findInputElement(counterEl.parentElement);
             if (!input) return;
+            
+            if (!counterEl._input) {
+                counterEl._input = input;
+            }
             
             const text = this.getInputText(input);
             const length = text.length;
-            const maxLength = this.getMaxLength(type);
             
+            if (counterEl._lastLength === length) return;
+            counterEl._lastLength = length;
+            
+            const maxLength = this.getMaxLength(type);
             const percentage = (length / maxLength) * 100;
+            
             if (percentage < this.settings.showPercentage && length === 0) {
                 counterEl.style.display = "none";
                 return;
@@ -574,7 +582,7 @@ module.exports = (() => {
         createThrottledUpdate(el, type) {
             let timeout;
             let lastUpdate = 0;
-            const delay = 16;
+            const delay = 25; 
             
             return () => {
                 const now = Date.now();
@@ -636,7 +644,6 @@ module.exports = (() => {
             
             if (input.hasAttribute("contenteditable") || input.classList.contains("slateTextArea-27tjG0")) {
                 const text = input.textContent || "";
-                // Remove all zero-width characters and trim whitespace
                 return text
                     .replace(/[\u200B\u200C\u200D\uFEFF\u2060\u180E]/g, "")
                     .trim();
@@ -645,25 +652,13 @@ module.exports = (() => {
             return input.value || "";
         }
 
-        startObserver() {
-            this.observer = new MutationObserver((mutations) => {
-                for (const mutation of mutations) {
-                    for (const node of mutation.addedNodes) {
-                        if (node.nodeType !== Node.ELEMENT_NODE) continue;
-                        
-                        const textareas = node.querySelectorAll("[role='textbox'], textarea");
-                        textareas.forEach(textarea => {
-                            if (!textarea.closest(".charCounter-added")) {
-                                this.addCounterToElement(textarea);
-                            }
-                        });
-                    }
+        addCountersToExistingInputs() {
+            const inputs = document.querySelectorAll("[role='textbox'][data-slate-editor='true'], [role='textbox'], textarea, [contenteditable='true']");
+            inputs.forEach(input => {
+                const parent = input.parentElement;
+                if (parent && !parent.querySelector(".charCounter-counter") && !input.closest(".charCounter-added")) {
+                    this.addCounterToElement(input);
                 }
-            });
-            
-            this.observer.observe(document.body, {
-                childList: true,
-                subtree: true
             });
         }
 
