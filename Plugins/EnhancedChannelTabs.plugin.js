@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 3.0.0
+ * @version 3.0.1
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs.plugin.js
  */
@@ -30,9 +30,12 @@
 
 @else@*/
 const CHANGES = {
+	"3.0.1": {
+		fixed: ["Improved the fix of Hamburger menu checkboxes real-time update"],
+	},
 	"3.0.0": {
 		fixed: [
-		    "Fixed Hamburger menu chekboxes real-time update",
+		    "Fixed Hamburger menu checkboxes real-time update",
 			],
 		added: [
 		    "Added Vertical tabs menu, similar to Visual Studio",
@@ -911,16 +914,14 @@ function CreateFavBarContextMenu(props, e) {
 function updateContextMenuCheckbox(element, checked) {
 	if (!element) return;
 	
-	let checkboxDiv = null;
+	// Find the menu item container (which contains both label and checkbox)
+	const menuItem = element.closest('[role="menuitemcheckbox"]');
+	if (!menuItem) return;
 	
-	const iconContainer = element.closest('[class*="item-"]')?.querySelector('[class*="iconContainer"]') ||
-	                      element.querySelector('[class*="iconContainer"]') ||
-	                      element.closest('[class*="iconContainer"]');
+	const iconContainer = menuItem.querySelector('[class*="iconContainer"]');
+	if (!iconContainer) return;
 	
-	if (iconContainer) {
-		checkboxDiv = iconContainer.querySelector('[class*="checkbox"][class*="box"]');
-	}
-	
+	const checkboxDiv = iconContainer.querySelector('[class*="checkbox"][class*="box"]');
 	if (!checkboxDiv) return;
 	
 	const currentClasses = checkboxDiv.className;
@@ -942,10 +943,7 @@ function updateContextMenuCheckbox(element, checked) {
 		svgPath.setAttribute('fill', checked ? 'var(--white)' : 'var(--transparent)');
 	}
 	
-	const menuItem = element.closest('[role="menuitemcheckbox"]');
-	if (menuItem) {
-		menuItem.setAttribute('aria-checked', checked.toString());
-	}
+	menuItem.setAttribute('aria-checked', checked.toString());
 }
 
 
@@ -5836,5 +5834,3 @@ html:not(.platform-win) #channelTabs-settingsMenu {
 	//#endregion
 };
 /*@end@*/
-
-
