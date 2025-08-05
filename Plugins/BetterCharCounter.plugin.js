@@ -516,7 +516,7 @@ module.exports = (() => {
                 
                 const updateFunc = this.createThrottledUpdate(counterEl, type);
                 
-                const events = ['keydown', 'keyup', 'paste', 'cut'];
+                const events = ['keydown', 'keyup', 'paste', 'cut', 'compositionupdate'];
                 events.forEach(event => {
                     input.addEventListener(event, updateFunc);
                 });
