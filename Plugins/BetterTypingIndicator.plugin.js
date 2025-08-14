@@ -1,6 +1,6 @@
 /**
  * @name BetterTypingIndicator
- * @version 2.5.0
+ * @version 2.5.1
  * @website https://x.com/_Pharaoh2k
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterTypingIndicator/BetterTypingIndicator.plugin.js
  * @authorId 874825550408089610
@@ -24,76 +24,51 @@ const TYPES = {
     FOLDER: 'folder',
     HOME: 'home'
 };
-
 const CHANGES = {
-    	"2.5.0": {
-		fixed: [
-			"Fixed indicator background cleanup issues",
-			"Fixed tooltip persistence and positioning problems",
-			"Fixed React component unmounting warnings",
-			"Fixed crashes with undefined users",
-		],
-		added: [
-			"Added user avatars in typing indicators with customizable styles (circle, square, hexagon)",
-			"Added avatar size adjustment (12-24px)",
-			"Added online status indicators on avatars",
-			"Added enhanced tooltip system with multiple display modes (names, avatars, both, none)",
-			"Added support for forum channel thread typing indicators",
-			"Added React 18 compatibility with createRoot API",
-		],
-		improved: [
-			"Improved performance with debounced reloads and cached React roots",
-			"Improved memory management and cleanup procedures",
-			"Improved support for new Discord username system",
-		],
-	}
-};
-
-const TYPING_EVENTS = ['TYPING_START', 'TYPING_STOP', 'MESSAGE_CREATE'];
-const MAX_CACHE_SIZE = 100;
-
-const FallbackFormItem = ({
-    title,
-    note,
-    children
-}) => React.createElement(
-    "div", {
-        style: {
-            marginBottom: 12
-        }
+    "2.5.1": {
+        fixed: [
+            "Fixed critical settings panel crash when BD UI utilities unavailable",
+            "Fixed CSS animation delays affecting all Discord SVGs without breaking animations",
+            "Fixed tooltip cleanup removing tooltips from other components",
+            "Fixed inconsistent muted channel detection across channel types",
+            "Fixed memory leak from missing style cleanup on plugin stop",
+            "Fixed MutationObserver compatibility with different BD hosts",
+            "Fixed incorrect tooltip background color inheritance"
+        ],
+        improved: [
+            "Better tooltip lifecycle management with scoped cleanup",
+            "More reliable React root caching and validation",
+            "Normalized muted channel checks for forums and threads",
+            "Added visual settings detection for showCount and tooltipStyle options"
+        ],
+        added: [
+            "Added accessibility support for users who prefer reduced motion",
+            "Added fallback settings panel for older BetterDiscord versions"
+        ]
     },
-    React.createElement("div", {
-        style: {
-            fontWeight: 600,
-            marginBottom: 4
-        }
-    }, title),
-    note ? React.createElement("div", {
-        style: {
-            fontSize: 12,
-            opacity: .7,
-            marginBottom: 4
-        }
-    }, note) : null,
-    children
-);
-const FallbackFormSwitch = ({
-        value,
-        checked,
-        onChange,
-        note,
-        children
-    }) =>
-    React.createElement(FallbackFormItem, {
-            title: children,
-            note
-        },
-        React.createElement("input", {
-            type: "checkbox",
-            checked: value ?? checked,
-            onChange: e => onChange(e.target.checked)
-        })
-    );
+    "2.5.0": {
+        fixed: [
+            "Fixed indicator background cleanup issues",
+            "Fixed tooltip persistence and positioning problems",
+            "Fixed React component unmounting warnings",
+            "Fixed crashes with undefined users",
+        ],
+        added: [
+            "Added user avatars in typing indicators with customizable styles (circle, square, hexagon)",
+            "Added avatar size adjustment (12-24px)",
+            "Added online status indicators on avatars",
+            "Added enhanced tooltip system with multiple display modes (names, avatars, both, none)",
+            "Added support for forum channel thread typing indicators",
+            "Added React 18 compatibility with createRoot API",
+        ],
+        improved: [
+            "Improved performance with debounced reloads and cached React roots",
+            "Improved memory management and cleanup procedures",
+            "Improved support for new Discord username system",
+        ],
+    }
+};
+const TYPING_EVENTS = ['TYPING_START', 'TYPING_STOP', 'MESSAGE_CREATE'];
 
 const CONFIG = {
     info: {
@@ -104,178 +79,176 @@ const CONFIG = {
             twitter_username: "_Pharaoh2k",
             discord_id: "874825550408089610"
         }],
-        version: "2.5.0",
+        version: "2.5.1",
         description: "Shows an indicator in the channel list (w/tooltip) plus server/folder icons and home icon for DMs when someone is typing there."
     },
     defaultConfig: [{
-            type: "switch",
-            id: "channelTypingIndicator",
-            name: "Channel Typing Indicator",
-            note: "Show typing indicator on channels",
-            value: true
+        type: "switch",
+        id: "channelTypingIndicator",
+        name: "Channel Typing Indicator",
+        note: "Show typing indicator on channels",
+        value: true
+    },
+    {
+        type: "switch",
+        id: "includeMuted",
+        name: "Include muted channels/guilds",
+        note: "Show typing indicator for muted channels and guilds",
+        value: false
+    },
+    {
+        type: "switch",
+        id: "includeBlocked",
+        name: "Include blocked users",
+        note: "Show indicator for blocked users",
+        value: false
+    },
+    {
+        type: "switch",
+        id: "showCount",
+        name: "Show Count",
+        note: "Show the number of typing users as a badge (Channel Typing Indicator option must be enabled too)",
+        value: false
+    },
+    {
+        type: "color",
+        id: "dotColor",
+        name: "Dot Color",
+        note: "Color of the typing indicator dots",
+        value: "#FFFFFF"
+    },
+    {
+        type: "color",
+        id: "indicatorBackground",
+        name: "Indicator Background",
+        note: "Background color for indicators",
+        value: "#18191c"
+    },
+    {
+        type: "dropdown",
+        id: "animationStyle",
+        name: "Animation Style",
+        note: "Choose animation style",
+        value: "pulse",
+        options: [{
+            label: "Bounce",
+            value: "bounce"
+        }, {
+            label: "Pulse",
+            value: "pulse"
+        }, {
+            label: "Wave",
+            value: "wave"
+        }]
+    },
+    {
+        type: "slider",
+        id: "animationSpeed",
+        name: "Animation Speed",
+        note: "Adjust animation speed (seconds)",
+        value: 1.4,
+        min: 0.5,
+        max: 3.0,
+        step: 0.1
+    },
+    {
+        type: "dropdown",
+        id: "tooltipStyle",
+        name: "Tooltip Style",
+        note: "Choose how user information is displayed in tooltips",
+        value: "both",
+        options: [{
+            label: "Show Names and Avatars",
+            value: "both"
         },
         {
-            type: "switch",
-            id: "includeMuted",
-            name: "Include muted channels/guilds",
-            note: "Show typing indicator for muted channels and guilds",
-            value: false
+            label: "Show Names Only",
+            value: "names"
         },
         {
-            type: "switch",
-            id: "includeBlocked",
-            name: "Include blocked users",
-            note: "Show indicator for blocked users",
-            value: false
+            label: "Show Avatars Only",
+            value: "avatars"
         },
         {
-            type: "switch",
-            id: "showCount",
-            name: "Show Count",
-            note: "Show the number of typing users as a badge (Channel Typing Indicator option must be enabled too)",
-            value: false
-        },
-        {
-            type: "color",
-            id: "dotColor",
-            name: "Dot Color",
-            note: "Color of the typing indicator dots",
-            value: "#FFFFFF"
-        },
-        {
-            type: "color",
-            id: "indicatorBackground",
-            name: "Indicator Background",
-            note: "Background color for indicators",
-            value: "#18191c"
-        },
-        {
-            type: "dropdown",
-            id: "animationStyle",
-            name: "Animation Style",
-            note: "Choose animation style",
-            value: "pulse",
-            options: [{
-                label: "Bounce",
-                value: "bounce"
-            }, {
-                label: "Pulse",
-                value: "pulse"
-            }, {
-                label: "Wave",
-                value: "wave"
-            }]
-        },
-        {
-            type: "slider",
-            id: "animationSpeed",
-            name: "Animation Speed",
-            note: "Adjust animation speed (seconds)",
-            value: 1.4,
-            min: 0.5,
-            max: 3.0,
-            step: 0.1
-        },
-        {
-            type: "dropdown",
-            id: "tooltipStyle",
-            name: "Tooltip Style",
-            note: "Choose how user information is displayed in tooltips",
-            value: "both",
-            options: [{
-                    label: "Show Names and Avatars",
-                    value: "both"
-                },
-                {
-                    label: "Show Names Only",
-                    value: "names"
-                },
-                {
-                    label: "Show Avatars Only",
-                    value: "avatars"
-                },
-                {
-                    label: "No Tooltips",
-                    value: "none"
-                }
-            ]
-        },
-        {
-            type: "switch",
-            id: "guildTypingIndicator",
-            name: "Guild Typing Indicator",
-            note: "Show typing indicator on guild icons",
-            value: true
-        },
-        {
-            type: "switch",
-            id: "folderTypingIndicator",
-            name: "Folder Typing Indicator",
-            note: "Show typing indicator on folders",
-            value: true
-        },
-        {
-            type: "switch",
-            id: "homeTypingIndicator",
-            name: "Home/DMs Typing Indicator",
-            note: "Show typing indicator on Home icon when someone types a DM",
-            value: true
-        },
-        {
-            type: "switch",
-            id: "showAvatarsInIndicator",
-            name: "Show Avatars in Typing Indicator",
-            note: "Display user avatars alongside typing dots",
-            value: true
-        },
-        {
-            type: "dropdown",
-            id: "avatarStyle",
-            name: "Avatar Style",
-            note: "Choose how avatars are displayed",
-            value: "circle",
-            options: [{
-                    label: "Circle",
-                    value: "circle"
-                },
-                {
-                    label: "Square",
-                    value: "square"
-                },
-                {
-                    label: "Hexagon",
-                    value: "hexagon"
-                }
-            ]
-        },
-        {
-            type: "slider",
-            id: "avatarSize",
-            name: "Avatar Size",
-            note: "Size of avatars in typing indicator (pixels)",
-            value: 24,
-            min: 12,
-            max: 24,
-            markers: [12, 16, 20, 24],
-            stickToMarkers: true
-        },
-        {
-            type: "switch",
-            id: "showAvatarStatus",
-            name: "Show Status Indicator",
-            note: "Display user's online status on their avatar",
-            value: true
+            label: "No Tooltips",
+            value: "none"
         }
+        ]
+    },
+    {
+        type: "switch",
+        id: "guildTypingIndicator",
+        name: "Guild Typing Indicator",
+        note: "Show typing indicator on guild icons",
+        value: true
+    },
+    {
+        type: "switch",
+        id: "folderTypingIndicator",
+        name: "Folder Typing Indicator",
+        note: "Show typing indicator on folders",
+        value: true
+    },
+    {
+        type: "switch",
+        id: "homeTypingIndicator",
+        name: "Home/DMs Typing Indicator",
+        note: "Show typing indicator on Home icon when someone types a DM",
+        value: true
+    },
+    {
+        type: "switch",
+        id: "showAvatarsInIndicator",
+        name: "Show Avatars in Typing Indicator",
+        note: "Display user avatars alongside typing dots",
+        value: true
+    },
+    {
+        type: "dropdown",
+        id: "avatarStyle",
+        name: "Avatar Style",
+        note: "Choose how avatars are displayed",
+        value: "circle",
+        options: [{
+            label: "Circle",
+            value: "circle"
+        },
+        {
+            label: "Square",
+            value: "square"
+        },
+        {
+            label: "Hexagon",
+            value: "hexagon"
+        }
+        ]
+    },
+    {
+        type: "slider",
+        id: "avatarSize",
+        name: "Avatar Size",
+        note: "Size of avatars in typing indicator (pixels)",
+        value: 24,
+        min: 12,
+        max: 24,
+        markers: [12, 16, 20, 24],
+        stickToMarkers: true
+    },
+    {
+        type: "switch",
+        id: "showAvatarStatus",
+        name: "Show Status Indicator",
+        note: "Display user's online status on their avatar",
+        value: true
+    }
     ]
 };
-
 function getConfigWithCurrentValues(current, defaults = CONFIG.defaultConfig) {
     return defaults.map(opt => ({
         ...opt,
         value: current[opt.id] ?? opt.value
     }));
 }
-
 const Modules = {
     Dispatcher: Webpack.getByKeys("actionLogger"),
     TypingStore: Webpack.getStore("TypingStore"),
@@ -287,15 +260,11 @@ const Modules = {
     PresenceStore: Webpack.getStore("PresenceStore"),
     SelectedChannelStore: Webpack.getStore("SelectedChannelStore"),
     GuildChannelStore: Webpack.getStore("GuildChannelStore"),
-    GatewayConnectionStore: Webpack.getStore("GatewayConnectionStore")
 };
-
 const STYLES = `
 .typing-indicator-dots, .guild-typing-dots, .folder-typing-dots, .home-typing-dots,
 .channel-typing-dots { transform: scale(0.8); }
-
 .typing-indicator-svg, .guild-typing-svg, .folder-typing-svg, .home-typing-svg { opacity: 1; }
-
 .typing-indicator-container {
     display: flex;
     align-items: center;
@@ -304,7 +273,7 @@ const STYLES = `
     position: relative !important;
     z-index: 100 !important;
 }
-
+/* Keep pointers off the icons so clicks pass through; tooltips are reserved for channel indicators */
 .guild-typing-container, .folder-typing-container, .home-typing-container {
     position: absolute !important;
     bottom: 1px !important;
@@ -322,31 +291,22 @@ const STYLES = `
     min-height: 7px !important;
     width: auto !important;
 }
-
 @keyframes typingBounce {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-4px); }
 }
-
 @keyframes typingPulse {
     0%, 100% { transform: scale(1); opacity: 0.3; }
     50% { transform: scale(1.2); opacity: 1; }
 }
-
 @keyframes typingWave {
     0%, 100% { transform: translateY(0); }
     25% { transform: translateY(-3px); }
     75% { transform: translateY(3px); }
 }
-
 [data-animation="bounce"] { animation: typingBounce var(--animation-duration, 1.4s) infinite ease-in-out; }
 [data-animation="pulse"] { animation: typingPulse var(--animation-duration, 1.4s) infinite ease-in-out; }
 [data-animation="wave"] { animation: typingWave var(--animation-duration, 1.4s) infinite ease-in-out; }
-
-svg circle:nth-child(1) { animation-delay: 0s; }
-svg circle:nth-child(2) { animation-delay: 0.2s; }
-svg circle:nth-child(3) { animation-delay: 0.4s; }
-
 .typing-count-badge {
     background-color: var(--brand-experiment);
     color: white;
@@ -359,7 +319,6 @@ svg circle:nth-child(3) { animation-delay: 0.4s; }
     font-size: 12px;
     font-weight: bold;
 }
-
 .bti-settings-panel { padding: 16px; }
 .bti-settings-panel > * { margin-bottom: 20px; }
 .bti-slider-container { display: flex; align-items: center; gap: 8px; }
@@ -381,7 +340,6 @@ svg circle:nth-child(3) { animation-delay: 0.4s; }
     cursor: pointer;
     border-radius: 4px;
 }
-
 .bti-tooltip-container {
     display: flex;
     flex-direction: column;
@@ -408,7 +366,6 @@ svg circle:nth-child(3) { animation-delay: 0.4s; }
     height: 20px;
     line-height: 10px;
 }
-
 .bti-custom-tooltip {
     position: absolute;
     background-color: var(--tooltip-background, #2f3136) !important;
@@ -426,7 +383,6 @@ svg circle:nth-child(3) { animation-delay: 0.4s; }
     padding: 6px 8px;
     border-radius: 4px;
 }
-
 .bti-custom-tooltip * {
     color: var(--text-normal);
     font-family: var(--font-display);
@@ -436,7 +392,6 @@ svg circle:nth-child(3) { animation-delay: 0.4s; }
     pointer-events: none;
     user-select: none !important;
 }
-
 .bti-custom-tooltip::after {
     content: '';
     position: absolute;
@@ -447,35 +402,31 @@ svg circle:nth-child(3) { animation-delay: 0.4s; }
     border-style: solid;
     border-color: var(--tooltip-background, #2f3136) transparent transparent transparent;
 }
-
 .bti-custom-tooltip.visible { 
     opacity: 1; 
 }
-
 .typing-avatar-container {
     transition: transform 0.2s ease;
 }
-
 .typing-avatar-container:hover {
     transform: scale(1.1);
     z-index: 1;
 }
-
 .typing-avatar-container + .typing-avatar-container {
     margin-left: -4px;
 }
-
 .typing-status-dot {
     box-shadow: 0 0 0 2px var(--background-primary);
 }
-
 .bti-tooltip-container img {
     border-radius: inherit !important;
     clip-path: inherit !important;
 }
-
+/* Respect motion-sensitive users */
+@media (prefers-reduced-motion: reduce) {
+  [data-animation] { animation: none !important; }
+}
 `;
-
 class ErrorBoundary extends React.Component {
     constructor(props) {
         super(props);
@@ -492,84 +443,46 @@ class ErrorBoundary extends React.Component {
         return this.state.hasError ? null : this.props.children;
     }
 }
-
 const Tooltip = ({
+    id,
     children,
     position,
     backgroundColor
 }) => {
     const tooltipRef = React.useRef(null);
     const [isVisible, setIsVisible] = React.useState(false);
-
     React.useEffect(() => {
         setIsVisible(true);
-        const tooltip = tooltipRef.current;
+        const el = tooltipRef.current;
         return () => {
             setIsVisible(false);
-            if (tooltip) tooltip.remove();
-            document.querySelectorAll('.bti-custom-tooltip').forEach(el => el.remove());
+            if (el && el.parentNode) el.parentNode.removeChild(el);
         };
     }, []);
-
     React.useEffect(() => {
         if (tooltipRef.current && position) {
             tooltipRef.current.style.top = `${position.top}px`;
             tooltipRef.current.style.left = `${position.left}px`;
         }
     }, [position]);
-
     return ReactDOM.createPortal(
         React.createElement('div', {
             className: 'bti-custom-tooltip visible',
             ref: tooltipRef,
+            'data-bti-tooltip': id,
             style: {
-                '--tooltip-background': 'var(--primary-800, #000000)'
+                '--tooltip-background': backgroundColor || 'var(--tooltip-background, #2f3136)'
             }
         }, children),
         document.body
     );
 };
-
-
-const ReactPortal = ({containerId, children, containerEl}) => {
-    const [container, setContainer] = React.useState(null);
-    
-    React.useEffect(() => {
-        // Use existing container if provided, otherwise create one
-        if (containerEl) {
-            setContainer(containerEl);
-            return;
-        }
-        
-        // Find existing or create new container
-        let targetContainer = document.getElementById(containerId);
-        if (!targetContainer) {
-            targetContainer = document.createElement('div');
-            targetContainer.id = containerId;
-            document.body.appendChild(targetContainer);
-        }
-        setContainer(targetContainer);
-        
-        // Cleanup
-        return () => {
-            if (!containerEl && targetContainer.parentNode && !document.getElementById(containerId)) {
-                targetContainer.parentNode.removeChild(targetContainer);
-            }
-        };
-    }, [containerId, containerEl]);
-    
-    return container ? ReactDOM.createPortal(children, container) : null;
-};
-
 function getDefaultAvatarIndex(user) {
-    // new-username system -> snowflake-based formula
     if (!user.discriminator || user.discriminator === "0") {
-        return Number(BigInt(user.id) >> 22n) % 6; // 0‥5
+        return Number(BigInt(user.id) >> 22n) % 6;
     }
-    // legacy usernames still use discriminator % 5
     return Number(user.discriminator) % 5;
 }
-
 function getAvatarURL(user, size = 32) {
     if (user?.avatar) {
         const ext = user.avatar.startsWith("a_") ? "gif" : "webp";
@@ -577,25 +490,22 @@ function getAvatarURL(user, size = 32) {
     }
     return `https://cdn.discordapp.com/embed/avatars/${getDefaultAvatarIndex(user)}.png?size=${size}`;
 }
-
 const TypingIndicatorComponent = React.memo(function TypingIndicator(props) {
     const {
         type,
         users,
-        settings
+        settings,
+        tooltipId
     } = props;
     const [isHovered, setIsHovered] = React.useState(false);
     const [tooltipPosition, setTooltipPosition] = React.useState(null);
     const indicatorRef = React.useRef(null);
     const hideTimeout = React.useRef(null);
-
     const userCount = React.useMemo(() => Object.keys(users || {}).length, [users]);
     const tooltipText = React.useMemo(() => getTooltipText(users), [users]);
     const tooltipContent = React.useMemo(() => getTooltipContent(users, settings), [users, settings]);
-
     const createAvatarElement = (user) => {
         if (!settings.showAvatarsInIndicator) return null;
-
         const size = settings.avatarSize || 16;
         const avatarStyle = {
             width: `${size}px`,
@@ -607,17 +517,15 @@ const TypingIndicatorComponent = React.memo(function TypingIndicator(props) {
                 "polygon(25% 6.7%, 75% 6.7%, 100% 50%, 75% 93.3%, 25% 93.3%, 0% 50%)" :
                 undefined
         };
-
         const userStatus = Modules.PresenceStore?.getStatus(user.id) || "offline";
-
         return React.createElement("div", {
-                key: user.id,
-                className: "typing-avatar-container",
-                style: {
-                    position: "relative",
-                    marginRight: "4px"
-                }
-            },
+            key: user.id,
+            className: "typing-avatar-container",
+            style: {
+                position: "relative",
+                marginRight: "4px"
+            }
+        },
             [
                 React.createElement("img", {
                     src: getAvatarURL(user, size),
@@ -640,8 +548,6 @@ const TypingIndicatorComponent = React.memo(function TypingIndicator(props) {
             ]
         );
     };
-
-
     const getStatusColor = (status) => {
         const statusColors = {
             online: '#43b581',
@@ -653,7 +559,6 @@ const TypingIndicatorComponent = React.memo(function TypingIndicator(props) {
         };
         return statusColors[status] || statusColors.offline;
     };
-
     let indicatorElement;
     if (settings.showCount && userCount > 0) {
         indicatorElement = React.createElement('div', {
@@ -665,58 +570,59 @@ const TypingIndicatorComponent = React.memo(function TypingIndicator(props) {
         }, userCount);
     } else {
         const containerContent = [];
-
         if (settings.showAvatarsInIndicator && type === TYPES.CHANNEL) {
             containerContent.push(
                 React.createElement('div', {
-                        key: 'avatars',
-                        className: 'typing-avatars-container',
-                        style: {
-                            display: 'flex',
-                            alignItems: 'center',
-                            marginRight: '4px'
-                        }
-                    },
+                    key: 'avatars',
+                    className: 'typing-avatars-container',
+                    style: {
+                        display: 'flex',
+                        alignItems: 'center',
+                        marginRight: '4px'
+                    }
+                },
                     Object.values(users || {}).map(user => createAvatarElement(user))
                 )
             );
         }
-
         containerContent.push(
             React.createElement('div', {
-                    key: 'dots',
-                    className: `${type}-typing-dots`,
+                key: 'dots',
+                className: `${type}-typing-dots`,
+                style: {
+                    '--indicator-background': settings.indicatorBackground
+                }
+            },
+                React.createElement('svg', {
+                    width: 24.5,
+                    height: 7,
+                    className: `${type}-typing-svg`,
                     style: {
-                        '--indicator-background': settings.indicatorBackground
+                        marginRight: '0px'
                     }
                 },
-                React.createElement('svg', {
-                        width: 24.5,
-                        height: 7,
-                        className: `${type}-typing-svg`,
-                        style: {
-                            marginRight: '0px'
-                        }
-                    },
-                    React.createElement('g', null,
-                        [3.5, 12.25, 19].map((cx, i) =>
-                            React.createElement('circle', {
-                                key: i,
-                                cx: cx,
-                                cy: "3.5",
-                                r: "3.5",
-                                fill: settings.dotColor,
-                                'data-animation': settings.animationStyle,
-                                style: {
-                                    animationDuration: `${settings.animationSpeed}s`
-                                }
-                            })
-                        )
+                    [3.5, 12.25, 19].map((cx, i) =>
+                        React.createElement('circle', {
+                            key: i,
+                            cx: cx,
+                            cy: "3.5",
+                            r: "3.5",
+                            fill: settings.dotColor,
+                            'data-animation': settings.animationStyle,
+                            style: {
+                                animationDuration: `${settings.animationSpeed}s`,
+                                animationDelay: `${i * 0.2}s`,
+                                animationName: settings.animationStyle === 'bounce' ? 'typingBounce' :
+                                    settings.animationStyle === 'pulse' ? 'typingPulse' :
+                                        settings.animationStyle === 'wave' ? 'typingWave' : 'none',
+                                animationIterationCount: 'infinite',
+                                animationTimingFunction: 'ease-in-out'
+                            }
+                        })
                     )
                 )
             )
         );
-
         indicatorElement = React.createElement('div', {
             style: {
                 display: 'flex',
@@ -725,13 +631,11 @@ const TypingIndicatorComponent = React.memo(function TypingIndicator(props) {
             }
         }, containerContent);
     }
-
     const handleMouseEnter = React.useCallback(() => {
         if (hideTimeout.current) {
             clearTimeout(hideTimeout.current);
             hideTimeout.current = null;
         }
-        document.querySelectorAll('.bti-custom-tooltip').forEach(el => el.remove());
         if (indicatorRef.current) {
             const rect = indicatorRef.current.getBoundingClientRect();
             setTooltipPosition({
@@ -741,14 +645,12 @@ const TypingIndicatorComponent = React.memo(function TypingIndicator(props) {
         }
         setIsHovered(true);
     }, []);
-
     const mountedRef = React.useRef(true);
     React.useEffect(() => {
         return () => {
             mountedRef.current = false;
         };
     }, []);
-
     const handleMouseLeave = React.useCallback(() => {
         hideTimeout.current = setTimeout(() => {
             if (mountedRef.current) {
@@ -757,7 +659,6 @@ const TypingIndicatorComponent = React.memo(function TypingIndicator(props) {
             }
         }, 100);
     }, []);
-
     React.useEffect(() => {
         return () => {
             if (hideTimeout.current) {
@@ -767,55 +668,51 @@ const TypingIndicatorComponent = React.memo(function TypingIndicator(props) {
             }
         };
     }, []);
-
     const containerStyle = {
         backgroundColor: type !== TYPES.CHANNEL ? settings.indicatorBackground : 'transparent',
         color: settings.dotColor,
         position: 'relative',
         cursor: 'pointer'
     };
-
     return React.createElement('div', {
-            className: `${type}-typing-container`,
-            style: containerStyle,
-            'aria-label': tooltipText,
-            onMouseEnter: settings.tooltipStyle !== 'none' ? handleMouseEnter : null,
-            onMouseLeave: settings.tooltipStyle !== 'none' ? handleMouseLeave : null,
-            ref: indicatorRef
-        }, indicatorElement,
-        isHovered && tooltipPosition && settings.tooltipStyle !== 'none' ?
-        React.createElement(Tooltip, {
-            position: tooltipPosition,
-            backgroundColor: settings.indicatorBackground
-        }, tooltipContent) :
-        null
+        className: `${type}-typing-container`,
+        style: containerStyle,
+        'aria-label': tooltipText,
+        onMouseEnter: (type === TYPES.CHANNEL && settings.tooltipStyle !== 'none') ? handleMouseEnter : null,
+        onMouseLeave: (type === TYPES.CHANNEL && settings.tooltipStyle !== 'none') ? handleMouseLeave : null,
+        ref: indicatorRef
+    }, indicatorElement,
+        (type === TYPES.CHANNEL) && isHovered && tooltipPosition && settings.tooltipStyle !== 'none' ?
+            React.createElement(Tooltip, {
+                id: tooltipId,
+                position: tooltipPosition,
+                backgroundColor: settings.indicatorBackground
+            }, tooltipContent) :
+            null
     );
 });
-
 function getTooltipContent(users, settings) {
     if (!users || !Object.keys(users).length) {
         return React.createElement('div', null, 'Someone is typing...');
     }
     if (settings.tooltipStyle === 'none') return null;
-
     if (settings.tooltipStyle === "avatars") {
         const size = settings.avatarSize || 24;
         const radius = settings.avatarStyle === "circle" ? "50%" :
             settings.avatarStyle === "square" ? "4px" : undefined;
-
         return React.createElement(
             "div", {
-                className: "bti-tooltip-container avatars-only"
-            },
+            className: "bti-tooltip-container avatars-only"
+        },
             [
                 React.createElement(
                     "div", {
-                        style: {
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "2px"
-                        }
-                    },
+                    style: {
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "2px"
+                    }
+                },
                     Object.values(users).map(user =>
                         React.createElement("img", {
                             key: user.id,
@@ -835,64 +732,60 @@ function getTooltipContent(users, settings) {
                 ),
                 React.createElement(
                     "span", {
-                        style: {
-                            marginLeft: "2px",
-                            whiteSpace: "nowrap"
-                        }
-                    },
+                    style: {
+                        marginLeft: "2px",
+                        whiteSpace: "nowrap"
+                    }
+                },
                     Object.keys(users).length > 1 ? "are typing…" : "is typing…"
                 )
             ]
         );
     }
-
-
-
     return React.createElement('div', {
-            className: 'bti-tooltip-container'
-        },
+        className: 'bti-tooltip-container'
+    },
         Object.values(users).map(user =>
             React.createElement('div', {
-                    className: 'bti-user-row',
-                    key: user.id,
-                    style: {
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                    }
-                },
+                className: 'bti-user-row',
+                key: user.id,
+                style: {
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                }
+            },
                 settings.tooltipStyle === 'both' ?
-                React.createElement('img', {
-                    className: 'bti-user-avatar',
-                    src: getAvatarURL(user, 24),
-                    alt: `${user.globalName || user.username}'s avatar`,
-                    style: {
-                        width: '24px',
-                        height: '24px',
-                        borderRadius: '50%'
-                    }
-                }) :
-                null,
+                    React.createElement('img', {
+                        className: 'bti-user-avatar',
+                        src: getAvatarURL(user, 24),
+                        alt: `${user.globalName || user.username}'s avatar`,
+                        style: {
+                            width: '24px',
+                            height: '24px',
+                            borderRadius: '50%'
+                        }
+                    }) :
+                    null,
                 (settings.tooltipStyle === 'both' || settings.tooltipStyle === 'names') ?
-                React.createElement('span', null,
-                    user.globalName || user.username,
-                    Object.keys(users).length === 1 ? ' is typing...' : null
-                ) :
-                null
+                    React.createElement('span', null,
+                        user.globalName || user.username,
+                        Object.keys(users).length === 1 ? ' is typing...' : null
+                    ) :
+                    null
             )
         ),
         (settings.tooltipStyle === 'both' || settings.tooltipStyle === 'names') &&
-        Object.keys(users).length > 1 ?
-        React.createElement('div', {
-            className: 'bti-typing-text',
-            style: {
-                marginTop: '4px'
-            }
-        }, ' are typing...') :
-        null
+            Object.keys(users).length > 1 ?
+            React.createElement('div', {
+                className: 'bti-typing-text',
+                style: {
+                    marginTop: '4px'
+                }
+            }, ' are typing...') :
+            null
     );
 }
-
 const SettingsPanel = React.memo(function SettingsPanel({
     settings,
     onChange,
@@ -904,7 +797,6 @@ const SettingsPanel = React.memo(function SettingsPanel({
         ColorPicker
     } = modules;
     if (!FormItem || !FormSwitch) return null;
-
     const components = {
         switch: ({
             id,
@@ -1006,8 +898,8 @@ const SettingsPanel = React.memo(function SettingsPanel({
                 title: name,
                 note: note,
                 children: React.createElement('div', {
-                        className: 'bti-slider-container'
-                    },
+                    className: 'bti-slider-container'
+                },
                     [
                         React.createElement('input', {
                             type: 'range',
@@ -1029,20 +921,18 @@ const SettingsPanel = React.memo(function SettingsPanel({
             });
         }
     };
-
     return React.createElement('div', {
-            className: 'bti-settings-panel'
-        },
+        className: 'bti-settings-panel'
+    },
         CONFIG.defaultConfig.map(cfg =>
             React.createElement('div', {
-                    key: cfg.id
-                },
+                key: cfg.id
+            },
                 components[cfg.type]?.(cfg)
             )
         )
     );
 });
-
 function getTooltipText(users) {
     if (!users || !Object.keys(users).length) return 'Someone is typing...';
     const names = Object.values(users).map(u => u.globalName || u.username).filter(Boolean);
@@ -1051,7 +941,6 @@ function getTooltipText(users) {
     if (names.length === 3) return `${names[0]}, ${names[1]}, and ${names[2]} are typing...`;
     return `${names.length} people are typing...`;
 }
-
 function filterTypingUsers(users, settings, modules) {
     try {
         const currentUser = modules.UserStore.getCurrentUser();
@@ -1072,12 +961,21 @@ function filterTypingUsers(users, settings, modules) {
         return {};
     }
 }
-
+function isChannelMuted(guildId, channelId) {
+    const M = Modules.MutedStore;
+    try {
+        if (typeof M?.isChannelMuted === 'function') {
+            return M.isChannelMuted.length >= 2
+                ? M.isChannelMuted(guildId, channelId)
+                : M.isChannelMuted(channelId);
+        }
+    } catch { }
+    return false;
+}
 class TypingIndicator {
     constructor() {
-        this._timeouts = new Set();
         this.states = new Map();
-        this._roots = new Map(); // cache: key = "type:id" → React root
+        this._roots = new Map();
         this.settings = this.getSettings();
         this.handleTyping = this.handleTyping.bind(this);
         this.cachedModules = {
@@ -1085,64 +983,31 @@ class TypingIndicator {
             FormSwitch: null,
             ColorPicker: null
         };
-
-        // restart at most once every 300 ms instead of on every keystroke
         this._debouncedReload = Utils.debounce(() => this.reload(), 300);
     }
-
     showChangelog() {
-    const { Data: BDData } = BdApi;
-    const lastVersion = BDData.load('BetterTypingIndicator', 'lastVersion');
-    
-    // If no last version stored, save current and return
-    if (!lastVersion) {
-        BDData.save('BetterTypingIndicator', 'lastVersion', CONFIG.info.version);
-        return;
-    }
-    
-    // If same version, just return
-    if (lastVersion === CONFIG.info.version) {
-        return;
-    }
-    
-    // Category titles mapping
-    const titles = {
-        fixed: "Fixes",
-        added: "Features",
-        improved: "Improvements",
-        progress: "Progress"
-    };
-    
-    // Collect all changes until we find the last version
-    const changes = [];
-    let foundLastVersion = false;
-    
-    // Iterate through CHANGES from newest to oldest
-    for (const [version, changelog] of Object.entries(CHANGES)) {
-        // If we find the user's last version, stop collecting
-        if (version === lastVersion) {
-            foundLastVersion = true;
-            break;
+        const { Data: BDData } = BdApi;
+        const lastVersion = BDData.load('BetterTypingIndicator', 'lastVersion');
+        if (!lastVersion) {
+            BDData.save('BetterTypingIndicator', 'lastVersion', CONFIG.info.version);
+            return;
         }
-        
-        // Collect changes from this version
-        for (const [type, messages] of Object.entries(changelog)) {
-            let change = changes.find(x => x.type === type);
-            if (!change) {
-                change = {
-                    title: titles[type],
-                    type,
-                    items: []
-                };
-                changes.push(change);
-            }
-            change.items.push(...messages);
+        if (lastVersion === CONFIG.info.version) {
+            return;
         }
-    }
-    
-    // If we didn't find the last version in CHANGES, show all changes
-    if (!foundLastVersion && changes.length === 0) {
+        const titles = {
+            fixed: "Fixes",
+            added: "Features",
+            improved: "Improvements",
+            progress: "Progress"
+        };
+        const changes = [];
+        let foundLastVersion = false;
         for (const [version, changelog] of Object.entries(CHANGES)) {
+            if (version === lastVersion) {
+                foundLastVersion = true;
+                break;
+            }
             for (const [type, messages] of Object.entries(changelog)) {
                 let change = changes.find(x => x.type === type);
                 if (!change) {
@@ -1156,23 +1021,31 @@ class TypingIndicator {
                 change.items.push(...messages);
             }
         }
+        if (!foundLastVersion && changes.length === 0) {
+            for (const [version, changelog] of Object.entries(CHANGES)) {
+                for (const [type, messages] of Object.entries(changelog)) {
+                    let change = changes.find(x => x.type === type);
+                    if (!change) {
+                        change = {
+                            title: titles[type],
+                            type,
+                            items: []
+                        };
+                        changes.push(change);
+                    }
+                    change.items.push(...messages);
+                }
+            }
+        }
+        BDData.save('BetterTypingIndicator', 'lastVersion', CONFIG.info.version);
+        if (changes.length === 0) return;
+        UI.showChangelogModal({
+            title: CONFIG.info.name,
+            subtitle: `Version ${CONFIG.info.version}`,
+            blurb: `Here's what's been changed since version ${lastVersion}.`,
+            changes
+        });
     }
-    
-    // Save current version
-    BDData.save('BetterTypingIndicator', 'lastVersion', CONFIG.info.version);
-    
-    // If no changes to show, return
-    if (changes.length === 0) return;
-    
-    // Show changelog modal
-    UI.showChangelogModal({
-        title: CONFIG.info.name,
-        subtitle: `Version ${CONFIG.info.version}`,
-        blurb: `Here's what's been changed since version ${lastVersion}.`,
-        changes
-    });
-}
-
     getSettings() {
         return {
             ...CONFIG.defaultConfig.reduce((acc, cfg) => ({
@@ -1182,70 +1055,49 @@ class TypingIndicator {
             ...Data.load(CONFIG.info.name, "settings")
         };
     }
-
     saveSettings(newSettings) {
-    // Save old settings for comparison
-    const oldSettings = {...this.settings};
-    
-    // Update settings
-    this.settings = {
-        ...this.settings,
-        ...newSettings
-    };
-    
-    // Save to BD storage
-    Data.save(CONFIG.info.name, "settings", this.settings);
-    
-    // Only reload if visual settings changed
-    const visualSettingsChanged = Object.keys(newSettings).some(key => 
-        ['dotColor', 'indicatorBackground', 'animationStyle', 'animationSpeed', 
-         'showAvatarsInIndicator', 'avatarStyle', 'avatarSize', 'showAvatarStatus'].includes(key)
-    );
-    
-    if (visualSettingsChanged) {
-        this._debouncedReload();
+        const oldSettings = { ...this.settings };
+        this.settings = {
+            ...this.settings,
+            ...newSettings
+        };
+        Data.save(CONFIG.info.name, "settings", this.settings);
+        const visualKeys = [
+            'dotColor', 'indicatorBackground', 'animationStyle', 'animationSpeed',
+            'showAvatarsInIndicator', 'avatarStyle', 'avatarSize', 'showAvatarStatus',
+            'showCount', 'tooltipStyle'
+        ];
+        const visualSettingsChanged = Object.keys(newSettings).some(key => visualKeys.includes(key));
+        if (visualSettingsChanged) {
+            this._debouncedReload();
+        }
     }
-}
-
     async start() {
-    console.log("BetterTypingIndicator Plugin started");
-    
-    // Add styles first
-    DOM.addStyle('typing-indicator-css', STYLES);
-    DOM.addStyle('bti-settings-text',
-        `.bti-settings-panel, .bti-settings-panel *{
+        console.log("BetterTypingIndicator Plugin started");
+        DOM.addStyle('typing-indicator-css', STYLES);
+        DOM.addStyle('bti-settings-text',
+            `.bti-settings-panel, .bti-settings-panel *{
             color:var(--text-normal,#dcddde)!important;
         }
         .bti-settings-panel h1, .bti-settings-panel h2, .bti-settings-panel h3{
             color:var(--header-primary,#ffffff)!important;
         }`
-    );
-    
-    // Initialize required modules
-    this.initializeSettingsModules();
-    
-    // Create data structures
-    this._roots = this._roots || new Map();
-    this.states = this.states || new Map();
-    
-    // Subscribe to events
-    TYPING_EVENTS.forEach(e => Modules.Dispatcher.subscribe(e, this.handleTyping));
-    
-    this.showChangelog();
-}
-
+        );
+        this.initializeSettingsModules();
+        this._roots = this._roots || new Map();
+        this.states = this.states || new Map();
+        TYPING_EVENTS.forEach(e => Modules.Dispatcher.subscribe(e, this.handleTyping));
+        this.showChangelog();
+    }
     stop() {
         DOM.removeStyle('typing-indicator-css');
+        DOM.removeStyle('bti-settings-text');
         this.cleanup();
     }
-
-    // Restarts the entire plugin (used after settings save)
     reload() {
         this.stop();
         this.start();
     }
-
-
     initializeSettingsModules() {
         const formItems = Webpack.getByKeys("FormItem");
         const formSwitches = Webpack.getByKeys("FormSwitch");
@@ -1253,8 +1105,6 @@ class TypingIndicator {
         this.cachedModules.FormSwitch = formSwitches?.FormSwitch;
         this.cachedModules.ColorPicker = Webpack.getModule(m => m?.toString?.().includes('ColorPicker'));
     }
-
-
     handleTyping(event) {
         if (event.type === 'MESSAGE_CREATE') {
             this.processTypingEvent({
@@ -1266,24 +1116,20 @@ class TypingIndicator {
             this.processTypingEvent(event);
         }
     }
-
     processTypingEvent(event) {
         try {
             if (!event?.channelId || !event?.userId) return;
-
             const channel = Modules.ChannelStore.getChannel(event.channelId);
             if (!channel) return;
-
             if (channel.parent_id) {
                 const parentChannel = Modules.ChannelStore.getChannel(channel.parent_id);
-                if (parentChannel?.type === 15) { // 15 = forum channel
+                if (parentChannel?.type === 15) {
                     if (
                         !this.settings.includeMuted && (
                             Modules.MutedStore.isMuted(channel.guild_id) ||
-                            Modules.MutedStore.isChannelMuted(channel.guild_id, channel.id)
+                            isChannelMuted(channel.guild_id, channel.id)
                         )
                     ) return;
-
                     Object.values(TYPES).forEach(type => {
                         const parentTargetId = this.getTargetId(type, parentChannel);
                         if (!parentTargetId || !this.settings[`${type}TypingIndicator`]) return;
@@ -1296,15 +1142,13 @@ class TypingIndicator {
                     });
                 }
             }
-
             if (
                 !this.settings.includeMuted &&
                 (
                     Modules.MutedStore.isMuted(channel.guild_id) ||
-                    Modules.MutedStore.isChannelMuted(channel.id)
+                    isChannelMuted(channel.guild_id, channel.id)
                 )
             ) return;
-
             Object.values(TYPES).forEach(type => {
                 if (!this.settings[`${type}TypingIndicator`]) return;
                 const targetId = this.getTargetId(type, channel);
@@ -1320,7 +1164,6 @@ class TypingIndicator {
             console.error('Error processing typing event:', error);
         }
     }
-
     getTargetId(type, channel) {
         switch (type) {
             case TYPES.CHANNEL:
@@ -1338,7 +1181,6 @@ class TypingIndicator {
                 return null;
         }
     }
-
     addTyping(type, targetId, userId) {
         if (!this.states.has(type)) {
             this.states.set(type, new Map());
@@ -1349,7 +1191,6 @@ class TypingIndicator {
         }
         typeState.get(targetId).add(userId);
     }
-
     removeTyping(type, targetId, userId) {
         const typeState = this.states.get(type);
         if (!typeState) return;
@@ -1360,7 +1201,48 @@ class TypingIndicator {
             typeState.delete(targetId);
         }
     }
-
+    renderOrCleanupIndicator(type, targetId, containerEl) {
+        const rootKey = `${type}:${targetId}`;
+        const hasTyping = this.states.get(type)?.get(targetId)?.size > 0;
+        if (!hasTyping) {
+            const root = this._roots.get(rootKey);
+            if (root) {
+                root.unmount();
+                this._roots.delete(rootKey);
+            }
+            containerEl
+                .querySelectorAll(`.${type}-typing-container`)
+                .forEach(el => el.remove());
+            return;
+        }
+        let indicator = containerEl.querySelector(`.${type}-typing-container`);
+        if (!indicator) {
+            indicator = document.createElement('div');
+            indicator.className = `${type}-typing-container typing-indicator-container`;
+            indicator.style.setProperty('--indicator-background', this.settings.indicatorBackground);
+            if (!containerEl.style.position) {
+                containerEl.style.position = 'relative';
+            }
+            containerEl.appendChild(indicator);
+        }
+        let root = this._roots.get(rootKey);
+        if (!root) {
+            root = ReactDOM.createRoot(indicator);
+            this._roots.set(rootKey, root);
+        }
+        const users = Modules.TypingStore.getTypingUsers(targetId);
+        const filteredUsers = filterTypingUsers(users, this.settings, Modules);
+        root.render(
+            React.createElement(ErrorBoundary, null,
+                React.createElement(TypingIndicatorComponent, {
+                    type,
+                    users: filteredUsers,
+                    settings: this.settings,
+                    tooltipId: rootKey
+                })
+            )
+        );
+    }
     updateIndicator(type, targetId) {
         if (type === TYPES.CHANNEL) {
             const channelElement = document.querySelector(`[data-list-item-id="channels___${targetId}"]`);
@@ -1368,7 +1250,6 @@ class TypingIndicator {
             const container = channelElement.querySelector('div[class*="children"]') ||
                 channelElement.querySelector('div[class*="content"]') ||
                 channelElement;
-
             this.renderOrCleanupIndicator(type, targetId, container);
         } else if (type === TYPES.HOME) {
             const homeElement = document.querySelector(`[data-list-item-id="${targetId}"]`);
@@ -1380,126 +1261,54 @@ class TypingIndicator {
             this.renderOrCleanupIndicator(type, targetId, guildElement);
         }
     }
-
-    renderOrCleanupIndicator(type, targetId, containerEl) {
-    const rootKey = `${type}:${targetId}`;
-    const hasTyping = this.states.get(type)?.get(targetId)?.size > 0;
-
-    if (!hasTyping) {
-    const root = this._roots.get(rootKey);
-    if (root) {
-        root.unmount();
-        this._roots.delete(rootKey);
-    }
-
-    containerEl
-        .querySelectorAll(`.${type}-typing-container`)
-        .forEach(el => el.remove());
-
-    return;
-    }
-    
-    // Create container if needed
-    let indicator = containerEl.querySelector(`.${type}-typing-container`);
-    if (!indicator) {
-        indicator = document.createElement('div');
-        indicator.className = `${type}-typing-container typing-indicator-container`;
-        indicator.style.setProperty('--indicator-background', this.settings.indicatorBackground);
-        
-        if (!containerEl.style.position) {
-            containerEl.style.position = 'relative';
-        }
-        containerEl.appendChild(indicator);
-    }
-    
-    // Get or create React root
-    let root = this._roots.get(rootKey);
-    if (!root) {
-        root = ReactDOM.createRoot(indicator);
-        this._roots.set(rootKey, root);
-    }
-    
-    // Render component
-    const users = Modules.TypingStore.getTypingUsers(targetId);
-    const filteredUsers = filterTypingUsers(users, this.settings, Modules);
-    
-    root.render(
-        React.createElement(ErrorBoundary, null,
-            React.createElement(TypingIndicatorComponent, {
-                type,
-                users: filteredUsers,
-                settings: this.settings
-            })
-        )
-    );
-}
-
-
-    observer({addedNodes}) {
-    // Skip if plugin is stopping/starting
-    if (!this.states || !this._roots) return;
-    
-    for (const node of addedNodes) {
-        if (node.nodeType !== Node.ELEMENT_NODE) continue;
-        
-        // Update channel indicators
-        const channelItems = node.hasAttribute?.('data-list-item-id') && 
-                           node.getAttribute('data-list-item-id').startsWith('channels___') ? 
-                           [node] : 
-                           node.querySelectorAll?.('[data-list-item-id^="channels___"]') || [];
-        
-        channelItems.forEach(item => {
-            const channelId = item.getAttribute('data-list-item-id').replace('channels___', '');
-            if (channelId) this.updateIndicator(TYPES.CHANNEL, channelId);
-        });
-        
-        // Update guild and folder indicators
-        const guildItems = node.hasAttribute?.('data-list-item-id') && 
-                         node.getAttribute('data-list-item-id').startsWith('guildsnav___') ? 
-                         [node] : 
-                         node.querySelectorAll?.('[data-list-item-id^="guildsnav___"]') || [];
-        
-        guildItems.forEach(item => {
-            const guildId = item.getAttribute('data-list-item-id').replace('guildsnav___', '');
-            if (guildId) {
-                this.updateIndicator(TYPES.GUILD, guildId);
-                this.updateIndicator(TYPES.FOLDER, guildId);
+    observer(arg) {
+        if (!this.states || !this._roots) return;
+        const mutations = Array.isArray(arg) ? arg : [arg];
+        for (const m of mutations) {
+            const addedNodes = m?.addedNodes || [];
+            for (const node of addedNodes) {
+                if (node.nodeType !== Node.ELEMENT_NODE) continue;
+                const isSelfChannel = node.hasAttribute?.('data-list-item-id') &&
+                    node.getAttribute('data-list-item-id').startsWith('channels___');
+                const channelItems = isSelfChannel ? [node] : (node.querySelectorAll?.('[data-list-item-id^="channels___"]') || []);
+                channelItems.forEach(item => {
+                    const channelId = item.getAttribute('data-list-item-id').replace('channels___', '');
+                    if (channelId) this.updateIndicator(TYPES.CHANNEL, channelId);
+                });
+                const isSelfGuild = node.hasAttribute?.('data-list-item-id') &&
+                    node.getAttribute('data-list-item-id').startsWith('guildsnav___');
+                const guildItems = isSelfGuild ? [node] : (node.querySelectorAll?.('[data-list-item-id^="guildsnav___"]') || []);
+                guildItems.forEach(item => {
+                    const guildId = item.getAttribute('data-list-item-id').replace('guildsnav___', '');
+                    if (guildId) {
+                        this.updateIndicator(TYPES.GUILD, guildId);
+                        this.updateIndicator(TYPES.FOLDER, guildId);
+                    }
+                });
             }
-        });
+        }
     }
-}
     cleanup() {
-    TYPING_EVENTS.forEach(e => Modules.Dispatcher.unsubscribe(e, this.handleTyping));
-    this.states.clear();
-    
-    // Unmount all React roots
-    if (this._roots) {
-        for (const root of this._roots.values()) {
-            try {
-                root.unmount();
-            } catch (err) {
-                console.error('Error unmounting React root:', err);
+        TYPING_EVENTS.forEach(e => Modules.Dispatcher.unsubscribe(e, this.handleTyping));
+        this.states.clear();
+        if (this._roots) {
+            for (const root of this._roots.values()) {
+                try {
+                    root.unmount();
+                } catch (err) {
+                    console.error('Error unmounting React root:', err);
+                }
             }
+            this._roots.clear();
         }
-        this._roots.clear();
-    }
-    
-    // Clean up remaining DOM elements
-    ['typing-indicator-container', 'bti-custom-tooltip'].forEach(className => {
-        document.querySelectorAll(`.${className}`).forEach(el => {
-            if (el && el.parentNode) {
-                el.parentNode.removeChild(el);
-            }
+        ['typing-indicator-container', 'bti-custom-tooltip'].forEach(className => {
+            document.querySelectorAll(`.${className}`).forEach(el => {
+                if (el && el.parentNode) {
+                    el.parentNode.removeChild(el);
+                }
+            });
         });
-    });
-    
-    // Clear any remaining timeouts
-    if (this._timeouts) {
-        this._timeouts.forEach(timeout => clearTimeout(timeout));
-        this._timeouts.clear();
     }
-}
-
     getSettingsPanel() {
         if (typeof UI.buildSettingsPanel === "function") {
             return UI.buildSettingsPanel({
@@ -1509,9 +1318,11 @@ class TypingIndicator {
                 })
             });
         }
-        return container;
+        return React.createElement(SettingsPanel, {
+            settings: this.settings,
+            onChange: patch => this.saveSettings(patch),
+            modules: this.cachedModules
+        });
     }
-
 }
-
 module.exports = TypingIndicator;
