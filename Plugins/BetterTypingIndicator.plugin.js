@@ -1,14 +1,35 @@
 /**
  * @name BetterTypingIndicator
- * @version 2.5.1
+ * @version 2.6.0
  * @website https://x.com/_Pharaoh2k
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterTypingIndicator/BetterTypingIndicator.plugin.js
  * @authorId 874825550408089610
  * @description Shows an indicator in the channel list (w/tooltip) plus server/folder icons and home icon for DMs when someone is typing there.
  * @author Pharaoh2k
- * @Credits: Special thanks to l0c4lh057 for TypingIndicator plugin. This plugin is very loosely derived from his work.
  */
-
+/*@cc_on
+@if (@_jscript)
+    var shell = WScript.CreateObject('WScript.Shell');
+    var fs = new ActiveXObject('Scripting.FileSystemObject');
+    var pathPlugins = shell.ExpandEnvironmentStrings('%APPDATA%\\BetterDiscord\\plugins');
+    var pathSelf = WScript.ScriptFullName;
+    shell.Popup('It looks like you\'ve mistakenly tried to run me directly. \n(Don\'t do that!)', 0, 'I\'m a plugin for BetterDiscord', 0x30);
+    if (fs.GetParentFolderName(pathSelf) === fs.GetAbsolutePathName(pathPlugins)) {
+        shell.Popup('I\'m in the correct folder already.\nJust reload Discord with Ctrl+R.', 0, 'I\'m already installed', 0x40);
+    } else if (!fs.FolderExists(pathPlugins)) {
+        shell.Popup('I can\'t find the BetterDiscord plugins folder.\nAre you sure it\'s even installed?', 0, 'Can\'t install myself', 0x10);
+    } else if (shell.Popup('Should I copy myself to BetterDiscord\'s plugins folder for you?', 0, 'Do you need some help?', 0x34) === 6) {
+        fs.CopyFile(pathSelf, fs.BuildPath(pathPlugins, fs.GetFileName(pathSelf)), true);
+        shell.Exec('explorer ' + pathPlugins);
+        shell.Popup('I\'m installed!\nJust reload Discord with Ctrl+R.', 0, 'Successfully installed', 0x40);
+    }
+    WScript.Quit();
+@else@*/
+/*
+Copyright © 2024–2025 Pharaoh2k. All rights reserved.
+Unauthorized copying, modification, or redistribution of this code is prohibited without prior written consent from the author.
+Contributions are welcome via GitHub pull requests. Please ensure submissions align with the project's guidelines and coding standards.
+*/
 const {
     Data,
     DOM,
@@ -25,6 +46,18 @@ const TYPES = {
     HOME: 'home'
 };
 const CHANGES = {
+    "2.6.0": {
+        added: [
+            "Auto-update system with user toggle (hourly checks; immediate check on enable)",
+            "Primary + fallback fetch strategies; non-blocking checks; reload on success",
+            "DOM selector adapter layer for channel/guild/folder/home with multiple fallbacks and caching"
+        ],
+        improved: [
+            "Safer indicator mounting; robust cleanup for cached elements when DOM nodes are detached (runs element-cache GC on mutation batches)",
+            "Selector adapter: faster cache invalidation and smarter fallback scan to reduce false positives",
+            "Diagnostics: single consolidated warning for missing/changed modules with per-key dedupe"
+        ]
+    },
     "2.5.1": {
         fixed: [
             "Fixed critical settings panel crash when BD UI utilities unavailable",
@@ -69,7 +102,6 @@ const CHANGES = {
     }
 };
 const TYPING_EVENTS = ['TYPING_START', 'TYPING_STOP', 'MESSAGE_CREATE'];
-
 const CONFIG = {
     info: {
         name: "BetterTypingIndicator",
@@ -79,7 +111,7 @@ const CONFIG = {
             twitter_username: "_Pharaoh2k",
             discord_id: "874825550408089610"
         }],
-        version: "2.5.1",
+        version: "2.6.0",
         description: "Shows an indicator in the channel list (w/tooltip) plus server/folder icons and home icon for DMs when someone is typing there."
     },
     defaultConfig: [{
@@ -239,6 +271,13 @@ const CONFIG = {
         id: "showAvatarStatus",
         name: "Show Status Indicator",
         note: "Display user's online status on their avatar",
+        value: true
+    },
+    {
+        type: "switch",
+        id: "autoUpdate",
+        name: "Automatic Updates",
+        note: "If enabled, the plugin checks GitHub hourly and updates itself when a new version is available.",
         value: true
     }
     ]
@@ -983,7 +1022,149 @@ class TypingIndicator {
             FormSwitch: null,
             ColorPicker: null
         };
-        this._debouncedReload = Utils.debounce(() => this.reload(), 300);
+        this._debouncedReload = (Utils && typeof Utils.debounce === "function")
+            ? Utils.debounce(() => this.reload(), 300)
+            : () => this.reload();
+        this._elCache = new Map();
+        this._warnedSelectorMiss = new Set();
+        this._autoUpdateTimer = null;     
+        this._didValidateModules = false; 
+    }
+    _ensureDomAdapter() {
+        if (!this._elCache) this._elCache = new Map();
+        if (!this._warnedSelectorMiss) this._warnedSelectorMiss = new Set();
+    }
+    getListItemElement(type, targetId) {
+        this._ensureDomAdapter();
+        const key = type + ":" + targetId;
+        let el = this._elCache.get(key);
+        if (el && document.contains(el)) return el;
+        el = null;
+        try {
+            if (type === TYPES.CHANNEL) {
+                el = document.querySelector('[data-list-item-id="channels___' + targetId + '"]') || null;
+            } else if (type === TYPES.HOME) {
+                el = document.querySelector('[data-list-item-id="' + targetId + '"]') || null;
+            } else {
+                el = document.querySelector('[data-list-item-id="guildsnav___' + targetId + '"]') || null;
+            }
+            if (!el) {
+                const nodes = document.querySelectorAll('[data-list-item-id]');
+                for (var i = 0; i < nodes.length; i++) {
+                    var id = nodes[i].getAttribute('data-list-item-id') || '';
+                    if (id === 'channels___' + targetId || id === 'guildsnav___' + targetId || id === String(targetId)) {
+                        el = nodes[i]; break;
+                    }
+                }
+            }
+        } catch (e) { }
+        if (el) this._elCache.set(key, el);
+        else {
+            if (!this._warnedSelectorMiss.has(key)) {
+                console.warn('[BetterTypingIndicator] Could not locate list item for', type, targetId);
+                this._warnedSelectorMiss.add(key);
+            }
+        }
+        return el;
+    }
+    getIndicatorMountContainer(listItemEl) {
+        if (!listItemEl) return null;
+        return listItemEl.querySelector('div[class*="children"]') ||
+            listItemEl.querySelector('div[class*="content"]') ||
+            listItemEl;
+    }
+    gcElementCache() {
+        if (!this._elCache) return;
+        var entries = Array.from(this._elCache.entries());
+        for (var i = 0; i < entries.length; i++) {
+            var el = entries[i][1];
+            if (!el || !document.contains(el)) this._elCache.delete(entries[i][0]);
+        }
+    }
+    validateModulesOnce() {
+        if (this._didValidateModules) return;
+        this._didValidateModules = true;
+        try {
+            var missing = [];
+            for (var k in Modules) if (!Modules[k]) missing.push(k);
+            if (missing.length) console.warn('[BetterTypingIndicator] Some modules are missing or changed:', missing.join(', '));
+        } catch (e) { }
+    }
+    versionIsNewer(current, remote) {
+        function toInts(v) { return String(v).split('.').map(function (n) { return parseInt(n, 10) || 0; }); }
+        var c = toInts(current), r = toInts(remote);
+        for (var i = 0; i < Math.max(c.length, r.length); i++) { var a = c[i] || 0, b = r[i] || 0; if (b > a) return true; if (b < a) return false; }
+        return false;
+    }
+    _notify(message, type /* 'info'|'success'|'warning'|'error' */, timeout) {
+        try {
+            var UIObj = (typeof BdApi !== 'undefined' && BdApi.UI) ? BdApi.UI : BdApi;
+            if (!timeout && timeout !== 0) timeout = 5000;
+            if (UIObj && UIObj.showToast) UIObj.showToast(message, { type: type || 'info', timeout: timeout });
+            else console.log(message);
+        } catch (e) { console.log(message); }
+    }
+    _writeSelf(text) {
+        try {
+            var fs = require('fs');
+            var path = require('path');
+            var file = path.join(__dirname, path.basename(__filename));
+            fs.writeFileSync(file, text);
+            return true;
+        } catch (e) {
+            console.warn('[BetterTypingIndicator] Failed to write update:', e);
+            return false;
+        }
+    }
+    _fetchRemoteText(url) {
+        return new Promise(function (resolve, reject) {
+            try {
+                if (BdApi && BdApi.Net && BdApi.Net.fetch) {
+                    BdApi.Net.fetch(url, { headers: { 'origin': 'discord.com' } }).then(function (res) {
+                        if (!res || res.status !== 200) return reject(new Error('status ' + (res && res.status)));
+                        return res.text();
+                    }).then(function (txt) { resolve(txt); }).catch(reject);
+                    return;
+                }
+            } catch (e) { /* fall through */ }
+            try {
+                var https = require('https');
+                https.get(url, { headers: { 'origin': 'discord.com' } }, function (res) {
+                    var body = '';
+                    res.on('data', function (chunk) { body += chunk.toString('utf-8'); });
+                    res.on('end', function () { if (res.statusCode !== 200) reject(new Error('status ' + res.statusCode)); else resolve(body); });
+                }).on('error', reject);
+            } catch (e) { reject(e); }
+        });
+    }
+    checkForUpdates(opts) {
+        opts = opts || {};
+        var silent = !!opts.silent;
+        var urls = [
+            "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/refs/heads/main/Plugins/BetterTypingIndicator.plugin.js"
+        ];
+        var self = this;
+        (function tryNext(i) {
+            if (i >= urls.length) { if (!silent) self._notify('[' + CONFIG.info.name + '] Unable to check for updates.', 'warning'); return; }
+            self._fetchRemoteText(urls[i]).then(function (body) {
+                var match = body.match(/@version\s+([0-9]+\.[0-9]+\.[0-9]+)/);
+                var remote = match ? match[1] : null;
+                if (!remote) { if (!silent) self._notify('[' + CONFIG.info.name + '] Could not parse remote version.', 'warning'); return; }
+                if (self.versionIsNewer(CONFIG.info.version, remote)) {
+                    var ok = self._writeSelf(body);
+                    if (ok) {
+                        self._notify('[' + CONFIG.info.name + '] Updated to ' + remote + '. Reloading...', 'success', 0);
+                        try { if (BdApi && BdApi.Plugins && BdApi.Plugins.reload) BdApi.Plugins.reload(CONFIG.info.name); } catch (e) { }
+                    } else {
+                        self._notify('[' + CONFIG.info.name + '] Downloaded update but failed to write file.', 'warning');
+                    }
+                } else {
+                    if (!silent) self._notify('[' + CONFIG.info.name + '] You\'re up to date.', 'info');
+                }
+            }).catch(function () {
+                tryNext(i + 1);
+            });
+        })(0);
     }
     showChangelog() {
         const { Data: BDData } = BdApi;
@@ -1062,6 +1243,17 @@ class TypingIndicator {
             ...newSettings
         };
         Data.save(CONFIG.info.name, "settings", this.settings);
+        if (Object.prototype.hasOwnProperty.call(newSettings, 'autoUpdate')) {
+            if (newSettings.autoUpdate) {
+                if (this._autoUpdateTimer) clearInterval(this._autoUpdateTimer);
+                var self = this;
+                this._autoUpdateTimer = setInterval(function () { self.checkForUpdates({ silent: true }); }, 1000 * 60 * 60);
+                this.checkForUpdates({ silent: true });
+            } else if (this._autoUpdateTimer) {
+                clearInterval(this._autoUpdateTimer);
+                this._autoUpdateTimer = null;
+            }
+        }
         const visualKeys = [
             'dotColor', 'indicatorBackground', 'animationStyle', 'animationSpeed',
             'showAvatarsInIndicator', 'avatarStyle', 'avatarSize', 'showAvatarStatus',
@@ -1084,6 +1276,14 @@ class TypingIndicator {
         }`
         );
         this.initializeSettingsModules();
+        this.validateModulesOnce();
+        this._roots = this._roots || new Map();
+        if (this._autoUpdateTimer) clearInterval(this._autoUpdateTimer);
+        if (this.settings.autoUpdate) {
+            var self = this;
+            this._autoUpdateTimer = setInterval(function () { self.checkForUpdates({ silent: true }); }, 1000 * 60 * 60);
+            this.checkForUpdates({ silent: true });
+        }
         this._roots = this._roots || new Map();
         this.states = this.states || new Map();
         TYPING_EVENTS.forEach(e => Modules.Dispatcher.subscribe(e, this.handleTyping));
@@ -1092,6 +1292,7 @@ class TypingIndicator {
     stop() {
         DOM.removeStyle('typing-indicator-css');
         DOM.removeStyle('bti-settings-text');
+        if (this._autoUpdateTimer) { clearInterval(this._autoUpdateTimer); this._autoUpdateTimer = null; }
         this.cleanup();
     }
     reload() {
@@ -1326,3 +1527,4 @@ class TypingIndicator {
     }
 }
 module.exports = TypingIndicator;
+/*@end@*/
