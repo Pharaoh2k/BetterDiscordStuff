@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 3.0.2
+ * @version 3.0.3
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs.plugin.js
  */
@@ -30,6 +30,9 @@
 
 @else@*/
 const CHANGES = {
+	"3.0.3": {
+		fixed: ["Hiding the title bar. Adjusted for Discord stable 437680 (aa6447a) changes"],
+	},
 	"3.0.2": {
 		fixed: ["Improved Tab-Bar scrolling"],
 	},
@@ -4823,7 +4826,13 @@ html:not(.platform-win) #channelTabs-settingsMenu {
 .channelTabs-tab.channelTabs-minimized>.channelTabs-closeTab {
 	display:none;
 }
-
+/* Remove Discord's title from the interaction layer */
+[aria-label="Open Quick Switcher"],
+[aria-label="Open Quick Switcher"]:parent {
+    pointer-events: none !important;
+    position: absolute !important;
+    z-index: -1 !important;
+}
 /*
 //#endregion
 */
@@ -4941,6 +4950,19 @@ html:not(.platform-win) #channelTabs-settingsMenu {
 		};
 		forceUpdate();
 		patches.push(() => forceUpdate());
+		const hideDiscordTitle = () => {
+			// Find the element by its positioning style that's blocking clicks
+			const titles = document.querySelectorAll('div[class*="title_"]');
+			titles.forEach(el => {
+				const style = window.getComputedStyle(el);
+				if (style.position === 'absolute' && style.top === '0px' && style.bottom === '0px') {
+					el.style.display = 'none';
+				}
+			});
+		};
+		
+		// Call it after a brief delay since Discord renders async
+		setTimeout(hideDiscordTitle, 100);
 	}
 	patchContextMenus() {
 		patches.push(
