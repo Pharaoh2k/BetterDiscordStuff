@@ -4892,9 +4892,16 @@ html:not(.platform-win) #channelTabs-settingsMenu {
 		Patcher.after(TitleBar, TitleBarKey, (thisObject, [props], returnValue) => {
 			if (props.windowKey !== void 0) return;
 			returnValue.props.style = { paddingLeft: 0 };
-			returnValue.props.children = /* @__PURE__ */ React.createElement(TopBar, {
-				leading: returnValue.props.children[1],
-				trailing: returnValue.props.children[2],
+			
+			const trailing = React.Children.toArray(returnValue.props.children).find(
+				child => child?.props?.className?.includes('winButton') || 
+						 child?.props?.className?.includes('trailing')
+			);
+			
+			returnValue.props.children = /* @__PURE__ */ 
+			React.createElement(TopBar, {
+				leading: null,
+				trailing: trailing,
 				reopenLastChannel: this.settings.reopenLastChannel,
 				showTabBar: this.settings.showTabBar,
 				showFavBar: this.settings.showFavBar,
@@ -4950,19 +4957,6 @@ html:not(.platform-win) #channelTabs-settingsMenu {
 		};
 		forceUpdate();
 		patches.push(() => forceUpdate());
-		const hideDiscordTitle = () => {
-			// Find the element by its positioning style that's blocking clicks
-			const titles = document.querySelectorAll('div[class*="title_"]');
-			titles.forEach(el => {
-				const style = window.getComputedStyle(el);
-				if (style.position === 'absolute' && style.top === '0px' && style.bottom === '0px') {
-					el.style.display = 'none';
-				}
-			});
-		};
-		
-		// Call it after a brief delay since Discord renders async
-		setTimeout(hideDiscordTitle, 100);
 	}
 	patchContextMenus() {
 		patches.push(
