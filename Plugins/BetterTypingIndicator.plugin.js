@@ -1,6 +1,6 @@
 /**
  * @name BetterTypingIndicator
- * @version 2.6.0
+ * @version 2.6.2
  * @website https://x.com/_Pharaoh2k
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterTypingIndicator/BetterTypingIndicator.plugin.js
  * @authorId 874825550408089610
@@ -30,22 +30,21 @@ Copyright © 2024–2025 Pharaoh2k. All rights reserved.
 Unauthorized copying, modification, or redistribution of this code is prohibited without prior written consent from the author.
 Contributions are welcome via GitHub pull requests. Please ensure submissions align with the project's guidelines and coding standards.
 */
-const {
-    Data,
-    DOM,
-    React,
-    ReactDOM,
-    UI,
-    Webpack,
-    Utils
-} = BdApi;
-const TYPES = {
-    CHANNEL: 'channel',
-    GUILD: 'guild',
-    FOLDER: 'folder',
-    HOME: 'home'
-};
+const { Data, DOM, React, ReactDOM, UI, Webpack, Utils } = BdApi;
+const TYPES = { CHANNEL: 'channel', GUILD: 'guild', FOLDER: 'folder', HOME: 'home' };
 const CHANGES = {
+    "2.6.2": {
+        added: [
+            "Non-intrusive update banner at top of Discord when updates are available",
+            "Update banner shows once per 24 hours maximum to avoid spam",
+            "Multiple update mirrors support with exponential back-off for reliability"
+        ],
+        improved: [
+            "Update checks now run every 24 hours instead of hourly (plus on Discord startup)",
+            "Per-mirror cache validators (ETag/Last-Modified) are saved and reused to avoid unnecessary downloads",
+            "Update flow now uses native BetterDiscord notice system for consistency"
+        ]
+    },
     "2.6.0": {
         added: [
             "Auto-update system with user toggle (hourly checks; immediate check on enable)",
@@ -111,7 +110,7 @@ const CONFIG = {
             twitter_username: "_Pharaoh2k",
             discord_id: "874825550408089610"
         }],
-        version: "2.6.0",
+        version: "2.6.2",
         description: "Shows an indicator in the channel list (w/tooltip) plus server/folder icons and home icon for DMs when someone is typing there."
     },
     defaultConfig: [{
@@ -277,7 +276,7 @@ const CONFIG = {
         type: "switch",
         id: "autoUpdate",
         name: "Automatic Updates",
-        note: "If enabled, the plugin checks GitHub hourly and updates itself when a new version is available.",
+        note: "Check for updates every 24 hours and on Discord startup (recommended)",
         value: true
     }
     ]
@@ -1013,6 +1012,9 @@ function isChannelMuted(guildId, channelId) {
 }
 class TypingIndicator {
     constructor() {
+        this._closeNotice = null;
+        this._lastBannerShow = this.loadLastBannerShow();
+        this._checkInterval = 1000 * 60 * 60 * 24;
         this.states = new Map();
         this._roots = new Map();
         this.settings = this.getSettings();
@@ -1022,13 +1024,35 @@ class TypingIndicator {
             FormSwitch: null,
             ColorPicker: null
         };
+        this._updateMeta = this.loadUpdateMeta();
+        this._maxUpdateAttempts = 4;
+        this._baseDelayMs = 2000;
         this._debouncedReload = (Utils && typeof Utils.debounce === "function")
             ? Utils.debounce(() => this.reload(), 300)
             : () => this.reload();
         this._elCache = new Map();
         this._warnedSelectorMiss = new Set();
-        this._autoUpdateTimer = null;     
-        this._didValidateModules = false; 
+        this._autoUpdateTimer = null;
+        this._didValidateModules = false;
+    }
+    loadLastBannerShow() {
+        try { 
+            return Data.load(CONFIG.info.name, "lastBannerShow") || 0; 
+        } catch { 
+            return 0; 
+        }
+    }
+    
+    saveLastBannerShow() {
+        try { 
+            Data.save(CONFIG.info.name, "lastBannerShow", Date.now()); 
+        } catch {}
+    }
+    
+    shouldShowBanner() {
+        const now = Date.now();
+        const dayInMs = 24 * 60 * 60 * 1000;
+        return (now - this._lastBannerShow) >= dayInMs;
     }
     _ensureDomAdapter() {
         if (!this._elCache) this._elCache = new Map();
@@ -1104,17 +1128,153 @@ class TypingIndicator {
             else console.log(message);
         } catch (e) { console.log(message); }
     }
+    loadUpdateMeta() {
+        try { return Data.load(CONFIG.info.name, "updateMeta") || {}; } catch { return {}; }
+    }
+    saveUpdateMeta(meta) {
+        try { Data.save(CONFIG.info.name, "updateMeta", meta || {}); } catch { }
+    }
+    _getMirrorUrls() {
+        return [
+            "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/refs/heads/main/Plugins/BetterTypingIndicator.plugin.js"
+        ];
+    }
+    _extractHeader(h, name) {
+        if (!h) return null;
+        const n = name.toLowerCase();
+        try {
+            if (typeof h.get === "function") return h.get(name) || h.get(name.toLowerCase()) || null;
+            if (typeof h === "object") {
+                for (const k of Object.keys(h)) {
+                    if (k.toLowerCase() === n) return h[k];
+                }
+            }
+        } catch { }
+        return null;
+    }
+    _backoff(ms) { return new Promise(res => setTimeout(res, ms)); }
     _writeSelf(text) {
+        // Atomic write: temp then rename
         try {
             var fs = require('fs');
             var path = require('path');
             var file = path.join(__dirname, path.basename(__filename));
-            fs.writeFileSync(file, text);
+            var tmp = file + ".tmp";
+            fs.writeFileSync(tmp, text);
+            fs.renameSync(tmp, file);
             return true;
         } catch (e) {
-            console.warn('[BetterTypingIndicator] Failed to write update:', e);
-            return false;
+            console.warn('[BetterTypingIndicator] Atomic write failed, trying direct write:', e);
+            try {
+                var fs2 = require('fs');
+                var path2 = require('path');
+                var file2 = path2.join(__dirname, path2.basename(__filename));
+                fs2.writeFileSync(file2, text);
+                return true;
+            } catch (e2) {
+                console.warn('[BetterTypingIndicator] Direct write failed:', e2);
+                return false;
+            }
         }
+    }
+    async _fetchRemoteWithCache(url, meta) {
+        meta = meta || {};
+        const cond = {};
+        if (meta.etag) cond["If-None-Match"] = meta.etag;
+        if (meta.lastModified) cond["If-Modified-Since"] = meta.lastModified;
+
+        // Prefer BdApi.Net.fetch
+        try {
+            if (BdApi && BdApi.Net && BdApi.Net.fetch) {
+                const res = await BdApi.Net.fetch(url, { headers: { 'origin': 'discord.com', ...cond } });
+                const status = res?.status ?? 0;
+                if (status === 304) return { status: 304 };
+                if (status !== 200) throw new Error("status " + status);
+                const txt = await res.text();
+                const etag = this._extractHeader(res.headers, "ETag");
+                const lm = this._extractHeader(res.headers, "Last-Modified");
+                return { status: 200, text: txt, etag, lastModified: lm };
+            }
+        } catch (e) { /* fall through */ }
+
+    }
+    _parseRemoteVersion(text) {
+        try { const m = text.match(/@version\s+([0-9]+\.[0-9]+\.[0-9]+)/); return m ? m[1] : null; } catch { return null; }
+    }
+    _buildChangelogLink(remoteVersion) {
+        try {
+            const fromVersion = (Data && typeof Data.load === "function")
+                ? (Data.load(CONFIG.info.name, "lastVersion") || CONFIG.info.version)
+                : CONFIG.info.version;
+
+            // Titles to match showChangelog()
+            const titles = { fixed: "Fixes", added: "Features", improved: "Improvements", progress: "Progress" };
+
+            // Aggregate messages across types since `fromVersion` (exclusive) → newest
+            const sections = []; // [{type, title, items:[]}]
+            const ensureSection = (type) => {
+                let s = sections.find(x => x.type === type);
+                if (!s) { s = { type, title: titles[type] || type, items: [] }; sections.push(s); }
+                return s;
+            };
+
+            // Walk CHANGES in source order until we hit fromVersion
+            let hitFrom = false;
+            for (const [version, changelog] of Object.entries(CHANGES)) {
+                if (version === fromVersion) { hitFrom = true; break; }
+                // If you want to cap at the remote version (when present and known in CHANGES)
+                if (remoteVersion && this.versionIsNewer(version, remoteVersion)) continue;
+                for (const [type, messages] of Object.entries(changelog)) {
+                    ensureSection(type).items.push(...messages);
+                }
+            }
+            // If we never saw fromVersion and found nothing, just dump everything as a fallback
+            if (!hitFrom && sections.length === 0) {
+                for (const [, changelog] of Object.entries(CHANGES)) {
+                    for (const [type, messages] of Object.entries(changelog)) {
+                        ensureSection(type).items.push(...messages);
+                    }
+                }
+            }
+
+            const esc = (s) => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+            let html = '<!doctype html><meta charset="utf-8"><title>BTI Changelog</title>';
+            html += '<style>body{font:14px/1.5 -apple-system,system-ui,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;background:#1e1f22;color:#ddd;margin:24px}';
+            html += 'h1{font-size:20px;margin:0 0 12px}h2{margin:18px 0 8px}ul{margin:0 0 12px 18px;padding:0}li{margin:4px 0}a{color:#9cdcfe}</style>';
+            html += '<h1>Changes since ' + esc(fromVersion) + (remoteVersion ? (' up to ' + esc(remoteVersion)) : '') + '</h1>';
+            if (sections.length === 0) {
+                html += '<p>No structured changelog found in this file.</p>';
+            } else {
+                for (const s of sections) {
+                    html += '<h2>' + esc(s.title) + '</h2><ul>';
+                    for (const m of s.items) html += '<li>' + esc(m) + '</li>';
+                    html += '</ul>';
+                }
+            }
+            return 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
+        } catch (e) {
+            // Safe fallback: the raw file itself (still "from the file", not commits)
+            return "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/refs/heads/main/Plugins/BetterTypingIndicator.plugin.js";
+        }
+    }
+    _confirmReview(remoteVersion) {
+        return new Promise((resolve) => {
+            try {
+                const link = this._buildChangelogLink(remoteVersion);
+                const content = React.createElement('div', null,
+                    React.createElement('p', null, 'A new version (', remoteVersion, ') is available.'),
+                    React.createElement('a', { href: link, target: "_blank" }, 'Open changelog')
+                );
+                (BdApi.UI || UI).showConfirmationModal(
+                    '[' + CONFIG.info.name + '] Update available',
+                    content,
+                    {
+                        confirmText: 'Update now', cancelText: 'Later',
+                        onConfirm: () => resolve(true), onCancel: () => resolve(false)
+                    }
+                );
+            } catch (e) { resolve(false); }
+        });
     }
     _fetchRemoteText(url) {
         return new Promise(function (resolve, reject) {
@@ -1127,44 +1287,131 @@ class TypingIndicator {
                     return;
                 }
             } catch (e) { /* fall through */ }
-            try {
-                var https = require('https');
-                https.get(url, { headers: { 'origin': 'discord.com' } }, function (res) {
-                    var body = '';
-                    res.on('data', function (chunk) { body += chunk.toString('utf-8'); });
-                    res.on('end', function () { if (res.statusCode !== 200) reject(new Error('status ' + res.statusCode)); else resolve(body); });
-                }).on('error', reject);
-            } catch (e) { reject(e); }
         });
     }
-    checkForUpdates(opts) {
-        opts = opts || {};
-        var silent = !!opts.silent;
-        var urls = [
-            "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/refs/heads/main/Plugins/BetterTypingIndicator.plugin.js"
-        ];
-        var self = this;
-        (function tryNext(i) {
-            if (i >= urls.length) { if (!silent) self._notify('[' + CONFIG.info.name + '] Unable to check for updates.', 'warning'); return; }
-            self._fetchRemoteText(urls[i]).then(function (body) {
-                var match = body.match(/@version\s+([0-9]+\.[0-9]+\.[0-9]+)/);
-                var remote = match ? match[1] : null;
-                if (!remote) { if (!silent) self._notify('[' + CONFIG.info.name + '] Could not parse remote version.', 'warning'); return; }
-                if (self.versionIsNewer(CONFIG.info.version, remote)) {
-                    var ok = self._writeSelf(body);
-                    if (ok) {
-                        self._notify('[' + CONFIG.info.name + '] Updated to ' + remote + '. Reloading...', 'success', 0);
-                        try { if (BdApi && BdApi.Plugins && BdApi.Plugins.reload) BdApi.Plugins.reload(CONFIG.info.name); } catch (e) { }
-                    } else {
-                        self._notify('[' + CONFIG.info.name + '] Downloaded update but failed to write file.', 'warning');
+    showUpdateNotice(remoteVersion, remoteText) {
+        // Only show if 24 hours have passed
+        if (!this.shouldShowBanner()) return;
+        
+        // Close any existing notice
+        if (this._closeNotice) {
+            this._closeNotice();
+            this._closeNotice = null;
+        }
+        
+        // Store the update data for later use
+        this._pendingUpdate = { version: remoteVersion, text: remoteText };
+        
+        // Show the notice
+        this._closeNotice = UI.showNotice(
+            `BetterTypingIndicator update version ${remoteVersion} is now available`,
+            {
+                type: 'info',
+                buttons: [
+                    {
+                        label: 'Update',
+                        onClick: (closeFunc) => {
+                            closeFunc();
+                            this._closeNotice = null;
+                            this.applyUpdate(this._pendingUpdate.text, this._pendingUpdate.version);
+                        }
+                    },
+                    {
+                        label: 'Changelog',
+                        onClick: () => {
+                            const link = this._buildChangelogLink(remoteVersion);
+                            window.open(link, '_blank');
+                        }
+                    },
+                    {
+                        label: 'Dismiss',
+                        onClick: (closeFunc) => {
+                            closeFunc();
+                            this._closeNotice = null;
+                            this.saveLastBannerShow(); // Reset the 24-hour timer
+                        }
                     }
-                } else {
-                    if (!silent) self._notify('[' + CONFIG.info.name + '] You\'re up to date.', 'info');
+                ]
+            }
+        );
+        
+        this.saveLastBannerShow();
+    }
+    
+    applyUpdate(remoteText, remoteVersion) {
+        const ok = this._writeSelf(remoteText);
+        if (ok) {
+            // Save update metadata
+            const meta = this.loadUpdateMeta() || {};
+            this.saveUpdateMeta(meta);
+            
+            UI.showToast(`Updated to version ${remoteVersion}. Reloading...`, { type: 'success' });
+            try {
+                if (BdApi && BdApi.Plugins && typeof BdApi.Plugins.reload === 'function') {
+                    BdApi.Plugins.reload(CONFIG.info.name);
                 }
-            }).catch(function () {
-                tryNext(i + 1);
-            });
-        })(0);
+            } catch (e) { /* ignore */ }
+        } else {
+            UI.showToast('Update failed. Please try again.', { type: 'error' });
+        }
+    }
+    async checkForUpdates(opts = {}) {
+        const silent = !!opts.silent;
+        const urls = this._getMirrorUrls();
+        const meta = this.loadUpdateMeta() || {};
+        
+        let attempt = 0;
+        while (attempt < this._maxUpdateAttempts) {
+            for (let i = 0; i < urls.length; i++) {
+                const url = urls[i];
+                try {
+                    const cached = meta[url] || {};
+                    const res = await this._fetchRemoteWithCache(url, cached);
+                    
+                    if (res && res.status === 304) {
+                        if (!silent) UI.showToast('[' + CONFIG.info.name + '] No updates available.', { type: 'info' });
+                        return;
+                    }
+                    
+                    if (!res || res.status !== 200 || !res.text) throw new Error('Bad response');
+                    
+                    const remote = this._parseRemoteVersion(res.text);
+                    if (!remote) {
+                        if (!silent) UI.showToast('[' + CONFIG.info.name + '] Could not parse remote version.', { type: 'warning' });
+                        return;
+                    }
+                    
+                    if (this.versionIsNewer(CONFIG.info.version, remote)) {
+                        // Show the update notice banner
+                        this.showUpdateNotice(remote, res.text);
+                        
+                        // Update cache metadata
+                        meta[url] = { etag: res.etag || null, lastModified: res.lastModified || null };
+                        this.saveUpdateMeta(meta);
+                        return;
+                    } else {
+                        // Already up to date
+                        meta[url] = {
+                            etag: (res.etag || cached.etag || null),
+                            lastModified: (res.lastModified || cached.lastModified || null)
+                        };
+                        this.saveUpdateMeta(meta);
+                        
+                        if (!silent) UI.showToast('[' + CONFIG.info.name + "] You're up to date.", { type: 'info' });
+                    }
+                    return;
+                } catch (err) {
+                    // Try next mirror
+                }
+            }
+            
+            attempt++;
+            if (attempt >= this._maxUpdateAttempts) break;
+            const jitter = Math.floor(Math.random() * 400);
+            await this._backoff(this._baseDelayMs * Math.pow(2, attempt - 1) + jitter);
+        }
+        
+        if (!silent) UI.showToast('[' + CONFIG.info.name + '] Unable to check for updates.', { type: 'warning' });
     }
     showChangelog() {
         const { Data: BDData } = BdApi;
@@ -1275,16 +1522,24 @@ class TypingIndicator {
             color:var(--header-primary,#ffffff)!important;
         }`
         );
+        
         this.initializeSettingsModules();
         this.validateModulesOnce();
         this._roots = this._roots || new Map();
+        
+        // Set up auto-update if enabled
         if (this._autoUpdateTimer) clearInterval(this._autoUpdateTimer);
         if (this.settings.autoUpdate) {
-            var self = this;
-            this._autoUpdateTimer = setInterval(function () { self.checkForUpdates({ silent: true }); }, 1000 * 60 * 60);
+            // Check immediately on startup
             this.checkForUpdates({ silent: true });
+            
+            // Set up 24-hour interval
+            const self = this;
+            this._autoUpdateTimer = setInterval(() => { 
+                self.checkForUpdates({ silent: true }); 
+            }, this._checkInterval);
         }
-        this._roots = this._roots || new Map();
+        
         this.states = this.states || new Map();
         TYPING_EVENTS.forEach(e => Modules.Dispatcher.subscribe(e, this.handleTyping));
         this.showChangelog();
@@ -1292,7 +1547,17 @@ class TypingIndicator {
     stop() {
         DOM.removeStyle('typing-indicator-css');
         DOM.removeStyle('bti-settings-text');
-        if (this._autoUpdateTimer) { clearInterval(this._autoUpdateTimer); this._autoUpdateTimer = null; }
+        
+        // Close any open update notice
+        if (this._closeNotice) {
+            this._closeNotice();
+            this._closeNotice = null;
+        }
+        
+        if (this._autoUpdateTimer) { 
+            clearInterval(this._autoUpdateTimer); 
+            this._autoUpdateTimer = null; 
+        }
         this.cleanup();
     }
     reload() {
