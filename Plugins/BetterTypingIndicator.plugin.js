@@ -1471,6 +1471,7 @@ class TypingIndicator {
     }
     _handleVersionCheck(url, remote, res, meta, silent) {
         if (this.versionIsNewer(CONFIG.info.version, remote)) {
+            this._lastBannerShow = 0;
             this.showUpdateNotice(remote, res.text);
             meta[url] = {
                 etag: res.etag || null,
