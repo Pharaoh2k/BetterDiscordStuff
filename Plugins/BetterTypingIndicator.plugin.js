@@ -1,6 +1,6 @@
 /**
  * @name BetterTypingIndicator
- * @version 2.7.2
+ * @version 2.7.3
  * @website https://x.com/_Pharaoh2k
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/edit/main/Plugins/BetterTypingIndicator.plugin.js
  * @authorId 874825550408089610
@@ -33,6 +33,11 @@ Contributions are welcome via GitHub pull requests. Please ensure submissions al
 const { Data, DOM, React, ReactDOM, UI, Webpack, Utils } = BdApi;
 const TYPES = { CHANNEL: 'channel', GUILD: 'guild', FOLDER: 'folder', HOME: 'home' };
 const CHANGES = {
+    "2.7.3": {
+        improved: [
+            "test"
+        ]
+    },
     "2.7.2": {
         improved: [
             "Improved update system",
@@ -121,7 +126,7 @@ const CONFIG = {
             twitter_username: "_Pharaoh2k",
             discord_id: "874825550408089610"
         }],
-        version: "2.7.2",
+        version: "2.7.3",
         description: "Shows an indicator in the channel list (w/tooltip) plus server/folder icons and home icon for DMs when someone is typing there."
     },
     defaultConfig: [{
@@ -1401,28 +1406,31 @@ class TypingIndicator {
         );
         this.saveLastBannerShow();
     }
-    applyUpdate(remoteText, remoteVersion) {
-    const ok = this._writeSelf(remoteText);
-    if (ok) {
+    async applyUpdate(remoteText, remoteVersion) {
+        const ok = this._writeSelf(remoteText);
+        if (ok) {
             const meta = this.loadUpdateMeta() || {};
             this.saveUpdateMeta(meta);
             
-            UI.showToast(`Updated to version ${remoteVersion}. Reloading...`, { type: 'success' });
+            UI.showToast(`Updated to version ${remoteVersion}. Reloading plugin...`, { type: 'success' });
+            
+
+            await new Promise(resolve => setTimeout(resolve, 100));
             
             try {
-                if (BdApi?.Plugins?.disable && BdApi?.Plugins?.enable) {
-                    BdApi.Plugins.disable(CONFIG.info.name);
-                    setTimeout(() => {
-                        BdApi.Plugins.enable(CONFIG.info.name);
-                    }, 100);
-                } else if (typeof BdApi?.Plugins?.reload === 'function') {
-                    BdApi.Plugins.reload(CONFIG.info.name);
-                } else {
-                    UI.showToast('Update complete! Please reload Discord (Ctrl+R) to apply.', { type: 'success' });
-                }
+
+                BdApi.Plugins.disable(CONFIG.info.name);
+                
+
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+
+                BdApi.Plugins.enable(CONFIG.info.name);
+                
+                UI.showToast(`Plugin reloaded successfully!`, { type: 'success' });
             } catch (e) {
-                console.debug('[BetterTypingIndicator] Plugin reload failed:', e.message);
-                UI.showToast('Update complete! Please reload Discord (Ctrl+R) to apply.', { type: 'success' });
+                console.debug('[BetterTypingIndicator] Reload failed:', e.message);
+                UI.showToast('Update complete! Please reload Discord (Ctrl+R) if needed.', { type: 'info' });
             }
         } else {
             UI.showToast('Update failed. Please try again.', { type: 'error' });
