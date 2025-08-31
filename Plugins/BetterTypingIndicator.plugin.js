@@ -25,11 +25,11 @@
     }
     WScript.Quit();
 @else@*/
-/*
+/* ==========================================
 Copyright © 2024–2025 Pharaoh2k. All rights reserved.
 Unauthorized copying, modification, or redistribution of this code is prohibited without prior written consent from the author.
 Contributions are welcome via GitHub pull requests. Please ensure submissions align with the project's guidelines and coding standards.
-*/
+============================================= */
 const { Data, DOM, React, ReactDOM, UI, Webpack, Utils } = BdApi;
 const TYPES = { CHANNEL: 'channel', GUILD: 'guild', FOLDER: 'folder', HOME: 'home' };
 const CHANGES = {
