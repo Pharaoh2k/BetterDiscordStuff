@@ -1535,6 +1535,7 @@ class TypingIndicator {
         this.initializeSettingsModules();
         this.validateModulesOnce();
         this._roots = this._roots || new Map();
+        this._lastBannerShow = 0;
         if (this._autoUpdateTimer) clearInterval(this._autoUpdateTimer);
         if (this.settings.autoUpdate) {
             this.saveUpdateMeta({});
