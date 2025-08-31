@@ -39,27 +39,9 @@ const CHANGES = {
             "Improved changelog popup"
         ]
     },
-    "2.8.0": {
-        improved: [
-            "Improved update system"
-        ]
-    },
-    "2.7.2": {
-        improved: [
-            "Improved update system",
-            "Meta correction (minor)"
-        ]
-    },
-    "2.7.0": {
-        improved: [
-            "Code refactored and cleaned-up"
-        ]
-    },
     "2.6.2": {
         added: [
             "Non-intrusive update banner at top of Discord when updates are available",
-            "Update banner shows once per 24 hours maximum to avoid spam",
-            "Multiple update mirrors support with exponential back-off for reliability"
         ],
         improved: [
             "Update checks now run every 24 hours instead of hourly (plus on Discord startup)",
