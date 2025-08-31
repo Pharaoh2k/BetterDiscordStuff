@@ -1,6 +1,6 @@
 /**
  * @name BetterTypingIndicator
- * @version 2.8.0
+ * @version 2.8.1
  * @website https://x.com/_Pharaoh2k
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/edit/main/Plugins/BetterTypingIndicator.plugin.js
  * @authorId 874825550408089610
@@ -132,7 +132,7 @@ const CONFIG = {
             twitter_username: "_Pharaoh2k",
             discord_id: "874825550408089610"
         }],
-        version: "2.8.0",
+        version: "2.8.1",
         description: "Shows an indicator in the channel list (w/tooltip) plus server/folder icons and home icon for DMs when someone is typing there."
     },
     defaultConfig: [{
