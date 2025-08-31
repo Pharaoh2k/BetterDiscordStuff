@@ -1412,26 +1412,19 @@ class TypingIndicator {
             const meta = this.loadUpdateMeta() || {};
             this.saveUpdateMeta(meta);
             
-            UI.showToast(`Updated to version ${remoteVersion}. Reloading plugin...`, { type: 'success' });
-            
-
-            await new Promise(resolve => setTimeout(resolve, 100));
-            
-            try {
-
-                BdApi.Plugins.disable(CONFIG.info.name);
-                
-
-                await new Promise(resolve => setTimeout(resolve, 100));
-                
-
-                BdApi.Plugins.enable(CONFIG.info.name);
-                
-                UI.showToast(`Plugin reloaded successfully!`, { type: 'success' });
-            } catch (e) {
-                console.debug('[BetterTypingIndicator] Reload failed:', e.message);
-                UI.showToast('Update complete! Please reload Discord (Ctrl+R) if needed.', { type: 'info' });
-            }
+            UI.showToast(`Updated to version ${remoteVersion}. Reloading plugin...`, { type: 'success' });            
+            setTimeout(() => {
+                try {
+                    BdApi.Plugins.disable(CONFIG.info.name);
+                    setTimeout(() => {
+                        BdApi.Plugins.enable(CONFIG.info.name);
+                        UI.showToast(`Plugin reloaded successfully!`, { type: 'success' });
+                    }, 100);
+                } catch (e) {
+                    console.debug('[BetterTypingIndicator] Reload failed:', e.message);
+                    UI.showToast('Update complete! Please reload Discord (Ctrl+R) if needed.', { type: 'info' });
+                }
+            }, 100);
         } else {
             UI.showToast('Update failed. Please try again.', { type: 'error' });
         }
