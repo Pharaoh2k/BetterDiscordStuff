@@ -1,6 +1,6 @@
 /**
  * @name BetterTypingIndicator
- * @version 2.7.3
+ * @version 2.7.4
  * @website https://x.com/_Pharaoh2k
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/edit/main/Plugins/BetterTypingIndicator.plugin.js
  * @authorId 874825550408089610
@@ -33,7 +33,7 @@ Contributions are welcome via GitHub pull requests. Please ensure submissions al
 const { Data, DOM, React, ReactDOM, UI, Webpack, Utils } = BdApi;
 const TYPES = { CHANNEL: 'channel', GUILD: 'guild', FOLDER: 'folder', HOME: 'home' };
 const CHANGES = {
-    "2.7.3": {
+    "2.7.4": {
         improved: [
             "test"
         ]
@@ -126,7 +126,7 @@ const CONFIG = {
             twitter_username: "_Pharaoh2k",
             discord_id: "874825550408089610"
         }],
-        version: "2.7.3",
+        version: "2.7.4",
         description: "Shows an indicator in the channel list (w/tooltip) plus server/folder icons and home icon for DMs when someone is typing there."
     },
     defaultConfig: [{
@@ -1048,6 +1048,13 @@ function isChannelMuted(guildId, channelId) {
 }
 class TypingIndicator {
     constructor() {
+        console.log('[BTI] Constructor called - new instance being created');
+        console.log('[BTI] Current version in constructor:', CONFIG.info.version);
+        if (window.__BTI_INSTANCE) {
+            console.warn('[BTI] Warning: Previous instance detected!');
+            console.log('[BTI] Previous instance version:', window.__BTI_INSTANCE.version);
+        }
+        window.__BTI_INSTANCE = { version: CONFIG.info.version, instance: this };
         this._closeNotice = null;
         this._lastBannerShow = this.loadLastBannerShow();
         this._checkInterval = 1000 * 60 * 60 * 24;
@@ -1407,25 +1414,50 @@ class TypingIndicator {
         this.saveLastBannerShow();
     }
     async applyUpdate(remoteText, remoteVersion) {
+        console.log('[BTI Update] Starting update process...');
+        console.log('[BTI Update] Current version:', CONFIG.info.version);
+        console.log('[BTI Update] Target version:', remoteVersion);
         const ok = this._writeSelf(remoteText);
+        console.log('[BTI Update] File write result:', ok);
         if (ok) {
             const meta = this.loadUpdateMeta() || {};
             this.saveUpdateMeta(meta);
-            
-            UI.showToast(`Updated to version ${remoteVersion}. Reloading plugin...`, { type: 'success' });            
-            setTimeout(() => {
+            UI.showToast(`Updated to version ${remoteVersion}. Reloading plugin...`, { type: 'success' });
+            await new Promise(resolve => setTimeout(resolve, 100));
+            try {
+                console.log('[BTI Update] Starting reload sequence...');
+                console.log('[BTI Update] Plugin enabled before disable?', BdApi.Plugins.isEnabled(CONFIG.info.name));
+                console.log('[BTI Update] Calling BdApi.Plugins.disable...');
+                BdApi.Plugins.disable(CONFIG.info.name);
+                console.log('[BTI Update] Disable completed');
+                console.log('[BTI Update] Plugin enabled after disable?', BdApi.Plugins.isEnabled(CONFIG.info.name));
+                await new Promise(resolve => setTimeout(resolve, 100));
+                console.log('[BTI Update] Calling BdApi.Plugins.enable...');
                 try {
-                    BdApi.Plugins.disable(CONFIG.info.name);
-                    setTimeout(() => {
-                        BdApi.Plugins.enable(CONFIG.info.name);
-                        UI.showToast(`Plugin reloaded successfully!`, { type: 'success' });
-                    }, 100);
-                } catch (e) {
-                    console.debug('[BetterTypingIndicator] Reload failed:', e.message);
-                    UI.showToast('Update complete! Please reload Discord (Ctrl+R) if needed.', { type: 'info' });
+                    BdApi.Plugins.enable(CONFIG.info.name);
+                    console.log('[BTI Update] Enable completed successfully');
+                } catch (enableError) {
+                    console.error('[BTI Update] Enable threw error:', enableError);
+                    console.error('[BTI Update] Error stack:', enableError.stack);
+                    const isNowEnabled = BdApi.Plugins.isEnabled(CONFIG.info.name);
+                    console.log('[BTI Update] Plugin enabled despite error?', isNowEnabled);
+                    if (isNowEnabled) {
+                        console.log('[BTI Update] Plugin IS running despite error - update successful');
+                        UI.showToast(`Plugin updated successfully!`, { type: 'success' });
+                        return;
+                    }
+                    throw enableError;
                 }
-            }, 100);
+                console.log('[BTI Update] Plugin enabled after enable?', BdApi.Plugins.isEnabled(CONFIG.info.name));
+                console.log('[BTI Update] Reload sequence completed');
+                UI.showToast(`Plugin reloaded successfully!`, { type: 'success' });
+            } catch (e) {
+                console.error('[BTI Update] Reload failed:', e.message);
+                console.error('[BTI Update] Full error:', e);
+                UI.showToast('Update complete! Please reload Discord (Ctrl+R) if needed.', { type: 'info' });
+            }
         } else {
+            console.error('[BTI Update] File write failed');
             UI.showToast('Update failed. Please try again.', { type: 'error' });
         }
     }
@@ -1601,6 +1633,9 @@ class TypingIndicator {
         }
     }
     async start() {
+        console.log('[BTI] start() called');
+        console.log('[BTI] Version at start:', CONFIG.info.version);
+        console.log("BetterTypingIndicator Plugin started");
         console.log("BetterTypingIndicator Plugin started");
         DOM.addStyle('typing-indicator-css', STYLES);
         DOM.addStyle('bti-settings-text',
@@ -1628,6 +1663,8 @@ class TypingIndicator {
         this.showChangelog();
     }
     stop() {
+        console.log('[BTI] stop() called');
+        console.log('[BTI] Version at stop:', CONFIG.info.version);
         DOM.removeStyle('typing-indicator-css');
         DOM.removeStyle('bti-settings-text');
         if (this._closeNotice) {
