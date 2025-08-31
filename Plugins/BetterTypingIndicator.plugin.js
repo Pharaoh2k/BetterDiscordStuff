@@ -35,8 +35,9 @@ const TYPES = { CHANNEL: 'channel', GUILD: 'guild', FOLDER: 'folder', HOME: 'hom
 const CHANGES = {
     "2.8.1": {
         improved: [
-            "Code Cleanup",
-            "Improved changelog popup"
+            "Code cleaned up and refactored",
+            "Improved changelog popup",
+            "Improved update system"
         ]
     },
     "2.6.2": {
