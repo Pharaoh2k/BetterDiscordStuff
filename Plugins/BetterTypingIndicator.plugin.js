@@ -33,6 +33,12 @@ Contributions are welcome via GitHub pull requests. Please ensure submissions al
 const { Data, DOM, React, ReactDOM, UI, Webpack, Utils } = BdApi;
 const TYPES = { CHANNEL: 'channel', GUILD: 'guild', FOLDER: 'folder', HOME: 'home' };
 const CHANGES = {
+    "2.8.1": {
+        improved: [
+            "Code Cleanup",
+            "Improved changelog popup"
+        ]
+    },
     "2.8.0": {
         improved: [
             "Improved update system"
@@ -1247,72 +1253,12 @@ class TypingIndicator {
     }
     _parseRemoteVersion(text) {
         try {
-            const m = text.match(/@version\s+(\d+\.\d+\.\d+)/);
+            const m = text.match(/@version\s+((?:\d+\.)*\d+)/);
             return m ? m[1] : null;
         } catch {
             return null;
         }
-    }
-    _buildChangelogLink(remoteVersion) {
-        try {
-            const fromVersion = (Data && typeof Data.load === "function")
-                ? (Data.load(CONFIG.info.name, "lastVersion") || CONFIG.info.version)
-                : CONFIG.info.version;
-            const sections = this._collectChangelogSections(fromVersion, remoteVersion);
-            return this._generateChangelogHTML(fromVersion, remoteVersion, sections);
-        } catch (e) {
-            console.debug('[BetterTypingIndicator] Changelog generation failed:', e.message);
-            return "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/refs/heads/main/Plugins/BetterTypingIndicator.plugin.js";
-        }
-    }
-    _collectChangelogSections(fromVersion, remoteVersion) {
-        const titles = { fixed: "Fixes", added: "Features", improved: "Improvements", progress: "Progress" };
-        const sections = [];
-        const sectionMap = {};
-        const addToSection = (type, messages) => {
-            if (!sectionMap[type]) {
-                sectionMap[type] = { type, title: titles[type] || type, items: [] };
-                sections.push(sectionMap[type]);
-            }
-            sectionMap[type].items.push(...messages);
-        };
-        let foundTargetVersion = false;
-        for (const [version, changelog] of Object.entries(CHANGES)) {
-            if (version === fromVersion) {
-                foundTargetVersion = true;
-                break;
-            }
-            if (remoteVersion && this.versionIsNewer(version, remoteVersion)) continue;
-            for (const [type, messages] of Object.entries(changelog)) {
-                addToSection(type, messages);
-            }
-        }
-        if (sections.length === 0 && !foundTargetVersion) {
-            for (const changelog of Object.values(CHANGES)) {
-                for (const [type, messages] of Object.entries(changelog)) {
-                    addToSection(type, messages);
-                }
-            }
-        }
-        return sections;
-    }
-    _generateChangelogHTML(fromVersion, remoteVersion, sections) {
-        const esc = (s) => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-        let html = '<!doctype html><meta charset="utf-8"><title>BTI Changelog</title>';
-        html += '<style>body{font:14px/1.5 -apple-system,system-ui,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;background:#1e1f22;color:#ddd;margin:24px}';
-        html += 'h1{font-size:20px;margin:0 0 12px}h2{margin:18px 0 8px}ul{margin:0 0 12px 18px;padding:0}li{margin:4px 0}a{color:#9cdcfe}</style>';
-        html += '<h1>Changes since ' + esc(fromVersion) + (remoteVersion ? (' up to ' + esc(remoteVersion)) : '') + '</h1>';
-        if (sections.length === 0) {
-            html += '<p>No structured changelog found in this file.</p>';
-        } else {
-            for (const s of sections) {
-                html += '<h2>' + esc(s.title) + '</h2><ul>';
-                for (const m of s.items) html += '<li>' + esc(m) + '</li>';
-                html += '</ul>';
-            }
-        }
-        return 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
-    }
+    }    
     _confirmReview(remoteVersion) {
         return new Promise((resolve) => {
             try {
@@ -1373,13 +1319,6 @@ class TypingIndicator {
                             closeFunc();
                             this._closeNotice = null;
                             this.applyUpdate(this._pendingUpdate.text, this._pendingUpdate.version);
-                        }
-                    },
-                    {
-                        label: 'Changelog',
-                        onClick: () => {
-                            const link = this._buildChangelogLink(remoteVersion);
-                            window.open(link, '_blank');
                         }
                     },
                     {
@@ -1520,37 +1459,46 @@ class TypingIndicator {
             improved: "Improvements",
             progress: "Progress"
         };
-        const changes = [];
-        const changeMap = {};
-        const addToChange = (type, messages) => {
-            if (!changeMap[type]) {
-                changeMap[type] = {
-                    title: titles[type],
-                    type,
-                    items: []
-                };
-                changes.push(changeMap[type]);
+        const buildChanges = (versions) => {
+            const changes = [];
+            const changeMap = {};
+            for (const [, changelog] of versions) { 
+                for (const [type, messages] of Object.entries(changelog)) {
+                    if (!changeMap[type]) {
+                        changeMap[type] = {
+                            title: titles[type],
+                            type,
+                            items: []
+                        };
+                        changes.push(changeMap[type]);
+                    }
+                    changeMap[type].items.push(...messages);
+                }
             }
-            changeMap[type].items.push(...messages);
+            return changes;
         };
+        const versionsToInclude = [];
         let foundLastVersion = false;
         for (const [version, changelog] of Object.entries(CHANGES)) {
+            if (this.versionIsNewer(version, CONFIG.info.version)) {
+                continue;
+            }
             if (version === lastVersion) {
                 foundLastVersion = true;
                 break;
             }
-            for (const [type, messages] of Object.entries(changelog)) {
-                addToChange(type, messages);
+            if (this.versionIsNewer(lastVersion, version)) {
+                versionsToInclude.push([version, changelog]);
             }
         }
-        if (!foundLastVersion && changes.length === 0) {
-            for (const changelog of Object.values(CHANGES)) {
-                for (const [type, messages] of Object.entries(changelog)) {
-                    addToChange(type, messages);
+        if (!foundLastVersion && versionsToInclude.length === 0) {
+            for (const [version, changelog] of Object.entries(CHANGES)) {
+                if (!this.versionIsNewer(version, CONFIG.info.version)) {
+                    versionsToInclude.push([version, changelog]);
                 }
             }
         }
-        return changes;
+        return buildChanges(versionsToInclude);
     }
     getSettings() {
         return {
