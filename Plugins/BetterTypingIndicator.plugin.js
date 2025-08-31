@@ -1,6 +1,6 @@
 /**
  * @name BetterTypingIndicator
- * @version 2.7.4
+ * @version 2.7.5
  * @website https://x.com/_Pharaoh2k
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/edit/main/Plugins/BetterTypingIndicator.plugin.js
  * @authorId 874825550408089610
@@ -33,7 +33,7 @@ Contributions are welcome via GitHub pull requests. Please ensure submissions al
 const { Data, DOM, React, ReactDOM, UI, Webpack, Utils } = BdApi;
 const TYPES = { CHANNEL: 'channel', GUILD: 'guild', FOLDER: 'folder', HOME: 'home' };
 const CHANGES = {
-    "2.7.4": {
+    "2.7.5": {
         improved: [
             "test"
         ]
@@ -126,7 +126,7 @@ const CONFIG = {
             twitter_username: "_Pharaoh2k",
             discord_id: "874825550408089610"
         }],
-        version: "2.7.4",
+        version: "2.7.5",
         description: "Shows an indicator in the channel list (w/tooltip) plus server/folder icons and home icon for DMs when someone is typing there."
     },
     defaultConfig: [{
@@ -1417,44 +1417,44 @@ class TypingIndicator {
         console.log('[BTI Update] Starting update process...');
         console.log('[BTI Update] Current version:', CONFIG.info.version);
         console.log('[BTI Update] Target version:', remoteVersion);
+        
         const ok = this._writeSelf(remoteText);
         console.log('[BTI Update] File write result:', ok);
+        
         if (ok) {
             const meta = this.loadUpdateMeta() || {};
             this.saveUpdateMeta(meta);
+            
             UI.showToast(`Updated to version ${remoteVersion}. Reloading plugin...`, { type: 'success' });
+            
+
             await new Promise(resolve => setTimeout(resolve, 100));
+            
+
+            console.log('[BTI Update] Attempting BdApi.Plugins.reload...');
+            
             try {
-                console.log('[BTI Update] Starting reload sequence...');
-                console.log('[BTI Update] Plugin enabled before disable?', BdApi.Plugins.isEnabled(CONFIG.info.name));
-                console.log('[BTI Update] Calling BdApi.Plugins.disable...');
-                BdApi.Plugins.disable(CONFIG.info.name);
-                console.log('[BTI Update] Disable completed');
-                console.log('[BTI Update] Plugin enabled after disable?', BdApi.Plugins.isEnabled(CONFIG.info.name));
-                await new Promise(resolve => setTimeout(resolve, 100));
-                console.log('[BTI Update] Calling BdApi.Plugins.enable...');
-                try {
-                    BdApi.Plugins.enable(CONFIG.info.name);
-                    console.log('[BTI Update] Enable completed successfully');
-                } catch (enableError) {
-                    console.error('[BTI Update] Enable threw error:', enableError);
-                    console.error('[BTI Update] Error stack:', enableError.stack);
-                    const isNowEnabled = BdApi.Plugins.isEnabled(CONFIG.info.name);
-                    console.log('[BTI Update] Plugin enabled despite error?', isNowEnabled);
-                    if (isNowEnabled) {
-                        console.log('[BTI Update] Plugin IS running despite error - update successful');
-                        UI.showToast(`Plugin updated successfully!`, { type: 'success' });
-                        return;
-                    }
-                    throw enableError;
-                }
-                console.log('[BTI Update] Plugin enabled after enable?', BdApi.Plugins.isEnabled(CONFIG.info.name));
-                console.log('[BTI Update] Reload sequence completed');
+                BdApi.Plugins.reload(CONFIG.info.name);
+                console.log('[BTI Update] Reload succeeded!');
                 UI.showToast(`Plugin reloaded successfully!`, { type: 'success' });
-            } catch (e) {
-                console.error('[BTI Update] Reload failed:', e.message);
-                console.error('[BTI Update] Full error:', e);
-                UI.showToast('Update complete! Please reload Discord (Ctrl+R) if needed.', { type: 'info' });
+            } catch (reloadError) {
+                console.log('[BTI Update] Reload threw expected error:', reloadError.message);
+                
+
+                setTimeout(() => {
+                    const isEnabled = BdApi.Plugins.isEnabled(CONFIG.info.name);
+                    const plugin = BdApi.Plugins.get(CONFIG.info.name);
+                    console.log('[BTI Update] Post-reload check:');
+                    console.log('  - Is enabled?', isEnabled);
+                    console.log('  - Version now?', plugin?.version);
+                    
+                    if (plugin?.version === remoteVersion) {
+                        console.log('[BTI Update] Update successful despite error!');
+                        UI.showToast(`Updated to ${remoteVersion} successfully!`, { type: 'success' });
+                    } else {
+                        UI.showToast('Update applied! Please reload Discord (Ctrl+R) to complete.', { type: 'info', timeout: 10000 });
+                    }
+                }, 500);
             }
         } else {
             console.error('[BTI Update] File write failed');
