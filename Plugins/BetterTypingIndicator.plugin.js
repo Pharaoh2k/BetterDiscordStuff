@@ -1,6 +1,6 @@
 /**
  * @name BetterTypingIndicator
- * @version 2.7.6
+ * @version 2.7.7
  * @website https://x.com/_Pharaoh2k
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/edit/main/Plugins/BetterTypingIndicator.plugin.js
  * @authorId 874825550408089610
@@ -33,7 +33,7 @@ Contributions are welcome via GitHub pull requests. Please ensure submissions al
 const { Data, DOM, React, ReactDOM, UI, Webpack, Utils } = BdApi;
 const TYPES = { CHANNEL: 'channel', GUILD: 'guild', FOLDER: 'folder', HOME: 'home' };
 const CHANGES = {
-    "2.7.6": {
+    "2.7.7": {
         improved: [
             "test"
         ]
@@ -126,7 +126,7 @@ const CONFIG = {
             twitter_username: "_Pharaoh2k",
             discord_id: "874825550408089610"
         }],
-        version: "2.7.6",
+        version: "2.7.7",
         description: "Shows an indicator in the channel list (w/tooltip) plus server/folder icons and home icon for DMs when someone is typing there."
     },
     defaultConfig: [{
@@ -1048,13 +1048,6 @@ function isChannelMuted(guildId, channelId) {
 }
 class TypingIndicator {
     constructor() {
-        console.log('[BTI] Constructor called - new instance being created');
-        console.log('[BTI] Current version in constructor:', CONFIG.info.version);
-        if (window.__BTI_INSTANCE) {
-            console.warn('[BTI] Warning: Previous instance detected!');
-            console.log('[BTI] Previous instance version:', window.__BTI_INSTANCE.version);
-        }
-        window.__BTI_INSTANCE = { version: CONFIG.info.version, instance: this };
         this._closeNotice = null;
         this._lastBannerShow = this.loadLastBannerShow();
         this._checkInterval = 1000 * 60 * 60 * 24;
@@ -1224,22 +1217,11 @@ class TypingIndicator {
             const fs = require('fs');
             const path = require('path');
             const file = path.join(__dirname, path.basename(__filename));
-            const tmp = file + ".tmp";
-            fs.writeFileSync(tmp, text);
-            fs.renameSync(tmp, file);
+            fs.writeFileSync(file, text);
             return true;
         } catch (e) {
-            console.warn('[BetterTypingIndicator] Atomic write failed, trying direct write:', e);
-            try {
-                const fs2 = require('fs');
-                const path2 = require('path');
-                const file2 = path2.join(__dirname, path2.basename(__filename));
-                fs2.writeFileSync(file2, text);
-                return true;
-            } catch (e2) {
-                console.warn('[BetterTypingIndicator] Direct write failed:', e2);
-                return false;
-            }
+            console.warn('[BetterTypingIndicator] Failed to write update:', e);
+            return false;
         }
     }
     async _fetchRemoteWithCache(url, meta) {
@@ -1413,22 +1395,27 @@ class TypingIndicator {
         );
         this.saveLastBannerShow();
     }
-    async applyUpdate(remoteText, remoteVersion) {
-        const ok = this._writeSelf(remoteText);
-        if (ok) {
+    applyUpdate(remoteText, remoteVersion) {
+    const ok = this._writeSelf(remoteText);
+    if (ok) {
             const meta = this.loadUpdateMeta() || {};
             this.saveUpdateMeta(meta);
-            UI.showToast(`Updated to version ${remoteVersion}. Reloading...`, { 
-                type: 'success', 
-                timeout: 0 
-            });
-            setTimeout(() => {
-                try {
+            UI.showToast(`Updated to version ${remoteVersion}. Reloading...`, { type: 'success' });
+            try {
+                if (BdApi?.Plugins?.disable && BdApi?.Plugins?.enable) {
+                    BdApi.Plugins.disable(CONFIG.info.name);
+                    setTimeout(() => {
+                        BdApi.Plugins.enable(CONFIG.info.name);
+                    }, 100);
+                } else if (typeof BdApi?.Plugins?.reload === 'function') {
                     BdApi.Plugins.reload(CONFIG.info.name);
-                } catch (e) {
-                /* Surpress the error */
+                } else {
+                    UI.showToast('Update complete! Please reload Discord (Ctrl+R) to apply.', { type: 'success' });
                 }
-            }, 0);
+            } catch (e) {
+                console.debug('[BetterTypingIndicator] Plugin reload failed:', e.message);
+                UI.showToast('Update complete! Please reload Discord (Ctrl+R) to apply.', { type: 'success' });
+            }
         } else {
             UI.showToast('Update failed. Please try again.', { type: 'error' });
         }
@@ -1605,9 +1592,6 @@ class TypingIndicator {
         }
     }
     async start() {
-        console.log('[BTI] start() called');
-        console.log('[BTI] Version at start:', CONFIG.info.version);
-        console.log("BetterTypingIndicator Plugin started");
         console.log("BetterTypingIndicator Plugin started");
         DOM.addStyle('typing-indicator-css', STYLES);
         DOM.addStyle('bti-settings-text',
@@ -1635,8 +1619,6 @@ class TypingIndicator {
         this.showChangelog();
     }
     stop() {
-        console.log('[BTI] stop() called');
-        console.log('[BTI] Version at stop:', CONFIG.info.version);
         DOM.removeStyle('typing-indicator-css');
         DOM.removeStyle('bti-settings-text');
         if (this._closeNotice) {
