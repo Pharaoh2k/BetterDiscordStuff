@@ -1,4 +1,4 @@
-# [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscord/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
+# [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
 ### 3.0.4
 - Added multi-row tab layout - tabs now wrap to multiple rows instead of scrolling
