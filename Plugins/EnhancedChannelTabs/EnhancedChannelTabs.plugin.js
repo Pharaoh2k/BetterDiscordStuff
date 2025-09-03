@@ -1290,7 +1290,7 @@ CTRL + Mouse Scroll - Switch Tab Layout
 								type: "submenu",
 								items: [
 									{
-										label: "Auto-Update",
+										label: "Update Notifications",
 										type: "toggle",
 										checked: () => instance.props.plugin.settings.autoUpdate !== false,
 										action: () => {
