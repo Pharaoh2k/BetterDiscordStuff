@@ -1,5 +1,15 @@
 {
-  "id": "Enhanced Channel Tabs",
-  "name": "EnhancedChannelTabs",
-  "enabled": true
+  "lastUpdated": "2025-09-03",
+  "plugins": [
+    {
+      "id": "enhanced-channel-tabs",
+      "name": "EnhancedChannelTabs",
+      "enabled": true
+    },
+    {
+      "id": "TraceX Discord Recorder",
+      "name": "TraceX",
+      "enabled": true
+    }
+  ]
 }
