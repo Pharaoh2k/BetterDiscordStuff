@@ -21,5 +21,8 @@
     "Tab drag & drop reordering",
     "Context menu integration",
     "Auto-update-checks with changelog display"
-  ]
+  ],
+  "sourceUrl": "https://github.com/Pharaoh2k/BetterDiscordStuff/tree/main/Plugins/EnhancedChannelTabs",
+  "changelogUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/refs/heads/main/Plugins/EnhancedChannelTabs/CHANGELOG.md",
+  "downloadUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/refs/heads/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js"
 }
