@@ -10,7 +10,7 @@
   "features": [
     "Download voice messages with right-click menu option",
     "Download audio attachments (mp3, wav, m4a, flac, ogg)",
-    "Opens in browser for easy saving",
+    "Opens in browser for easy saving"
   ],
   "sourceUrl": "https://github.com/Pharaoh2k/BetterDiscordStuff/tree/main/Plugins/AudioDownloader",
   "changelogUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/refs/heads/main/Plugins/AudioDownloader/CHANGELOG.md",
