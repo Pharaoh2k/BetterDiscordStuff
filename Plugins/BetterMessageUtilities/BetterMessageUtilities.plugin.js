@@ -271,7 +271,7 @@ module.exports = class BetterMessageUtilities {
         }
     }
     loadSettings() {
-        const savedSettings = Data.load(this.getName(), "settings");
+        const savedSettings = Data.load("BetterMessageUtilities", "settings");
         if (!savedSettings) {
             this.settings = JSON.parse(JSON.stringify(this.defaultSettings));
             return;
@@ -297,7 +297,7 @@ module.exports = class BetterMessageUtilities {
             };
         }
     }
-    saveSettings() { Data.save(this.getName(), "settings", this.settings);  }
+    saveSettings() { Data.save("BetterMessageUtilities", "settings", this.settings);  }
     addEventListeners() {
         this.keyDownHandler = (e) => { this.pressedKeys.add(e.keyCode); if (e.keyCode === this.KeyCodes.ESCAPE && this.settings.general.clearOnEscape) { const chatInput = document.querySelector('[class*="textArea-"]'); if (chatInput && document.activeElement === chatInput) { chatInput.value = ""; chatInput.dispatchEvent(new Event('input', { bubbles: true })); } } };
         this.keyUpHandler = (e) => this.pressedKeys.delete(e.keyCode);
