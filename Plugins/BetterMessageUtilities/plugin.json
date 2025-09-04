@@ -1,0 +1,22 @@
+{
+  "name": "BetterMessageUtilities",
+  "description": "Adds customizable hotkeys for message actions (delete, edit, pin, reply, etc.)",
+  "author": "Pharaoh2k",
+  "version": "1.0.0",
+  "status": "Active",
+  "workingStatus": "Working",
+  "lastUpdated": "2025-01-01",
+  "releaseDate": "2025-01-01",
+  "features": [
+    "Hotkeys for delete, edit, pin, reply, and react actions",
+    "Copy raw message content and message links",
+    "Customizable keybindings with conflict detection",
+    "Single-click and double-click trigger options",
+    "Configurable toast notifications",
+    "Clear input on Escape key option",
+    "Auto-updates with changelog notifications"
+  ],
+  "sourceUrl": "https://github.com/Pharaoh2k/BetterDiscordStuff/tree/main/Plugins/BetterMessageUtilities",
+  "changelogUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/refs/heads/main/Plugins/BetterMessageUtilities/CHANGELOG.md",
+  "downloadUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/refs/heads/main/Plugins/BetterMessageUtilities/BetterMessageUtilities/BetterMessageUtilities.plugin.js"
+}
