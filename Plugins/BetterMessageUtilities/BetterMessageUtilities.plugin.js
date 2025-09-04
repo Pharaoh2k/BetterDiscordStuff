@@ -36,7 +36,7 @@ class UpdateManager {
         this.version = version;
         const [user, repo] = github.split('/');
         this.urls = {
-            plugin: `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main/Plugins/${pluginName}/${pluginName}/${pluginName}.plugin.js`,
+            plugin: `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main/Plugins/${pluginName}/${pluginName}.plugin.js`,
             changelog: `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main/Plugins/${pluginName}/CHANGELOG.md`
         };
         this.timer = null;
