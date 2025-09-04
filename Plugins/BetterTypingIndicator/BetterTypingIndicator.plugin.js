@@ -1,8 +1,8 @@
 /**
  * @name BetterTypingIndicator
  * @version 2.8.2
- * @website https://x.com/_Pharaoh2k
- * @source https://github.com/Pharaoh2k/BetterDiscordStuff/edit/main/Plugins/BetterTypingIndicator.plugin.js
+ * @website https://pharaoh2k.github.io/BetterDiscordStuff/
+ * @source https://github.com/Pharaoh2k/BetterDiscordStuff/edit/main/Plugins/BetterTypingIndicator/BetterTypingIndicator.plugin.js
  * @authorId 874825550408089610
  * @description Shows an indicator in the channel list (w/tooltip) plus server/folder icons and home icon for DMs when someone is typing there.
  * @author Pharaoh2k
