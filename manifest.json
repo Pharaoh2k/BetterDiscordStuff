@@ -10,6 +10,11 @@
       "id": "Better Typing Indicator",
       "name": "BetterTypingIndicator",
       "enabled": true
+    },
+    {
+      "id": "Better Message Utilities",
+      "name": "BetterMessageUtilities",
+      "enabled": true
     }
   ]
 }
