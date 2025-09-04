@@ -1,0 +1,18 @@
+{
+  "name": "AudioDownloader",
+  "description": "Adds \"Download audio\" to the right-click menu on messages containing voice-notes or audio attachments.",
+  "author": "Pharaoh2k",
+  "version": "1.0.0",
+  "status": "Active",
+  "workingStatus": "Working",
+  "lastUpdated": "2025-09-04",
+  "releaseDate": "2025-01-01",
+  "features": [
+    "Download voice messages with right-click menu option",
+    "Download audio attachments (mp3, wav, m4a, flac, ogg)",
+    "Opens in browser for easy saving",
+  ],
+  "sourceUrl": "https://github.com/Pharaoh2k/BetterDiscordStuff/tree/main/Plugins/AudioDownloader",
+  "changelogUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/refs/heads/main/Plugins/AudioDownloader/CHANGELOG.md",
+  "downloadUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/refs/heads/main/Plugins/AudioDownloader/AudioDownloader.plugin.js"
+}
