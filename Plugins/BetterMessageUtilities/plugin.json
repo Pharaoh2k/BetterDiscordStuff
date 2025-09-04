@@ -5,8 +5,8 @@
   "version": "1.0.0",
   "status": "Active",
   "workingStatus": "Working",
-  "lastUpdated": "2025-01-01",
-  "releaseDate": "2025-01-01",
+  "lastUpdated": "2025-09-04",
+  "releaseDate": "2025-09-04",
   "features": [
     "Hotkeys for delete, edit, pin, reply, and react actions",
     "Copy raw message content and message links",
