@@ -1,0 +1,25 @@
+{
+  "name": "BetterFileViewer",
+  "description": "View PDF, office files and other files (stl, 3D models) directly in Discord without downloading.",
+  "author": "Pharaoh2k, AGreenPig",
+  "version": "3.0.0",
+  "status": "Active",
+  "workingStatus": "Working",
+  "lastUpdated": "2025-09-05",
+  "releaseDate": "2023-09-05",
+  "features": [
+    "Preview PDF files directly in Discord",
+    "View Microsoft Office files (Word, Excel, PowerPoint)",
+    "Preview 3D models (STL, OBJ, 3MF, VSJ, VSB, VF)",
+    "View Open Document Format files (ODT)",
+    "Resizable embed windows for comfortable viewing",
+    "Toggle preview on/off with eye icon button",
+    "Large file warning for files over 10MB",
+    "Automatic updates with changelog display",
+    "Discord theme integration for seamless UI",
+    "Hover-to-show buttons matching Discord's design"
+  ],
+  "sourceUrl": "https://github.com/Pharaoh2k/BetterDiscordStuff/tree/main/Plugins/BetterFileViewer",
+  "changelogUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/refs/heads/main/Plugins/BetterFileViewer/CHANGELOG.md",
+  "downloadUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/refs/heads/main/Plugins/BetterFileViewer/BetterFileViewer.plugin.js"
+}
