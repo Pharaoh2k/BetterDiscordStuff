@@ -25,6 +25,11 @@
       "id": "Better File Viewer",
       "name": "BetterFileViewer",
       "enabled": true
+    },
+    {
+      "id": "Better Relative Timestamps",
+      "name": "BetterRelativeTimestamps",
+      "enabled": true
     }
   ]
 }
