@@ -1,0 +1,20 @@
+{
+  "name": "BetterRelativeTimestamps",
+  "description": "Adds live-updating relative timestamps to Discord messages",
+  "author": "Pharaoh2k",
+  "version": "1.1.0",
+  "status": "Active",
+  "workingStatus": "Working",
+  "lastUpdated": "2025-09-05",
+  "releaseDate": "2025-01-01",
+  "features": [
+    "Live-updating relative timestamps",
+    "Future timestamp support (in X time)",
+    "Toggle between relative-only or alongside absolute",
+    "Hide seconds option for cleaner display",
+    "Tooltip with full relative time"
+  ],
+  "sourceUrl": "https://github.com/Pharaoh2k/BetterDiscordStuff/tree/main/Plugins/BetterRelativeTimestamps",
+  "changelogUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/refs/heads/main/Plugins/BetterRelativeTimestamps/CHANGELOG.md",
+  "downloadUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/refs/heads/main/Plugins/BetterRelativeTimestamps/BetterRelativeTimestamps.plugin.js"
+}
