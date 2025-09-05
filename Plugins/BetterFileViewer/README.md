@@ -104,8 +104,8 @@ Copyright © 2025 Pharaoh2k. All rights reserved.
 
 ## 👥 Authors
 
-- **Pharaoh2k** - *Primary Developer*
-- **AGreenPig** - *Contributor*
+- **Pharaoh2k** - *Current Developer*
+- **AGreenPig** - *Previous Plugin Developer (FileViewer)*
 
 ## 🙏 Acknowledgments
 
