@@ -20,6 +20,11 @@
       "id": "Audio Downloader",
       "name": "AudioDownloader",
       "enabled": true
+    },
+    {
+      "id": "Better File Viewer",
+      "name": "BetterFileViewer",
+      "enabled": true
     }
   ]
 }
