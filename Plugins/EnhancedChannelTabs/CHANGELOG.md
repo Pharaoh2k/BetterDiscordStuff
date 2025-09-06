@@ -1,5 +1,8 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+### 3.0.5
+- Fixed Discord window resizing when double-clicking the new tab (+) button
+
 ### 3.0.4
 - Added multi-row tab layout - tabs now wrap to multiple rows instead of scrolling
 - Added quick toggle between single/multi-row modes using Ctrl+Mouse Wheel on tabs
