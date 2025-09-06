@@ -2,18 +2,18 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 3.0.4
+ * @version 3.0.5
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
  */
 /*@cc_on
 @if (@_jscript)
-	// Offer to self-install for clueless users that try to run this directly.
+
 	var shell = WScript.CreateObject("WScript.Shell");
 	var fs = new ActiveXObject("Scripting.FileSystemObject");
 	var pathPlugins = shell.ExpandEnvironmentStrings("%APPDATA%\BetterDiscord\plugins");
 	var pathSelf = WScript.ScriptFullName;
-	// Put the user at ease by addressing them in the first person
+
 	shell.Popup("It looks like you've mistakenly tried to run me directly. \n(Don't do that!)", 0, "I'm a plugin for BetterDiscord", 0x30);
 	if (fs.GetParentFolderName(pathSelf) === fs.GetAbsolutePathName(pathPlugins)) {
 		shell.Popup("I'm in the correct folder already.", 0, "I'm already installed", 0x40);
@@ -21,7 +21,7 @@
 		shell.Popup("I can't find the BetterDiscord plugins folder.\nAre you sure it's even installed?", 0, "Can't install myself", 0x10);
 	} else if (shell.Popup("Should I copy myself to BetterDiscord's plugins folder for you?", 0, "Do you need some help?", 0x34) === 6) {
 		fs.CopyFile(pathSelf, fs.BuildPath(pathPlugins, fs.GetFileName(pathSelf)), true);
-		// Show the user where to put plugins in the future
+
 		shell.Exec("explorer " + pathPlugins);
 		shell.Popup("I'm installed!", 0, "Successfully installed", 0x40);
 	}
@@ -162,12 +162,12 @@ class UpdateManager {
         }
         if (current) versions.push({ version: current, items });
         
-        // Filter versions between from and to
+
         const relevant = versions.filter(v => 
             this.isNewer(v.version, from) && !this.isNewer(v.version, to)
         );
         
-        // Group by type
+
         const grouped = { added: [], improved: [], fixed: [], other: [] };
         for (const v of relevant) {
             for (const item of v.items) {
@@ -198,7 +198,7 @@ class UpdateManager {
         return false;
     }
 }
-// src/ChannelTabs/index.jsx
+
 var pluginMeta;
 var { ContextMenu, Patcher, Webpack, React, DOM, ReactUtils, UI } = new BdApi(
 	"ChannelTabs",
@@ -330,9 +330,9 @@ var standardSidebarView =
 var backdropClasses = getModule(byKeys("backdrop", "withLayer"));
 var noDragClasses = [
 	standardSidebarView,
-	// Settings view
+
 	backdropClasses?.backdrop,
-	// Anything that has a backdrop
+
 ].filter((x) => x);
 var Icons = {
 	XSmallIcon: () =>
@@ -1123,8 +1123,8 @@ function CreateTabListContextMenu(props, e) {
 		}
 	});
 	const buttonRect = e.currentTarget.getBoundingClientRect();
-	// Temporarily disable drag region on fav container, otherwise it's causing a z-index stacking issue. 
-	// Note to Samfundev: The settings menu has the same issue, as you probably know, so this fix/workaround can help there too.
+
+
 	const favContainer = document.querySelector('.channelTabs-favContainer');
 	const originalAppRegion = favContainer ? favContainer.style.webkitAppRegion : null;
 	if (favContainer) {
@@ -2857,10 +2857,18 @@ var Fav = (props) =>
 		),
 );
 var NewTab = (props) =>
-	/* @__PURE__ */ React.createElement(
-	"div",
-	{ className: "channelTabs-newTab", onClick: props.openNewTab },
-		/* @__PURE__ */ React.createElement(PlusAlt, null),
+    /* @__PURE__ */ React.createElement(
+    "div",
+    { 
+        className: "channelTabs-newTab", 
+        onClick: props.openNewTab,
+        onDoubleClick: (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            props.openNewTab();
+        }
+    },
+        /* @__PURE__ */ React.createElement(PlusAlt, null),
 );
 var TabListDropdown = (props) =>
 	/* @__PURE__ */ React.createElement(
@@ -3420,7 +3428,7 @@ var FavBar = (props) =>
 	props.trailing,
 );
 var TopBar = class TopBar2 extends React.Component {
-	//#region Constructor
+
 	constructor(props) {
 		super(props);
 		this.isHistoryNavigation = false;
@@ -3432,7 +3440,7 @@ var TopBar = class TopBar2 extends React.Component {
 			tabs: props.tabs,
 			favs: props.favs,
 			favGroups: props.favGroups,
-			closedTabs: props.closedTabs || [],  // New: Initialize closed tabs
+			closedTabs: props.closedTabs || [], 
 			reopenLastChannel: props.reopenLastChannel,
 			showTabBar: props.showTabBar,
 			showFavBar: props.showFavBar,
@@ -3520,8 +3528,8 @@ var TopBar = class TopBar2 extends React.Component {
 			}
 		);
 	}
-	//#endregion
-	//#region Tab Functions
+
+
 	minimizeTab(tabIndex) {
 		this.setState(
 			{
@@ -3537,7 +3545,7 @@ var TopBar = class TopBar2 extends React.Component {
 		);
 	}
 	switchToTab(tabIndex) {
-		// Reset history navigation flag when switching tabs
+
 		this.isHistoryNavigation = false;
 		const tab = this.state.tabs[tabIndex];
 		this.setState(
@@ -3636,13 +3644,13 @@ var TopBar = class TopBar2 extends React.Component {
 	}
 	addToClosedTabs(closedTab) {
 		let closedTabs = [...(this.state.closedTabs || [])];
-		// Add new closed tab at the beginning
+
 		closedTabs.unshift(closedTab);
-		// Clean up old entries (older than configured days)
+
 		const daysToKeep = this.props.plugin.settings.maxClosedTabsDays || 30;
 		const cutoffTime = Date.now() - (daysToKeep * 24 * 60 * 60 * 1000);
 		closedTabs = closedTabs.filter(tab => tab.closedAt > cutoffTime);
-		// Limit the number of stored tabs
+
 		const maxCount = this.props.plugin.settings.maxClosedTabsCount || 100;
 		if (closedTabs.length > maxCount) {
 			closedTabs = closedTabs.slice(0, maxCount);
@@ -3652,9 +3660,9 @@ var TopBar = class TopBar2 extends React.Component {
 	reopenClosedTab(closedTabId) {
 		const closedTab = this.state.closedTabs.find(tab => tab.id === closedTabId);
 		if (!closedTab) return;
-		// Remove from closed tabs
+
 		const closedTabs = this.state.closedTabs.filter(tab => tab.id !== closedTabId);
-		// Add back to active tabs with history preserved
+
 		const newTab = {
 			url: closedTab.url,
 			name: closedTab.name,
@@ -3662,7 +3670,7 @@ var TopBar = class TopBar2 extends React.Component {
 			channelId: closedTab.channelId,
 			selected: false,
 			minimized: false,
-			// Preserve navigation history
+
 			history: closedTab.history || [closedTab.url],
 			historyIndex: closedTab.historyIndex || 0
 		};
@@ -3728,7 +3736,7 @@ var TopBar = class TopBar2 extends React.Component {
 		const currentTab = this.state.tabs[this.state.selectedTabIndex];
 		const newHistoryIndex = currentTab.historyIndex + 1;
 		const targetUrl = currentTab.history[newHistoryIndex];
-		// Update state properly
+
 		this.setState({
 			tabs: this.state.tabs.map((tab, index) => {
 				if (index === this.state.selectedTabIndex) {
@@ -3744,8 +3752,8 @@ var TopBar = class TopBar2 extends React.Component {
 			this.props.plugin.saveSettings();
 		});
 	}
-	//#endregion
-	//#region Fav Functions
+
+
 	hideFavBar() {
 		this.setState(
 			{
@@ -3822,8 +3830,8 @@ var TopBar = class TopBar2 extends React.Component {
 		favs.splice(toIndex, 0, this.state.favs[fromIndex]);
 		this.setState({ favs }, this.props.plugin.saveSettings);
 	}
-	//#endregion
-	//#region Fav Group Functions
+
+
 	createFavGroupId() {
 		var generatedId = this.state.favGroups.length;
 		var isUnique = false;
@@ -3930,8 +3938,8 @@ var TopBar = class TopBar2 extends React.Component {
 		favGroups.splice(toIndex, 0, this.state.favGroups[fromIndex]);
 		this.setState({ favGroups }, this.props.plugin.saveSettings);
 	}
-	//#endregion
-	//#region New Tab Functions
+
+
 	saveChannel(guildId, channelId, name) {
 		const newUrl = `/channels/${guildId || "@me"}/${channelId}`;
 		if (this.state.alwaysFocusNewTabs) {
@@ -4050,8 +4058,8 @@ var TopBar = class TopBar2 extends React.Component {
 			this.state.favs.filter((fav) => fav && fav.groupId === groupId),
 		);
 	}
-	//#endregion
-	//#region Other Functions
+
+
 	render() {
 		const trailing = /* @__PURE__ */ React.createElement(
 			"div",
@@ -4145,11 +4153,11 @@ var TopBar = class TopBar2 extends React.Component {
 				}),
 		);
 	}
-	//#endregion
+
 };
 var TopBarRef = React.createRef();
 module.exports = class ChannelTabs {
-	//#region Start/Stop Functions
+
 	constructor(meta) {
 		this.meta = meta;
 		pluginMeta = meta;
@@ -4192,8 +4200,8 @@ module.exports = class ChannelTabs {
 		patches.forEach((patch) => patch());
 		this.updateManager.stop();
 	}
-	//#endregion
-	//#region Styles
+
+
 	applyStyle() {
 		const CompactVariables = `
 				:root {	
@@ -4310,7 +4318,7 @@ module.exports = class ChannelTabs {
 			`;
 		const BaseStyle = `
 			/* 
-			//#region Tab Base/Container
+
 			*/
 			.channelTabs-input .bd-text-input {
 			border: 1px solid var(--input-border);
@@ -4326,7 +4334,7 @@ module.exports = class ChannelTabs {
 				-webkit-app-region: no-drag;
 			}
 			/*
-			//#endregion
+
 			*/
 			#channelTabs-container {
 				z-index: 1000;
@@ -4386,10 +4394,10 @@ module.exports = class ChannelTabs {
 				color: var(--interactive-active);
 			}
 			/*
-			//#endregion
+
 			*/
 			/*
-			//#region Quick Settings
+
 			*/
 			html:not(.platform-win) #channelTabs-settingsMenu {
 				margin-right: 0;
@@ -4411,10 +4419,10 @@ module.exports = class ChannelTabs {
 				height: 20px;
 			}
 			/*
-			//#endregion
+
 			*/
 			/*
-			//#region Tab Name
+
 			*/
 			.channelTabs-tab .channelTabs-tabName {
 				margin-right: 6px;
@@ -4433,10 +4441,10 @@ module.exports = class ChannelTabs {
 				color: var(--interactive-active);
 			}
 			/*
-			//#endregion
+
 			*/
 			/*
-			//#region Tab Icon
+
 			*/
 			.channelTabs-tabIcon {
 				height: 20px;
@@ -4464,10 +4472,10 @@ module.exports = class ChannelTabs {
 				mask: url(#svg-mask-status-offline);
 			}
 			/*
-			//#endregion
+
 			*/
 			/*
-			//#region Close Tab / New Tab
+
 			*/
 			.channelTabs-closeTab {
 				position: relative;
@@ -4534,10 +4542,10 @@ module.exports = class ChannelTabs {
 				height: 16px;
 			}
 			/*
-			//#endregion
+
 			*/
 			/*
-			//#region Badges
+
 			*/
 			.channelTabs-gridContainer {
 				display: flex;
@@ -4643,10 +4651,10 @@ module.exports = class ChannelTabs {
 				display: none;
 			}
 			/*
-			//#endregion
+
 			*/
 			/*
-			//#region Favs
+
 			*/
 			.channelTabs-favContainer {
 				display: flex;
@@ -4699,10 +4707,10 @@ module.exports = class ChannelTabs {
 				padding: 3px;
 			}
 			/*
-			//#endregion 
+
 			*/
 			/*
-			//#region Fav Folders
+
 			*/
 			.channelTabs-favGroupBtn {
 				display: flex;
@@ -4772,7 +4780,7 @@ module.exports = class ChannelTabs {
 				z-index: -1 !important;
 			}
 			/*
-			//#endregion
+
 			*/
 			`;
 		const MultiRowStyles = `
@@ -4834,8 +4842,8 @@ module.exports = class ChannelTabs {
 		DOM.removeStyle("channelTabs-style-constants");
 		DOM.removeStyle("channelTabs-style");
 	}
-	//#endregion
-	//#region Init/Default Functions
+
+
 	ifNoTabsExist() {
 		if (this.settings.tabs.length == 0)
 			this.settings.tabs = [
@@ -4860,8 +4868,8 @@ module.exports = class ChannelTabs {
 			switching = false;
 		}
 	}
-	//#endregion
-	//#region Patches
+
+
 	patchTitleBar(promiseState) {
 		if (promiseState.cancelled) return;
 		Patcher.after(TitleBar, TitleBarKey, (thisObject, [props], returnValue) => {
@@ -4981,8 +4989,8 @@ module.exports = class ChannelTabs {
 			}),
 		);
 	}
-	//#endregion
-	//#region Handlers
+
+
 	clickHandler(e) {
 		if (!e.target.matches(".channelTabs-favGroupBtn")) {
 			closeAllDropdowns();
@@ -5013,10 +5021,10 @@ module.exports = class ChannelTabs {
 			{
 				ctrlKey: true,
 				shiftKey: true,
-				keyCode: 84, // T key
+				keyCode: 84,
 				action: () => {
 					props.switchToTab(index);
-					// Add scrolling after switching
+
 					if (props.scrollToTab) {
 						setTimeout(() => props.scrollToTab(index), 50);
 					}
@@ -5035,8 +5043,8 @@ module.exports = class ChannelTabs {
 			}
 		});
 	}
-	//#endregion
-	//#region General Functions
+
+
 	onSwitch() {
 		if (switching) return;
 		if (TopBarRef.current) {
@@ -5113,8 +5121,8 @@ module.exports = class ChannelTabs {
 		if (this.settings.showFavBar) out.push(...itemsFav);
 		return out;
 	}
-	//#endregion
-	//#region Hotkey Functions
+
+
 	nextTab() {
 		if (TopBarRef.current)
 			TopBarRef.current.switchToTab(
@@ -5139,8 +5147,8 @@ module.exports = class ChannelTabs {
 		if (!TopBarRef.current) return;
 		TopBarRef.current.openNewTab();
 	}
-	//#endregion
-	//#region Settings
+
+
 	get defaultVariables() {
 		return {
 			tabs: [],
@@ -5172,7 +5180,7 @@ module.exports = class ChannelTabs {
 			showQuickSettings: true,
 			showNavButtons: true,
 			alwaysFocusNewTabs: false,
-			useStandardNav: false, //changed the default to "false" because discord's global history breaks the per tab history navigation. Maybe best to completely retire the feature now that a proper tabs history and navigation is in place.
+			useStandardNav: false,
 			tabLayoutMode: "single",
 			autoUpdate: true,
 			closedTabs: [],
@@ -5210,7 +5218,7 @@ module.exports = class ChannelTabs {
 			}
 			return fav;
 		});
-		// Ensure history arrays are properly initialized and are copies, not references
+
 		this.settings.tabs = this.settings.tabs.map((tab) => {
 			if (tab.history && Array.isArray(tab.history)) {
 				return { ...tab, history: [...tab.history] };
@@ -5239,7 +5247,7 @@ module.exports = class ChannelTabs {
 	getSettingsPanel() {
 		return UI.buildSettingsPanel({
 			settings: [
-				//#region Startup Settings
+
 				{
 					id: "startupSettings",
 					type: "category",
@@ -5258,8 +5266,8 @@ module.exports = class ChannelTabs {
 						},
 					],
 				},
-				//#endregion
-				//#region General Appearance
+
+
 				{
 					id: "generalAppearance",
 					type: "category",
@@ -5424,8 +5432,8 @@ module.exports = class ChannelTabs {
 						},
 					],
 				},
-				//#endregion
-				//#region Behavior Settings
+
+
 				{
 					id: "behavior",
 					type: "category",
@@ -5463,8 +5471,8 @@ module.exports = class ChannelTabs {
 						},
 					],
 				},
-				//#endregion
-				//#region Badge Visibility - Favs
+
+
 				{
 					id: "badgeVisibilityFavorites",
 					type: "category",
@@ -5532,8 +5540,8 @@ module.exports = class ChannelTabs {
 						},
 					],
 				},
-				//#endregion
-				//#region Badge Visibility - Fav Groups
+
+
 				{
 					id: "badgeVisibilityFavoriteGroups",
 					type: "category",
@@ -5601,8 +5609,8 @@ module.exports = class ChannelTabs {
 						},
 					],
 				},
-				//#endregion
-				//#region Badge Visibility - Tabs
+
+
 				{
 					id: "badgeVisibilityTabs",
 					type: "category",
@@ -5670,8 +5678,8 @@ module.exports = class ChannelTabs {
 						},
 					],
 				},
-				//#endregion
-				//#region Badge Visibility - Active Tabs
+
+
 				{
 					id: "badgeVisibilityActiveTabs",
 					type: "category",
@@ -5739,7 +5747,7 @@ module.exports = class ChannelTabs {
 						},
 					],
 				},
-				//#endregion
+
 				{
 					id: "closedTabsSettings",
 					type: "category",
@@ -5796,6 +5804,6 @@ module.exports = class ChannelTabs {
 			],
 		});
 	}
-	//#endregion
+
 };
 /*@end@*/
