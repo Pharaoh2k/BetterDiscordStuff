@@ -2,10 +2,10 @@
   "name": "EnhancedChannelTabs",
   "description": "Allows you to have multiple tabs and bookmark channels.",
   "author": "Pharaoh2k, samfundev, l0c4lh057, CarJem Generations",
-  "version": "3.0.5",
+  "version": "3.0.6",
   "status": "Active",
   "workingStatus": "Working",
-  "lastUpdated": "2025-09-06",
+  "lastUpdated": "2025-09-08",
   "releaseDate": "2025-01-01",
   "features": [
     "Multiple browser-like tabs for channels",
