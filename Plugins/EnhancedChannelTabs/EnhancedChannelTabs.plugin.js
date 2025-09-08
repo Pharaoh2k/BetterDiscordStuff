@@ -2,18 +2,16 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 3.0.5
+ * @version 3.0.6
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
  */
 /*@cc_on
 @if (@_jscript)
-
 	var shell = WScript.CreateObject("WScript.Shell");
 	var fs = new ActiveXObject("Scripting.FileSystemObject");
 	var pathPlugins = shell.ExpandEnvironmentStrings("%APPDATA%\BetterDiscord\plugins");
 	var pathSelf = WScript.ScriptFullName;
-
 	shell.Popup("It looks like you've mistakenly tried to run me directly. \n(Don't do that!)", 0, "I'm a plugin for BetterDiscord", 0x30);
 	if (fs.GetParentFolderName(pathSelf) === fs.GetAbsolutePathName(pathPlugins)) {
 		shell.Popup("I'm in the correct folder already.", 0, "I'm already installed", 0x40);
@@ -21,184 +19,162 @@
 		shell.Popup("I can't find the BetterDiscord plugins folder.\nAre you sure it's even installed?", 0, "Can't install myself", 0x10);
 	} else if (shell.Popup("Should I copy myself to BetterDiscord's plugins folder for you?", 0, "Do you need some help?", 0x34) === 6) {
 		fs.CopyFile(pathSelf, fs.BuildPath(pathPlugins, fs.GetFileName(pathSelf)), true);
-
 		shell.Exec("explorer " + pathPlugins);
 		shell.Popup("I'm installed!", 0, "Successfully installed", 0x40);
 	}
 	WScript.Quit();
 @else@*/
 class UpdateManager {
-    constructor(pluginName, version, github = "Pharaoh2k/BetterDiscordStuff") {
-        this.name = pluginName;
-        this.version = version;
-        const [user, repo] = github.split('/');
-        this.urls = {
-            plugin:    `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main/Plugins/${pluginName}/${pluginName}.plugin.js`,
-		    changelog: `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main/Plugins/${pluginName}/CHANGELOG.md`
-        };
-        this.timer = null;
-        this.notice = null;
-    }
-    
-    async start(autoUpdate = true) {
-        if (autoUpdate) {
-            this.check(true);
-            this.timer = setInterval(() => this.check(true), 24 * 60 * 60 * 1000);
-        }
-        this.showChangelog();
-    }
-    
-    stop() {
-        clearInterval(this.timer);
-        this.notice?.();
-    }
-    
-    async check(silent = false) {
-        try {
-            const res = await BdApi.Net.fetch(this.urls.plugin);
-            if (res.status !== 200) throw new Error("Failed");
-            const text = await res.text();
-            const version = text.match(/@version\s+([\d.]+)/)?.[1];
-            if (!version) throw new Error("No version");
-            
-            if (this.isNewer(version)) {
-                this.showUpdateNotice(version, text);
-            } else if (!silent) {
-                BdApi.UI.showToast(`[${this.name}] You're up to date.`, { type: 'info' });
-            }
-        } catch (e) {
-            if (!silent) BdApi.UI.showToast(`[${this.name}] Update check failed`, { type: 'error' });
-        }
-    }
-    
-    showUpdateNotice(version, text) {
-        this.notice?.();
-        this.notice = BdApi.UI.showNotice(
-            `${this.name} v${version} is available`,
-            {
-                type: 'info',
-                buttons: [{
-                    label: 'Update',
-                    onClick: (close) => {
-                        close();
-                        this.applyUpdate(text, version);
-                    }
-                }, {
-                    label: 'Dismiss',
-                    onClick: (close) => close()
-                }]
-            }
-        );
-    }
-    
-    applyUpdate(text, version) {
-        try {
-            require('fs').writeFileSync(__filename, text);
-            BdApi.UI.showToast(`Updated to v${version}. Reloading...`, { type: 'success' });
-            setTimeout(() => {
-                try {
-                    BdApi.Plugins.reload(this.name);
-                } catch {
-                    BdApi.UI.showToast('Please reload Discord (Ctrl+R)', { type: 'info', timeout: 0 });
-                }
-            }, 100);
-        } catch {
-            BdApi.UI.showToast('Update failed', { type: 'error' });
-        }
-    }
-    
-    async showChangelog() {
-        const last = BdApi.Data.load(this.name, 'version');
-        if (last === this.version) return;
-        BdApi.Data.save(this.name, 'version', this.version);
-        if (!last) return;
-        
-        try {
-            const res = await BdApi.Net.fetch(this.urls.changelog);
-            const md = await res.text();
-            const changes = this.parseChangelog(md, last, this.version);
-            if (changes.length === 0) return;
-            
-            BdApi.UI.showChangelogModal({
-                title: this.name,
-                subtitle: `Version ${this.version}`,
-                changes
-            });
-        } catch {}
-    }
-    
-    async showFullChangelog() {
-        try {
-            const res = await BdApi.Net.fetch(this.urls.changelog);
-            const md = await res.text();
-            const changes = this.parseChangelog(md, "0.0.0", this.version);
-            
-            BdApi.UI.showChangelogModal({
-                title: this.name,
-                subtitle: `All Changes`,
-                changes: changes.length ? changes : [{ title: "No changes found", items: [] }]
-            });
-        } catch {
-            BdApi.UI.showToast("Could not fetch changelog", { type: "error" });
-        }
-    }
-    
-    parseChangelog(md, from, to) {
-        const lines = md.split('\n');
-        const versions = [];
-        let current = null;
-        let items = [];
-        
-        for (const line of lines) {
-            const ver = line.match(/^###\s+([\d.]+)/)?.[1];
-            if (ver) {
-                if (current) versions.push({ version: current, items });
-                current = ver;
-                items = [];
-            } else if (line.trim().startsWith('-') && current) {
-                const item = line.trim().substring(1).trim();
-                if (item) items.push(item);
-            }
-        }
-        if (current) versions.push({ version: current, items });
-        
-
-        const relevant = versions.filter(v => 
-            this.isNewer(v.version, from) && !this.isNewer(v.version, to)
-        );
-        
-
-        const grouped = { added: [], improved: [], fixed: [], other: [] };
-        for (const v of relevant) {
-            for (const item of v.items) {
-                const lower = item.toLowerCase();
-                const tagged = `${item} (v${v.version})`;
-                if (lower.includes('fix')) grouped.fixed.push(tagged);
-                else if (lower.includes('add') || lower.includes('initial')) grouped.added.push(tagged);
-                else if (lower.includes('improv') || lower.includes('updat')) grouped.improved.push(tagged);
-                else grouped.other.push(tagged);
-            }
-        }
-        
-        const result = [];
-        if (grouped.added.length) result.push({ title: "New Features", type: "added", items: grouped.added });
-        if (grouped.improved.length) result.push({ title: "Improvements", type: "improved", items: grouped.improved });
-        if (grouped.fixed.length) result.push({ title: "Bug Fixes", type: "fixed", items: grouped.fixed });
-        if (grouped.other.length) result.push({ title: "Other Changes", type: "progress", items: grouped.other });
-        
-        return result;
-    }
-    
-    isNewer(v1, v2 = this.version) {
-        const [a, b] = [v1, v2].map(v => v.split('.').map(Number));
-        for (let i = 0; i < Math.max(a.length, b.length); i++) {
-            if ((a[i] || 0) > (b[i] || 0)) return true;
-            if ((a[i] || 0) < (b[i] || 0)) return false;
-        }
-        return false;
-    }
+	constructor(pluginName, version, github = "Pharaoh2k/BetterDiscordStuff") {
+		this.name = pluginName;
+		this.version = version;
+		const [user, repo] = github.split('/');
+		this.urls = {
+			plugin: `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main/Plugins/${pluginName}/${pluginName}.plugin.js`,
+			changelog: `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main/Plugins/${pluginName}/CHANGELOG.md`
+		};
+		this.timer = null;
+		this.notice = null;
+	}
+	async start(autoUpdate = true) {
+		if (autoUpdate) {
+			this.check(true);
+			this.timer = setInterval(() => this.check(true), 24 * 60 * 60 * 1000);
+		}
+		this.showChangelog();
+	}
+	stop() {
+		clearInterval(this.timer);
+		this.notice?.();
+	}
+	async check(silent = false) {
+		try {
+			const res = await BdApi.Net.fetch(this.urls.plugin);
+			if (res.status !== 200) throw new Error("Failed");
+			const text = await res.text();
+			const version = text.match(/@version\s+([\d.]+)/)?.[1];
+			if (!version) throw new Error("No version");
+			if (this.isNewer(version)) {
+				this.showUpdateNotice(version, text);
+			} else if (!silent) {
+				BdApi.UI.showToast(`[${this.name}] You're up to date.`, { type: 'info' });
+			}
+		} catch (e) {
+			if (!silent) BdApi.UI.showToast(`[${this.name}] Update check failed`, { type: 'error' });
+		}
+	}
+	showUpdateNotice(version, text) {
+		this.notice?.();
+		this.notice = BdApi.UI.showNotice(
+			`${this.name} v${version} is available`,
+			{
+				type: 'info',
+				buttons: [{
+					label: 'Update',
+					onClick: (close) => {
+						close();
+						this.applyUpdate(text, version);
+					}
+				}, {
+					label: 'Dismiss',
+					onClick: (close) => close()
+				}]
+			}
+		);
+	}
+	applyUpdate(text, version) {
+		try {
+			require('fs').writeFileSync(__filename, text);
+			BdApi.UI.showToast(`Updated to v${version}. Reloading...`, { type: 'success' });
+			setTimeout(() => {
+				try {
+					BdApi.Plugins.reload(this.name);
+				} catch {
+					BdApi.UI.showToast('Please reload Discord (Ctrl+R)', { type: 'info', timeout: 0 });
+				}
+			}, 100);
+		} catch {
+			BdApi.UI.showToast('Update failed', { type: 'error' });
+		}
+	}
+	async showChangelog() {
+		const last = BdApi.Data.load(this.name, 'version');
+		if (last === this.version) return;
+		BdApi.Data.save(this.name, 'version', this.version);
+		if (!last) return;
+		try {
+			const res = await BdApi.Net.fetch(this.urls.changelog);
+			const md = await res.text();
+			const changes = this.parseChangelog(md, last, this.version);
+			if (changes.length === 0) return;
+			BdApi.UI.showChangelogModal({
+				title: this.name,
+				subtitle: `Version ${this.version}`,
+				changes
+			});
+		} catch { }
+	}
+	async showFullChangelog() {
+		try {
+			const res = await BdApi.Net.fetch(this.urls.changelog);
+			const md = await res.text();
+			const changes = this.parseChangelog(md, "0.0.0", this.version);
+			BdApi.UI.showChangelogModal({
+				title: this.name,
+				subtitle: `All Changes`,
+				changes: changes.length ? changes : [{ title: "No changes found", items: [] }]
+			});
+		} catch {
+			BdApi.UI.showToast("Could not fetch changelog", { type: "error" });
+		}
+	}
+	parseChangelog(md, from, to) {
+		const lines = md.split('\n');
+		const versions = [];
+		let current = null;
+		let items = [];
+		for (const line of lines) {
+			const ver = line.match(/^###\s+([\d.]+)/)?.[1];
+			if (ver) {
+				if (current) versions.push({ version: current, items });
+				current = ver;
+				items = [];
+			} else if (line.trim().startsWith('-') && current) {
+				const item = line.trim().substring(1).trim();
+				if (item) items.push(item);
+			}
+		}
+		if (current) versions.push({ version: current, items });
+		const relevant = versions.filter(v =>
+			this.isNewer(v.version, from) && !this.isNewer(v.version, to)
+		);
+		const grouped = { added: [], improved: [], fixed: [], other: [] };
+		for (const v of relevant) {
+			for (const item of v.items) {
+				const lower = item.toLowerCase();
+				const tagged = `${item} (v${v.version})`;
+				if (lower.includes('fix')) grouped.fixed.push(tagged);
+				else if (lower.includes('add') || lower.includes('initial')) grouped.added.push(tagged);
+				else if (lower.includes('improv') || lower.includes('updat')) grouped.improved.push(tagged);
+				else grouped.other.push(tagged);
+			}
+		}
+		const result = [];
+		if (grouped.added.length) result.push({ title: "New Features", type: "added", items: grouped.added });
+		if (grouped.improved.length) result.push({ title: "Improvements", type: "improved", items: grouped.improved });
+		if (grouped.fixed.length) result.push({ title: "Bug Fixes", type: "fixed", items: grouped.fixed });
+		if (grouped.other.length) result.push({ title: "Other Changes", type: "progress", items: grouped.other });
+		return result;
+	}
+	isNewer(v1, v2 = this.version) {
+		const [a, b] = [v1, v2].map(v => v.split('.').map(Number));
+		for (let i = 0; i < Math.max(a.length, b.length); i++) {
+			if ((a[i] || 0) > (b[i] || 0)) return true;
+			if ((a[i] || 0) < (b[i] || 0)) return false;
+		}
+		return false;
+	}
 }
-
 var pluginMeta;
 var { ContextMenu, Patcher, Webpack, React, DOM, ReactUtils, UI } = new BdApi(
 	"ChannelTabs",
@@ -330,9 +306,7 @@ var standardSidebarView =
 var backdropClasses = getModule(byKeys("backdrop", "withLayer"));
 var noDragClasses = [
 	standardSidebarView,
-
 	backdropClasses?.backdrop,
-
 ].filter((x) => x);
 var Icons = {
 	XSmallIcon: () =>
@@ -1123,8 +1097,6 @@ function CreateTabListContextMenu(props, e) {
 		}
 	});
 	const buttonRect = e.currentTarget.getBoundingClientRect();
-
-
 	const favContainer = document.querySelector('.channelTabs-favContainer');
 	const originalAppRegion = favContainer ? favContainer.style.webkitAppRegion : null;
 	if (favContainer) {
@@ -2858,16 +2830,16 @@ var Fav = (props) =>
 );
 var NewTab = (props) =>
     /* @__PURE__ */ React.createElement(
-    "div",
-    { 
-        className: "channelTabs-newTab", 
-        onClick: props.openNewTab,
-        onDoubleClick: (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            props.openNewTab();
-        }
-    },
+	"div",
+	{
+		className: "channelTabs-newTab",
+		onClick: props.openNewTab,
+		onDoubleClick: (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			props.openNewTab();
+		}
+	},
         /* @__PURE__ */ React.createElement(PlusAlt, null),
 );
 var TabListDropdown = (props) =>
@@ -3428,7 +3400,6 @@ var FavBar = (props) =>
 	props.trailing,
 );
 var TopBar = class TopBar2 extends React.Component {
-
 	constructor(props) {
 		super(props);
 		this.isHistoryNavigation = false;
@@ -3440,7 +3411,7 @@ var TopBar = class TopBar2 extends React.Component {
 			tabs: props.tabs,
 			favs: props.favs,
 			favGroups: props.favGroups,
-			closedTabs: props.closedTabs || [], 
+			closedTabs: props.closedTabs || [],
 			reopenLastChannel: props.reopenLastChannel,
 			showTabBar: props.showTabBar,
 			showFavBar: props.showFavBar,
@@ -3528,8 +3499,6 @@ var TopBar = class TopBar2 extends React.Component {
 			}
 		);
 	}
-
-
 	minimizeTab(tabIndex) {
 		this.setState(
 			{
@@ -3545,7 +3514,6 @@ var TopBar = class TopBar2 extends React.Component {
 		);
 	}
 	switchToTab(tabIndex) {
-
 		this.isHistoryNavigation = false;
 		const tab = this.state.tabs[tabIndex];
 		this.setState(
@@ -3644,13 +3612,10 @@ var TopBar = class TopBar2 extends React.Component {
 	}
 	addToClosedTabs(closedTab) {
 		let closedTabs = [...(this.state.closedTabs || [])];
-
 		closedTabs.unshift(closedTab);
-
 		const daysToKeep = this.props.plugin.settings.maxClosedTabsDays || 30;
 		const cutoffTime = Date.now() - (daysToKeep * 24 * 60 * 60 * 1000);
 		closedTabs = closedTabs.filter(tab => tab.closedAt > cutoffTime);
-
 		const maxCount = this.props.plugin.settings.maxClosedTabsCount || 100;
 		if (closedTabs.length > maxCount) {
 			closedTabs = closedTabs.slice(0, maxCount);
@@ -3660,9 +3625,7 @@ var TopBar = class TopBar2 extends React.Component {
 	reopenClosedTab(closedTabId) {
 		const closedTab = this.state.closedTabs.find(tab => tab.id === closedTabId);
 		if (!closedTab) return;
-
 		const closedTabs = this.state.closedTabs.filter(tab => tab.id !== closedTabId);
-
 		const newTab = {
 			url: closedTab.url,
 			name: closedTab.name,
@@ -3670,7 +3633,6 @@ var TopBar = class TopBar2 extends React.Component {
 			channelId: closedTab.channelId,
 			selected: false,
 			minimized: false,
-
 			history: closedTab.history || [closedTab.url],
 			historyIndex: closedTab.historyIndex || 0
 		};
@@ -3736,7 +3698,6 @@ var TopBar = class TopBar2 extends React.Component {
 		const currentTab = this.state.tabs[this.state.selectedTabIndex];
 		const newHistoryIndex = currentTab.historyIndex + 1;
 		const targetUrl = currentTab.history[newHistoryIndex];
-
 		this.setState({
 			tabs: this.state.tabs.map((tab, index) => {
 				if (index === this.state.selectedTabIndex) {
@@ -3752,8 +3713,6 @@ var TopBar = class TopBar2 extends React.Component {
 			this.props.plugin.saveSettings();
 		});
 	}
-
-
 	hideFavBar() {
 		this.setState(
 			{
@@ -3830,8 +3789,6 @@ var TopBar = class TopBar2 extends React.Component {
 		favs.splice(toIndex, 0, this.state.favs[fromIndex]);
 		this.setState({ favs }, this.props.plugin.saveSettings);
 	}
-
-
 	createFavGroupId() {
 		var generatedId = this.state.favGroups.length;
 		var isUnique = false;
@@ -3938,8 +3895,6 @@ var TopBar = class TopBar2 extends React.Component {
 		favGroups.splice(toIndex, 0, this.state.favGroups[fromIndex]);
 		this.setState({ favGroups }, this.props.plugin.saveSettings);
 	}
-
-
 	saveChannel(guildId, channelId, name) {
 		const newUrl = `/channels/${guildId || "@me"}/${channelId}`;
 		if (this.state.alwaysFocusNewTabs) {
@@ -4058,8 +4013,6 @@ var TopBar = class TopBar2 extends React.Component {
 			this.state.favs.filter((fav) => fav && fav.groupId === groupId),
 		);
 	}
-
-
 	render() {
 		const trailing = /* @__PURE__ */ React.createElement(
 			"div",
@@ -4153,11 +4106,9 @@ var TopBar = class TopBar2 extends React.Component {
 				}),
 		);
 	}
-
 };
 var TopBarRef = React.createRef();
 module.exports = class ChannelTabs {
-
 	constructor(meta) {
 		this.meta = meta;
 		pluginMeta = meta;
@@ -4200,8 +4151,6 @@ module.exports = class ChannelTabs {
 		patches.forEach((patch) => patch());
 		this.updateManager.stop();
 	}
-
-
 	applyStyle() {
 		const CompactVariables = `
 				:root {	
@@ -4318,7 +4267,6 @@ module.exports = class ChannelTabs {
 			`;
 		const BaseStyle = `
 			/* 
-
 			*/
 			.channelTabs-input .bd-text-input {
 			border: 1px solid var(--input-border);
@@ -4334,7 +4282,6 @@ module.exports = class ChannelTabs {
 				-webkit-app-region: no-drag;
 			}
 			/*
-
 			*/
 			#channelTabs-container {
 				z-index: 1000;
@@ -4394,10 +4341,8 @@ module.exports = class ChannelTabs {
 				color: var(--interactive-active);
 			}
 			/*
-
 			*/
 			/*
-
 			*/
 			html:not(.platform-win) #channelTabs-settingsMenu {
 				margin-right: 0;
@@ -4419,10 +4364,8 @@ module.exports = class ChannelTabs {
 				height: 20px;
 			}
 			/*
-
 			*/
 			/*
-
 			*/
 			.channelTabs-tab .channelTabs-tabName {
 				margin-right: 6px;
@@ -4441,10 +4384,8 @@ module.exports = class ChannelTabs {
 				color: var(--interactive-active);
 			}
 			/*
-
 			*/
 			/*
-
 			*/
 			.channelTabs-tabIcon {
 				height: 20px;
@@ -4472,10 +4413,8 @@ module.exports = class ChannelTabs {
 				mask: url(#svg-mask-status-offline);
 			}
 			/*
-
 			*/
 			/*
-
 			*/
 			.channelTabs-closeTab {
 				position: relative;
@@ -4542,10 +4481,8 @@ module.exports = class ChannelTabs {
 				height: 16px;
 			}
 			/*
-
 			*/
 			/*
-
 			*/
 			.channelTabs-gridContainer {
 				display: flex;
@@ -4651,10 +4588,8 @@ module.exports = class ChannelTabs {
 				display: none;
 			}
 			/*
-
 			*/
 			/*
-
 			*/
 			.channelTabs-favContainer {
 				display: flex;
@@ -4707,10 +4642,8 @@ module.exports = class ChannelTabs {
 				padding: 3px;
 			}
 			/*
-
 			*/
 			/*
-
 			*/
 			.channelTabs-favGroupBtn {
 				display: flex;
@@ -4780,7 +4713,6 @@ module.exports = class ChannelTabs {
 				z-index: -1 !important;
 			}
 			/*
-
 			*/
 			`;
 		const MultiRowStyles = `
@@ -4842,8 +4774,6 @@ module.exports = class ChannelTabs {
 		DOM.removeStyle("channelTabs-style-constants");
 		DOM.removeStyle("channelTabs-style");
 	}
-
-
 	ifNoTabsExist() {
 		if (this.settings.tabs.length == 0)
 			this.settings.tabs = [
@@ -4868,8 +4798,6 @@ module.exports = class ChannelTabs {
 			switching = false;
 		}
 	}
-
-
 	patchTitleBar(promiseState) {
 		if (promiseState.cancelled) return;
 		Patcher.after(TitleBar, TitleBarKey, (thisObject, [props], returnValue) => {
@@ -4989,8 +4917,6 @@ module.exports = class ChannelTabs {
 			}),
 		);
 	}
-
-
 	clickHandler(e) {
 		if (!e.target.matches(".channelTabs-favGroupBtn")) {
 			closeAllDropdowns();
@@ -5024,7 +4950,6 @@ module.exports = class ChannelTabs {
 				keyCode: 84,
 				action: () => {
 					props.switchToTab(index);
-
 					if (props.scrollToTab) {
 						setTimeout(() => props.scrollToTab(index), 50);
 					}
@@ -5043,29 +4968,21 @@ module.exports = class ChannelTabs {
 			}
 		});
 	}
-
-
 	onSwitch() {
 		if (switching) return;
 		if (TopBarRef.current) {
 			const currentSelectedIndex = TopBarRef.current.state.selectedTabIndex;
 			const currentTab = TopBarRef.current.state.tabs[currentSelectedIndex];
 			const currentUrl = location.pathname;
-			if (!TopBarRef.current.isHistoryNavigation &&
-				currentTab.url !== currentUrl) {
-				const urlBelongsToOtherTab = TopBarRef.current.state.tabs.some((tab, index) =>
-					index !== currentSelectedIndex && tab.url === currentUrl
-				);
-				if (urlBelongsToOtherTab) {
-					return;
-				}
+			if (!TopBarRef.current.isHistoryNavigation && currentTab.url === currentUrl) {
+				return;
 			}
 			TopBarRef.current.setState(
 				{
 					tabs: TopBarRef.current.state.tabs.map((tab, index) => {
+						const channelId = SelectedChannelStore.getChannelId();
+						const newUrl = location.pathname;
 						if (index === currentSelectedIndex) {
-							const channelId = SelectedChannelStore.getChannelId();
-							const newUrl = location.pathname;
 							let newHistory = tab.history ? [...tab.history] : [tab.url];
 							let newHistoryIndex = tab.historyIndex || 0;
 							if (!TopBarRef.current.isHistoryNavigation && tab.url !== newUrl) {
@@ -5085,14 +5002,22 @@ module.exports = class ChannelTabs {
 								selected: true,
 								currentStatus: getCurrentUserStatus(location.pathname),
 								channelId,
-								minimized:
-									this.settings.tabs[
-										this.settings.tabs.findIndex((tab2) => tab2.selected)
-									].minimized,
+								minimized: this.settings.tabs[
+									this.settings.tabs.findIndex((tab2) => tab2.selected)
+								].minimized,
 								history: newHistory,
 								historyIndex: newHistoryIndex
 							};
-						} else {
+						}
+						else if (tab.url === currentUrl) {
+							return {
+								...tab,
+								name: getCurrentName(),
+								channelId,
+								currentStatus: getCurrentUserStatus(location.pathname),
+							};
+						}
+						else {
 							return Object.assign({}, tab);
 						}
 					}),
@@ -5101,17 +5026,15 @@ module.exports = class ChannelTabs {
 			);
 		} else if (!this.settings.reopenLastChannel) {
 			const channelId = SelectedChannelStore.getChannelId();
-			this.settings.tabs[this.settings.tabs.findIndex((tab) => tab.selected)] =
-			{
+			this.settings.tabs[this.settings.tabs.findIndex((tab) => tab.selected)] = {
 				name: getCurrentName(),
 				url: location.pathname,
 				selected: true,
 				currentStatus: getCurrentUserStatus(location.pathname),
 				channelId,
-				minimized:
-					this.settings.tabs[
-						this.settings.tabs.findIndex((tab) => tab.selected)
-					].minimized,
+				minimized: this.settings.tabs[
+					this.settings.tabs.findIndex((tab) => tab.selected)
+				].minimized,
 			};
 		}
 	}
@@ -5121,8 +5044,6 @@ module.exports = class ChannelTabs {
 		if (this.settings.showFavBar) out.push(...itemsFav);
 		return out;
 	}
-
-
 	nextTab() {
 		if (TopBarRef.current)
 			TopBarRef.current.switchToTab(
@@ -5147,8 +5068,6 @@ module.exports = class ChannelTabs {
 		if (!TopBarRef.current) return;
 		TopBarRef.current.openNewTab();
 	}
-
-
 	get defaultVariables() {
 		return {
 			tabs: [],
@@ -5218,7 +5137,6 @@ module.exports = class ChannelTabs {
 			}
 			return fav;
 		});
-
 		this.settings.tabs = this.settings.tabs.map((tab) => {
 			if (tab.history && Array.isArray(tab.history)) {
 				return { ...tab, history: [...tab.history] };
@@ -5247,7 +5165,6 @@ module.exports = class ChannelTabs {
 	getSettingsPanel() {
 		return UI.buildSettingsPanel({
 			settings: [
-
 				{
 					id: "startupSettings",
 					type: "category",
@@ -5266,8 +5183,6 @@ module.exports = class ChannelTabs {
 						},
 					],
 				},
-
-
 				{
 					id: "generalAppearance",
 					type: "category",
@@ -5432,8 +5347,6 @@ module.exports = class ChannelTabs {
 						},
 					],
 				},
-
-
 				{
 					id: "behavior",
 					type: "category",
@@ -5471,8 +5384,6 @@ module.exports = class ChannelTabs {
 						},
 					],
 				},
-
-
 				{
 					id: "badgeVisibilityFavorites",
 					type: "category",
@@ -5540,8 +5451,6 @@ module.exports = class ChannelTabs {
 						},
 					],
 				},
-
-
 				{
 					id: "badgeVisibilityFavoriteGroups",
 					type: "category",
@@ -5609,8 +5518,6 @@ module.exports = class ChannelTabs {
 						},
 					],
 				},
-
-
 				{
 					id: "badgeVisibilityTabs",
 					type: "category",
@@ -5678,8 +5585,6 @@ module.exports = class ChannelTabs {
 						},
 					],
 				},
-
-
 				{
 					id: "badgeVisibilityActiveTabs",
 					type: "category",
@@ -5747,7 +5652,6 @@ module.exports = class ChannelTabs {
 						},
 					],
 				},
-
 				{
 					id: "closedTabsSettings",
 					type: "category",
@@ -5804,6 +5708,5 @@ module.exports = class ChannelTabs {
 			],
 		});
 	}
-
 };
 /*@end@*/
