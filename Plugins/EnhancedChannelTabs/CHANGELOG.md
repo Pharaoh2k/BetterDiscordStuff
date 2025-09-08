@@ -1,5 +1,9 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+### 3.0.6
+- Fixed tabs not updating when navigating to channels/pages open in other tabs
+- Fixed multiple tabs on the same channel not syncing properly
+- 
 ### 3.0.5
 - Fixed Discord window resizing when double-clicking the new tab (+) button
 
