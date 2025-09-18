@@ -70,24 +70,34 @@ class UpdateManager {
         }
     }
     showUpdateNotice(version, text) {
-        this.notice?.();
-        this.notice = BdApi.UI.showNotice(
-            `${this.name} v${version} is available`,
-            {
-                type: 'info',
-                buttons: [{
-                    label: 'Update',
-                    onClick: (close) => {
-                        close();
-                        this.applyUpdate(text, version);
-                    }
-                }, {
-                    label: 'Dismiss',
-                    onClick: (close) => close()
-                }]
-            }
-        );
-    }
+		this.notice?.();
+		this.notice = BdApi.UI.showNotice(
+			`${this.name} v${version} is available`,
+			{
+				type: 'info',
+				buttons: [{
+					label: 'Update',
+					onClick: (closeOrEvent) => {
+						if (typeof closeOrEvent === 'function') {
+							closeOrEvent();
+						} else if (this.notice && typeof this.notice === 'function') {
+							this.notice();
+						}
+						this.applyUpdate(text, version);
+					}
+				}, {
+					label: 'Dismiss',
+					onClick: (closeOrEvent) => {
+						if (typeof closeOrEvent === 'function') {
+							closeOrEvent();
+						} else if (this.notice && typeof this.notice === 'function') {
+							this.notice();
+						}
+					}
+				}]
+			}
+		);
+	}
     applyUpdate(text, version) {
         try {
             require('fs').writeFileSync(__filename, text);
