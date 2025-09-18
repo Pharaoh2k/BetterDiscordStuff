@@ -71,13 +71,23 @@ class UpdateManager {
 				type: 'info',
 				buttons: [{
 					label: 'Update',
-					onClick: (close) => {
-						close();
+					onClick: (closeOrEvent) => {
+						if (typeof closeOrEvent === 'function') {
+							closeOrEvent();
+						} else if (this.notice && typeof this.notice === 'function') {
+							this.notice();
+						}
 						this.applyUpdate(text, version);
 					}
 				}, {
 					label: 'Dismiss',
-					onClick: (close) => close()
+					onClick: (closeOrEvent) => {
+						if (typeof closeOrEvent === 'function') {
+							closeOrEvent();
+						} else if (this.notice && typeof this.notice === 'function') {
+							this.notice();
+						}
+					}
 				}]
 			}
 		);
