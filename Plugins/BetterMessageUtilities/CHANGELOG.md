@@ -1,5 +1,11 @@
 # [BetterMessageUtilities](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterMessageUtilities "BetterMessageUtilities") Changelog
 
+### 1.0.1
+- Switched to BetterDiscord's buildSettingsPanel API
+- Added radio buttons for click type selection
+- Improved settings organization with categories
+- Code cleanup and optimization
+
 ### 1.0.0
 - Initial release
 - Added customizable hotkeys for message actions
