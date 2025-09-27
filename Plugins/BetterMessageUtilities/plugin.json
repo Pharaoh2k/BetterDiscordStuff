@@ -2,10 +2,10 @@
   "name": "BetterMessageUtilities",
   "description": "Adds customizable hotkeys for message actions (delete, edit, pin, reply, etc.)",
   "author": "Pharaoh2k",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "status": "Active",
   "workingStatus": "Working",
-  "lastUpdated": "2025-09-04",
+  "lastUpdated": "2025-09-27",
   "releaseDate": "2025-09-04",
   "features": [
     "Hotkeys for delete, edit, pin, reply, and react actions",
