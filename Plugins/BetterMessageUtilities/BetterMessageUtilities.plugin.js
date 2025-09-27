@@ -1,6 +1,6 @@
 /**
  * @name BetterMessageUtilities
- * @version 1.0.0
+ * @version 1.0.1
  * @description Adds customizable hotkeys for message actions (delete, edit, pin, reply, etc.)
  * @author Pharaoh2k
  * @authorId 874825550408089610
@@ -70,34 +70,24 @@ class UpdateManager {
         }
     }
     showUpdateNotice(version, text) {
-		this.notice?.();
-		this.notice = BdApi.UI.showNotice(
-			`${this.name} v${version} is available`,
-			{
-				type: 'info',
-				buttons: [{
-					label: 'Update',
-					onClick: (closeOrEvent) => {
-						if (typeof closeOrEvent === 'function') {
-							closeOrEvent();
-						} else if (this.notice && typeof this.notice === 'function') {
-							this.notice();
-						}
-						this.applyUpdate(text, version);
-					}
-				}, {
-					label: 'Dismiss',
-					onClick: (closeOrEvent) => {
-						if (typeof closeOrEvent === 'function') {
-							closeOrEvent();
-						} else if (this.notice && typeof this.notice === 'function') {
-							this.notice();
-						}
-					}
-				}]
-			}
-		);
-	}
+        this.notice?.();
+        this.notice = BdApi.UI.showNotice(
+            `${this.name} v${version} is available`,
+            {
+                type: 'info',
+                buttons: [{
+                    label: 'Update',
+                    onClick: (close) => {
+                        close();
+                        this.applyUpdate(text, version);
+                    }
+                }, {
+                    label: 'Dismiss',
+                    onClick: (close) => close()
+                }]
+            }
+        );
+    }
     applyUpdate(text, version) {
         try {
             require('fs').writeFileSync(__filename, text);
@@ -214,7 +204,9 @@ module.exports = class BetterMessageUtilities {
                 Copy_Link: { name: "Copy Message Link", keycombo: [17, 81], click: 0, enabled: true }
             }
         };
-        this.settings = {}; this.pressedKeys = new Set(); this.walkable = ["child", "memoizedProps", "sibling"];
+        this.settings = {}; 
+        this.pressedKeys = new Set(); 
+        this.walkable = ["child", "memoizedProps", "sibling"];
     }
     load() {
         this.getDiscordModules();
@@ -242,7 +234,7 @@ module.exports = class BetterMessageUtilities {
             this.ReactUtils = ReactUtils;
             this.Utils = Utils;
             if (hasWebpack) {
-                const { Webpack, Webpack: { Filters } } = BdApi;
+                const { Webpack } = BdApi;
                 this.MessageActions = Webpack.getByKeys("deleteMessage", "startEditMessage");
                 this.MessageStore = Webpack.getByKeys("getMessage", "getMessages");
                 this.ChannelStore = Webpack.getByKeys("getChannel", "getDMFromUserId");
@@ -261,10 +253,6 @@ module.exports = class BetterMessageUtilities {
                     ADMINISTRATOR: 8n
                 };
                 this.startEditMessage = Webpack.getModule(m => m?.startEditMessage && typeof m.startEditMessage === "function");
-                this.FormSwitch = Webpack.getModule(Filters.byStrings('labelRow', 'checked'), { searchExports: true });
-                this.RadioGroup = Webpack.getModule(m => Filters.byKeys('NOT_SET', 'NONE')(m?.Sizes), { searchExports: true });
-                this.FormItem = Webpack.getModule(m => Filters.byStrings('titleId', 'errorId', 'setIsFocused')(m?.render), 
-                                                 { searchExports: true });
             } else {
                 console.error("BetterMessageUtilities: Webpack is required but not available");
                 UI.showToast("BetterMessageUtilities: Failed to load - outdated BetterDiscord version", { type: "error" });
@@ -489,281 +477,145 @@ module.exports = class BetterMessageUtilities {
         return null;
     }
     getSettingsPanel() {
-        return () => {
-            const React = this.React,
-                [settings, setSettings] = React.useState(this.settings),
-                [recordingKey, setRecordingKey] = React.useState(null);
-            const updateSetting = (path, value) => {
-                const keys = path.split('.');
-                let obj = this.settings;
-                for (let i = 0; i < keys.length - 1; i++) obj = obj[keys[i]];
-                obj[keys[keys.length - 1]] = value;
-                this.saveSettings();
-                setSettings({
-                    ...this.settings
-                });
-            };
-            const processKeys = (currentKeys) => {
-                const keys = [];
-                if (currentKeys.has(this.KeyCodes.CTRL)) keys.push(this.KeyCodes.CTRL);
-                if (currentKeys.has(this.KeyCodes.ALT)) keys.push(this.KeyCodes.ALT);
-                if (currentKeys.has(this.KeyCodes.SHIFT)) keys.push(this.KeyCodes.SHIFT);
-                currentKeys.forEach(key => {
-                    if (![this.KeyCodes.CTRL, this.KeyCodes.ALT, this.KeyCodes.SHIFT].includes(key)) {
-                        keys.push(key);
+        try {
+            const settingsConfig = {
+                settings: [
+                    {
+                        type: "category",
+                        id: "general",
+                        name: "General Settings",
+                        collapsible: true,
+                        shown: true,
+                        settings: [
+                            {
+                                type: "switch",
+                                id: "clearOnEscape",
+                                name: "Clear Input on Escape",
+                                note: "Clear the message input box when pressing Escape",
+                                value: this.settings.general.clearOnEscape
+                            },
+                            {
+                                type: "switch",
+                                id: "autoUpdate",
+                                name: "Auto Update",
+                                note: "Automatically check for updates every 24 hours",
+                                value: this.settings.general.autoUpdate
+                            }
+                        ]
+                    },
+                    {
+                        type: "category",
+                        id: "toasts",
+                        name: "Toast Notifications",
+                        collapsible: true,
+                        shown: false,
+                        settings: Object.entries(this.settings.toasts).map(([action, enabled]) => ({
+                            type: "switch",
+                            id: action,
+                            name: this.settings.bindings[action]?.name || action,
+                            note: `Show notification when performing this action`,
+                            value: enabled
+                        }))
                     }
-                });
-                return keys;
-            };
-            const saveKeyCombo = (action, keys, input) => {
-                const conflict = this.checkForKeyConflict(keys, action);
-                if (conflict) {
-                    input.value = "Conflict with " + conflict;
-                    setTimeout(() => {
-                        input.value = this.getKeyComboString(this.settings.bindings[action].keycombo);
-                    }, 2000);
-                    return false;
-                }
-                this.settings.bindings[action].keycombo = keys;
-                input.value = this.getKeyComboString(keys);
-                this.saveSettings();
-                setSettings({ ...this.settings });
-                return true;
-            };
-            const handleKeyRecord = (action, e) => {
-                const input = e.target;
-                input.value = "Press keys... (ESC to clear, Enter to confirm)";
-                setRecordingKey(action);
-                let currentKeys = new Set();
-                let keyDownHandler, keyUpHandler;
-                const cleanup = () => {
-                    document.removeEventListener("keydown", keyDownHandler);
-                    document.removeEventListener("keyup", keyUpHandler);
-                    setRecordingKey(null);
-                };
-                keyDownHandler = (event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    if (event.keyCode === this.KeyCodes.ESCAPE) {
-                        this.settings.bindings[action].keycombo = [];
-                        input.value = "None";
-                        cleanup();
-                        return;
-                    }
-                    if (event.keyCode === this.KeyCodes.ENTER) {
-                        if (currentKeys.size === 0) {
-                            cleanup();
-                            return;
+                ],
+                onChange: (category, id, value) => {
+                    if (category === "general") {
+                        this.settings.general[id] = value;
+                        if (id === "autoUpdate") {
+                            if (value) {
+                                this.updateManager.start(true);
+                            } else {
+                                this.updateManager.stop();
+                            }
                         }
-                        const keys = processKeys(currentKeys);
-                        saveKeyCombo(action, keys, input);
-                        cleanup();
-                        return;
+                    } else if (category === "toasts") {
+                        this.settings.toasts[id] = value;
                     }
-                    currentKeys.add(event.keyCode);
-                    const keys = processKeys(currentKeys);
-                    input.value = this.getKeyComboString(keys) + " (Press Enter to confirm)";
-                };
-                keyUpHandler = (event) => {
-                    currentKeys.delete(event.keyCode);
-                    if (currentKeys.size === 0) {
-                        input.value = "Press keys... (ESC to clear, Enter to confirm)";
-                    }
-                };
-                document.addEventListener("keydown", keyDownHandler);
-                document.addEventListener("keyup", keyUpHandler);
+                    this.saveSettings();
+                }
             };
-            const Divider = () => React.createElement("div", {
-                style: {
-                    height: 1,
-                    margin: "20px 0",
-                    backgroundColor: "var(--background-accent)"
-                }
+            Object.entries(this.settings.bindings).forEach(([action, binding]) => {
+                settingsConfig.settings.push({
+                    type: "category",
+                    id: action,
+                    name: binding.name,
+                    collapsible: true,
+                    shown: false,
+                    settings: [
+                        {
+                            type: "switch",
+                            id: `${action}_enabled`,
+                            name: "Enabled",
+                            note: "Enable this keybinding",
+                            value: binding.enabled
+                        },
+                        {
+                            type: "keybind",
+                            id: `${action}_keys`,
+                            name: "Key Combination",
+                            note: "Click and press your key combination",
+                            value: binding.keycombo.map(k => this.getKeyName(k)),
+                            disabled: !binding.enabled,
+                            clearable: true
+                        },
+                        {
+                            type: "radio",
+                            id: `${action}_click`,
+                            name: "Click Type",
+                            note: "When to trigger this action",
+                            value: binding.click,
+                            disabled: !binding.enabled,
+                            options: [
+                                { name: "Single Click", value: 0 },
+                                { name: "Double Click", value: 1 }
+                            ]
+                        }
+                    ]
+                });
             });
-            const BindingDivider = () => React.createElement("div", {
-                style: {
-                    height: 1,
-                    margin: "15px 0",
-                    backgroundColor: "var(--background-accent)",
-                    opacity: 0.5
-                }
-            });
-            const elements = [];
-            elements.push(React.createElement("div", {
-                style: {
-                    marginBottom: 20,
-                    padding: 12,
-                    backgroundColor: "var(--background-secondary-alt)",
-                    borderRadius: 8,
-                    color: "var(--text-muted)"
-                }
-            }, React.createElement("div", null, React.createElement("strong", null, "How to use:"), React.createElement("br"), "1. Configure your keybindings below", React.createElement("br"), "2. Hold the keys and click/double-click on a message", React.createElement("br"), "3. The configured action will be performed", React.createElement("br"), React.createElement("br"), React.createElement("strong", null, "Setting keybindings:"), React.createElement("br"), "• Press and hold your key combination", React.createElement("br"), "• Press Enter to confirm", React.createElement("br"), "• Press ESC to clear")));
-            elements.push(React.createElement(Divider));
-            elements.push(React.createElement("div", {
-                style: {
-                    marginBottom: 20,
-                    padding: 15,
-                    backgroundColor: "var(--background-secondary)",
-                    borderRadius: 8
-                }
-            }, React.createElement("h3", {
-                className: "bd-settings-title bd-settings-group-title",
-                style: {
-                    marginBottom: 15,
-                    color: "var(--header-primary)",
-                    fontSize: 16,
-                    fontWeight: 600,
-                    borderBottom: "1px solid var(--background-accent)",
-                    paddingBottom: 8
-                }
-            }, "General Settings"), React.createElement(this.FormSwitch, {
-                value: settings.general.clearOnEscape,
-                note: "Clear the message input box when pressing Escape",
-                onChange: (v) => updateSetting('general.clearOnEscape', v)
-            }, "Clear Input on Escape"), React.createElement(this.FormSwitch, {
-                value: settings.general.autoUpdate,
-                note: "Automatically check for updates every 24 hours",
-                onChange: (v) => {
-                    updateSetting('general.autoUpdate', v);
-                    if (v) {
-                        this.updateManager.start(true);
-                    } else {
-                        this.updateManager.stop();
+            const originalOnChange = settingsConfig.onChange;
+            settingsConfig.onChange = (category, id, value) => {
+                if (category === "general" || category === "toasts") {
+                    originalOnChange(category, id, value);
+                } 
+                else if (this.settings.bindings[category]) {
+                    const action = category;
+                    if (id.endsWith("_enabled")) {
+                        this.settings.bindings[action].enabled = value;
+                    } else if (id.endsWith("_keys")) {
+                        const keyCodes = (value || []).map(keyName => {
+                            const keyCodeMap = {
+                                "Backspace": 8, "Tab": 9, "Enter": 13, "Shift": 16,
+                                "Ctrl": 17, "Control": 17, "Alt": 18, "CapsLock": 20, 
+                                "Escape": 27, "Space": 32, "Delete": 46
+                            };
+                            if (keyCodeMap[keyName]) return keyCodeMap[keyName];
+                            if (keyName.length === 1) {
+                                const char = keyName.toUpperCase().charCodeAt(0);
+                                if (char >= 65 && char <= 90) return char;
+                                if (char >= 48 && char <= 57) return char;
+                            }
+                            if (keyName.startsWith("Key")) {
+                                return parseInt(keyName.substring(3));
+                            }
+                            return 0;
+                        }).filter(k => k > 0);
+                        this.settings.bindings[action].keycombo = keyCodes;
+                    } else if (id.endsWith("_click")) {
+                        this.settings.bindings[action].click = value;
                     }
+                    this.saveSettings();
                 }
-            }, "Auto Update")));
-            elements.push(React.createElement(Divider));
-            elements.push(React.createElement("div", {
-                style: {
-                    marginBottom: 20,
-                    padding: 15,
-                    backgroundColor: "var(--background-secondary)",
-                    borderRadius: 8
-                }
-            }, React.createElement("h3", {
-                className: "bd-settings-title bd-settings-group-title",
-                style: {
-                    marginBottom: 15,
-                    color: "var(--header-primary)",
-                    fontSize: 16,
-                    fontWeight: 600,
-                    borderBottom: "1px solid var(--background-accent)",
-                    paddingBottom: 8
-                }
-            }, "Toast Notifications"), ...Object.entries(settings.toasts).map(([action, enabled]) => React.createElement(this.FormSwitch, {
-                value: enabled,
-                note: `Show notification when performing ${settings.bindings[action]?.name?.toLowerCase()}`,
-                onChange: (v) => updateSetting(`toasts.${action}`, v)
-            }, settings.bindings[action]?.name || action))));
-            elements.push(React.createElement("div", {
-                style: {
-                    marginBottom: 20,
-                    padding: 15,
-                    backgroundColor: "var(--background-secondary)",
-                    borderRadius: 8
-                }
-            }, React.createElement("h3", {
-                className: "bd-settings-title bd-settings-group-title",
-                style: {
-                    marginBottom: 15,
-                    color: "var(--header-primary)",
-                    fontSize: 16,
-                    fontWeight: 600,
-                    borderBottom: "1px solid var(--background-accent)",
-                    paddingBottom: 8
-                }
-            }, "Keybindings"), ...Object.entries(settings.bindings).flatMap(([action, binding], index, array) => {
-                const bindingElement = React.createElement("div", {
-                    key: action,
-                    style: {
-                        padding: 12,
-                        backgroundColor: "var(--background-primary)",
-                        borderRadius: 6
-                    }
-                }, React.createElement("div", {
-                    style: {
-                        display: "flex",
-                        alignItems: "center",
-                        marginBottom: 10
-                    }
-                }, React.createElement("span", {
-                    style: {
-                        flex: 1,
-                        fontWeight: 600,
-                        color: "var(--header-secondary)"
-                    }
-                }, binding.name), React.createElement(this.FormSwitch, {
-                    value: binding.enabled,
-                    hideBorder: true,
-                    onChange: (v) => updateSetting(`bindings.${action}.enabled`, v)
-                })), React.createElement("div", {
-                    style: {
-                        display: "flex",
-                        gap: 10,
-                        alignItems: "center",
-                        opacity: binding.enabled ? 1 : 0.5
-                    }
-                }, React.createElement("input", {
-                    type: "text",
-                    readOnly: true,
-                    value: recordingKey === action ? "Press keys... (ESC to clear, Enter to confirm)" : this.getKeyComboString(binding.keycombo),
-                    placeholder: "Click to set keys...",
-                    onClick: binding.enabled ? (e) => handleKeyRecord(action, e) : null,
-                    disabled: !binding.enabled,
-                    style: {
-                        flex: 1,
-                        padding: "6px 10px",
-                        borderRadius: 4,
-                        border: recordingKey === action ? "1px solid var(--status-danger)" : "1px solid var(--background-tertiary)",
-                        backgroundColor: recordingKey === action ? "var(--background-modifier-active)" : "var(--input-background)",
-                        color: "var(--text-default)",
-                        cursor: binding.enabled ? "pointer" : "not-allowed",
-                        minWidth: 150
-                    }
-                }), this.RadioGroup && React.createElement(this.RadioGroup, {
-                    value: binding.click,
-                    disabled: !binding.enabled,
-                    options: [{
-                        name: "Single Click",
-                        value: 0
-                    }, {
-                        name: "Double Click",
-                        value: 1
-                    }],
-                    onChange: (o) => updateSetting(`bindings.${action}.click`, o.value)
-                })));
-                return index < array.length - 1 ? [bindingElement, React.createElement(BindingDivider)] : bindingElement;
-            })));
-            elements.push(React.createElement(Divider));
-            elements.push(React.createElement("button", {
-                onClick: () => {
-                    if (confirm("Reset all settings to default?")) {
-                        this.settings = JSON.parse(JSON.stringify(this.defaultSettings));
-                        this.saveSettings();
-                        setSettings({
-                            ...this.settings
-                        });
-                        UI.showToast("Settings reset!", {
-                            type: "success"
-                        });
-                    }
-                },
-                style: {
-                    width: "100%",
-                    padding: "10px 16px",
-                    borderRadius: 4,
-                    border: "none",
-                    backgroundColor: "var(--button-danger-background)",
-                    color: "white",
-                    cursor: "pointer",
-                    fontWeight: 600,
-                    transition: "background-color 0.15s"
-                },
-                onMouseEnter: (e) => e.target.style.backgroundColor = "var(--button-danger-background-hover)",
-                onMouseLeave: (e) => e.target.style.backgroundColor = "var(--button-danger-background)"
-            }, "Reset All Settings"));
-            return elements;
-        };
+            };
+            return BdApi.UI.buildSettingsPanel(settingsConfig);
+        } catch (error) {
+            console.error("BetterMessageUtilities: Error in getSettingsPanel:", error);
+            const errorPanel = document.createElement("div");
+            errorPanel.style.padding = "20px";
+            errorPanel.style.color = "var(--text-danger)";
+            errorPanel.textContent = "Failed to load settings panel: " + error.message;
+            return errorPanel;
+        }
     }
 };
 /*@end@*/
