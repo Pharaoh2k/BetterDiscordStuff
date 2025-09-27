@@ -188,7 +188,7 @@ module.exports = class BetterMessageUtilities {
         this.ClickTypes = { CLICK: 0, DBLCLICK: 1 };
         this.updateManager = new UpdateManager(
             "BetterMessageUtilities",
-            "1.0.0",
+            "1.0.1",
             "Pharaoh2k/BetterDiscordStuff"
         );
         this.defaultSettings = {
