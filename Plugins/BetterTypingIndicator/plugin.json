@@ -16,7 +16,7 @@
     "Filter options for muted channels and blocked users",
     "Auto-updates with changelog notifications"
   ],
-  "sourceUrl": "https://github.com/Pharaoh2k/BetterDiscordStuff/tree/main/Plugins",
+  "sourceUrl": "https://github.com/Pharaoh2k/BetterDiscordStuff/tree/main/Plugins/BetterTypingIndicator",
   "changelogUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/refs/heads/main/Plugins/BetterTypingIndicator/CHANGELOG.md",
   "downloadUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/refs/heads/main/Plugins/BetterTypingIndicator/BetterTypingIndicator.plugin.js"
 }
