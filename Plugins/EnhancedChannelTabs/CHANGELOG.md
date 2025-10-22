@@ -1,5 +1,10 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+## 3.0.8
+- Merged the following upstream changes:
+- Fixed the topbar preventing interaction with image viewer controls
+- Fixed compatiblity with CollapsibleUI
+
 ### 3.0.7
 - Added BetterVencord compatibility to the updater
 
