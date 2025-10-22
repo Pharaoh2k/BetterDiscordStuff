@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 3.0.7
+ * @version 3.0.8
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
  */
@@ -314,10 +314,16 @@ var IconUtilities = getModule(byKeys("getChannelIconURL"));
 var standardSidebarView =
 	BdApi.Webpack.getByKeys("standardSidebarView")?.standardSidebarView ?? "";
 var backdropClasses = getModule(byKeys("backdrop", "withLayer"));
+var scrimClasses = getModule(byKeys("scrim"));
 var noDragClasses = [
 	standardSidebarView,
+	// Settings view
 	backdropClasses?.backdrop,
+	// Anything that has a backdrop
+	scrimClasses?.scrim,
+	// Modal scrims
 ].filter((x) => x);
+var systemBarClasses = getModule(byKeys("systemBar"));
 var Icons = {
 	XSmallIcon: () =>
 		/* @__PURE__ */ React.createElement(
@@ -3478,6 +3484,7 @@ var TopBar = class TopBar2 extends React.Component {
 		this.reopenLastClosedTab = this.reopenLastClosedTab.bind(this);
 		this.toggleTabLayoutMode = this.toggleTabLayoutMode.bind(this);
 		this.tabBarRef = React.createRef();
+		this.containerRef = React.createRef();
 	}
 	toggleTabLayoutMode() {
 		const newMode = this.state.tabLayoutMode === "single" ? "multi" : "single";
@@ -4042,7 +4049,7 @@ var TopBar = class TopBar2 extends React.Component {
 		);
 		return /* @__PURE__ */ React.createElement(
 			"div",
-			{ id: "channelTabs-container" },
+			{ id: "channelTabs-container", ref: this.containerRef },
 			!this.state.showTabBar
 				? null
 				: /* @__PURE__ */ React.createElement(TabBar, {
@@ -4115,6 +4122,22 @@ var TopBar = class TopBar2 extends React.Component {
 					hideFavBar: this.hideFavBar,
 				}),
 		);
+	}
+	componentDidMount() {
+		const container = this.containerRef.current;
+		function update() {
+			document.body.style.setProperty(
+				"--custom-app-top-bar-height",
+				`${container.clientHeight}px`,
+			);
+		}
+		this.observer = new ResizeObserver(update);
+		this.observer.observe(container);
+		update();
+	}
+	componentWillUnmount() {
+		this.observer.disconnect();
+		document.body.style.removeProperty("--custom-app-top-bar-height");
 	}
 };
 var TopBarRef = React.createRef();
@@ -4290,6 +4313,9 @@ module.exports = class ChannelTabs {
 			}
 			${noDragClasses.map((x) => `.${x}`).join(", ")} {
 				-webkit-app-region: no-drag;
+			}
+			.${systemBarClasses.systemBar}, .channelTabs-trailing {
+				--custom-app-top-bar-height: 32px;
 			}
 			/*
 			*/
