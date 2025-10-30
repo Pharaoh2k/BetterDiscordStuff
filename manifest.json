@@ -30,6 +30,11 @@
       "id": "Better Relative Timestamps",
       "name": "BetterRelativeTimestamps",
       "enabled": true
+    },
+    {
+      "id": "Show All Channels Automatically",
+      "name": "ShowAllChannelsAuto",
+      "enabled": true
     }
   ]
 }
