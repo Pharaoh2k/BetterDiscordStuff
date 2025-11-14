@@ -187,7 +187,6 @@ class UpdateManager {
 	}
 }
 class StyleManager {
-	// CSS String Methods
 	static getCompactVariables() {
 		return `
 			:root { --channelTabs-tabHeight: 22px; --channelTabs-favHeight: 22px; --channelTabs-tabNameFontSize: 12px; --channelTabs-openTabSize: 18px; }
@@ -344,7 +343,6 @@ class StyleManager {
 			.channelTabs-tabContainer { transition: all 0.3s ease; }
 		`;
 	}
-	// Inline Style Objects
 	static inlineStyles = {
 	tabListMenuItem: { display: "flex", alignItems: "center", width: "100%", minHeight: "26px", cursor: "pointer", position: "relative", zIndex: 1000 },
 	tabListMenuIcon: { width: "18px", height: "18px", marginRight: "10px", borderRadius: "50%", flexShrink: 0 },
@@ -368,7 +366,6 @@ class StyleManager {
 	menuItem: { pointerEvents: "auto", position: "relative", zIndex: "1" },
 	typingBadgeAlignment: { opacity: 0.7 }
 };
-	// Dynamic CSS for tab list menu
 	static getTabListMenuStyle() {
 		return `
 			[id^="popout_"] [role="menu"] { min-width: 300px !important; max-width: 420px !important; }
@@ -376,7 +373,6 @@ class StyleManager {
 			[id^="popout_"] [role="menuitem"] { pointer-events: auto; position: relative; z-index: 1; }
 		`;
 	}
-	// Dynamic style methods
 	static getTabListMenuNameStyle(isSelected) {
 		return {
 			...this.inlineStyles.tabListMenuName,
@@ -391,7 +387,6 @@ class StyleManager {
 			left: "auto"
 		};
 	}
-	// Hover effect handlers  
 	static applyHoverEffect(element) {
 		element.style.backgroundColor = "var(--background-modifier-hover)";
 		element.style.borderRadius = "3px";
@@ -533,11 +528,8 @@ const backdropClasses = getModule(byKeys("backdrop", "withLayer"));
 const scrimClasses = getModule(byKeys("scrim"));
 const noDragClasses = [
 	standardSidebarView,
-	// Settings view
 	backdropClasses?.backdrop,
-	// Anything that has a backdrop
 	scrimClasses?.scrim,
-	// Modal scrims
 ].filter(Boolean);
 const systemBarClasses = getModule(byKeys("systemBar"));
 const Icons = {
@@ -1322,7 +1314,6 @@ function CreateTabListContextMenu(props, e) {
 		}
 	);
 	requestAnimationFrame(() => {
-		// Keep custom positioning, but separators/items now styled via CSS
 		const menu = document.querySelector('[role="menu"]');
 		if (menu && menu.style) {
 			Object.assign(menu.style, StyleManager.getDropdownMenuPosition(buttonRect));
@@ -2189,12 +2180,10 @@ const getGuildChannels = (...guildIds) => {
 };
 const updateFavEntry = (fav) => {
 	if (fav.guildId) {
-		// Clean cache every 30 seconds
 		if (Date.now() - lastCacheClean > 30000) {
 			guildChannelCache.clear();
 			lastCacheClean = Date.now();
 		}
-		// Cache raw channels, keep permission/mute checks live
 		let channels = guildChannelCache.get(fav.guildId);
 		if (!channels) {
 			channels = getGuildChannels(fav.guildId);
