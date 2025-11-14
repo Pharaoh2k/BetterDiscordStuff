@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 3.0.8
+ * @version 3.1.0
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
  */
@@ -60,6 +60,7 @@ class UpdateManager {
 				BdApi.UI.showToast(`[${this.name}] You're up to date.`, { type: 'info' });
 			}
 		} catch (e) {
+			console.error(`[${this.name}] Update check failed:`, e);
 			if (!silent) BdApi.UI.showToast(`[${this.name}] Update check failed`, { type: 'error' });
 		}
 	}
@@ -185,11 +186,241 @@ class UpdateManager {
 		return false;
 	}
 }
-var pluginMeta;
-var { ContextMenu, Patcher, Webpack, React, DOM, ReactUtils, UI } = new BdApi(
+
+class StyleManager {
+	// CSS String Methods
+	static getCompactVariables() {
+		return `
+			:root { --channelTabs-tabHeight: 22px; --channelTabs-favHeight: 22px; --channelTabs-tabNameFontSize: 12px; --channelTabs-openTabSize: 18px; }
+		`;
+	}
+
+	static getCozyVariables() {
+		return `
+			:root { --channelTabs-tabHeight: 32px; --channelTabs-favHeight: 28px; --channelTabs-tabNameFontSize: 13px; --channelTabs-openTabSize: 24px; }
+		`;
+	}
+
+	static getConstantVariables(tabWidthMin) {
+		return `
+			:root { --channelTabs-tabWidth: 220px; --channelTabs-tabWidthMin: ${tabWidthMin}px; }
+		`;
+	}
+
+	static getPrivacyStyle() {
+		return `
+			#app-mount .channelTabs-favGroupBtn { color: transparent !important; }
+			#app-mount .channelTabs-tabName { color: transparent; background-color: var(--interactive-normal); opacity: 0.5; }
+			#app-mount .channelTabs-selected .channelTabs-tabName { background-color: var(--interactive-active); }
+			#app-mount .channelTabs-favName { color: transparent; background-color: var(--interactive-normal); opacity: 0.5; }
+		`;
+	}
+
+	static getRadialStatusStyle() {
+		return `
+			.channelTabs-tabIconWrapper,
+			.channelTabs-favIconWrapper { overflow: visible; }
+			.channelTabs-tabIconWrapper img[src*="com/avatars/"],
+			.channelTabs-favIconWrapper img[src*="com/avatars/"] { -webkit-clip-path: inset(1px round 50%); clip-path: inset(2px round 50%); }
+			.channelTabs-tabIconWrapper rect,
+			.channelTabs-favIconWrapper rect { x: 0; y: 0; rx: 50%; ry: 50%; -webkit-mask: none; mask: none; fill: none; height: 20px; width: 20px; stroke-width: 2px; }
+			.channelTabs-onlineIcon { stroke: hsl(139, calc(var(--saturation-factor, 1) * 47.3%), 43.9%); }
+			.channelTabs-idleIcon { stroke: hsl(38, calc(var(--saturation-factor, 1) * 95.7%), 54.1%); }
+			.channelTabs-doNotDisturbIcon { stroke: hsl(359, calc(var(--saturation-factor, 1) * 82.6%), 59.4%); }
+			.channelTabs-offlineIcon { stroke: hsl(214, calc(var(--saturation-factor, 1) * 9.9%), 50.4%); }
+		`;
+	}
+
+	static getTabNavStyle() {
+		return `
+			.channelTabs-tabContainer .channelTabs-tabNav { display:flex; margin: 0 6px 3px 0; }
+			.channelTabs-tabNavClose svg { transform: scale(0.75); }
+			.channelTabs-tabNavLeft svg,
+			.channelTabs-tabNavRight svg { transform: scale(0.6); }
+			.channelTabs-tabContainer .channelTabs-tabNav>div:hover { color: var(--interactive-hover); background-color: var(--background-modifier-hover); }
+			.channelTabs-tabContainer .channelTabs-tabNav>div:active { color: var(--interactive-active); background-color: var(--background-modifier-active); }
+			.channelTabs-tabContainer[data-tab-count="1"] .channelTabs-tabNav>.channelTabs-tabNavClose { color: var(--interactive-muted); background: none; }
+			.channelTabs-tabNav>div { display: flex; align-items: center; justify-content: center; height: var(--channelTabs-tabHeight); width: 32px; border-radius: 4px; margin-right: 3px; color: var(--interactive-normal); }
+		`;
+	}
+
+	static getBaseStyle(noDragClasses, systemBarClasses) {
+		return `
+			.channelTabs-input .bd-text-input { border: 1px solid var(--input-border); width: 100%; }
+			.channelTabs-tabNav { display:none; }
+			div:has(> div > #channelTabs-container) { grid-template-rows: [top] auto [titleBarEnd] min-content [noticeEnd] 1fr [end]; }
+			${noDragClasses.map((x) => `.${x}`).join(", ")} { -webkit-app-region: no-drag; }
+			.${systemBarClasses.systemBar}, .channelTabs-trailing { --custom-app-top-bar-height: 32px; }
+			#channelTabs-container { z-index: 1000; background: none; flex: 1; max-width: 100vw; }
+			.channelTabs-tabContainer { display: flex; align-items: center; }
+			.channelTabs-trailing { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+			.channelTabs-tabContainer > *, .channelTabs-favContainer > * { -webkit-app-region: no-drag; }
+			#channelTabs-container>:not(#channelTabs-settingsMenu)+div { padding-top: 4px; border-top: 1px solid var(--background-accent); }
+			.channelTabs-tab { display: flex; align-items: center; height: var(--channelTabs-tabHeight); background: none; border-radius: 4px; max-width: var(--channelTabs-tabWidth); min-width: var(--channelTabs-tabWidthMin); flex: 1 1 var(--channelTabs-tabWidthMin); margin-bottom: 3px; }
+			.channelTabs-tab>div:first-child { display: flex; width: calc(100% - 16px); align-items: center; }
+			.channelTabs-tab:not(.channelTabs-selected):hover { background: var(--background-modifier-hover); }
+			.channelTabs-tab:not(.channelTabs-selected):active { background: var(--background-modifier-active); }
+			.channelTabs-tab.channelTabs-selected { background: var(--background-modifier-selected); }
+			.channelTabs-tab.channelTabs-unread:not(.channelTabs-selected),
+			.channelTabs-tab.channelTabs-unread:not(.channelTabs-selected),
+			.channelTabs-tab.channelTabs-mention:not(.channelTabs-selected) { color: var(--interactive-hover); }
+			.channelTabs-tab.channelTabs-unread:not(.channelTabs-selected):hover,
+			.channelTabs-tab.channelTabs-mention:not(.channelTabs-selected):hover { color: var(--interactive-active); }
+			html:not(.platform-win) #channelTabs-settingsMenu { margin-right: 0; }
+			#channelTabs-settingsMenu { display: flex; justify-content: center; align-items: center; width: 32px; height: 32px; z-index: 1000; cursor: pointer; }
+			#channelTabs-settingsMenu:hover { background: var(--background-modifier-hover); }
+			.channelTabs-settingsIcon { width: 20px; height: 20px; }
+			.channelTabs-tab .channelTabs-tabName { margin-right: 6px; font-size: var(--channelTabs-tabNameFontSize); line-height: normal; color: var(--interactive-normal); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+			.channelTabs-tab:not(.channelTabs-selected):hover .channelTabs-tabName { color: var(--interactive-hover); }
+			.channelTabs-tab:not(.channelTabs-selected):active .channelTabs-tabName,
+			.channelTabs-tab.channelTabs-selected .channelTabs-tabName { color: var(--interactive-active); }
+			.channelTabs-tabIcon { height: 20px; border-radius: 50%; -webkit-user-drag: none; }
+			.channelTabs-tabIconWrapper { margin: 0 6px; flex-shrink: 0; }
+			.channelTabs-onlineIcon { fill: hsl(139, calc(var(--saturation-factor, 1) * 47.3%), 43.9%); mask: url(#svg-mask-status-online); }
+			.channelTabs-idleIcon { fill: hsl(38, calc(var(--saturation-factor, 1) * 95.7%), 54.1%); mask: url(#svg-mask-status-idle); }
+			.channelTabs-doNotDisturbIcon { fill: hsl(359, calc(var(--saturation-factor, 1) * 82.6%), 59.4%); mask: url(#svg-mask-status-dnd); }
+			.channelTabs-offlineIcon { fill: hsl(214, calc(var(--saturation-factor, 1) * 9.9%), 50.4%); mask: url(#svg-mask-status-offline); }
+			.channelTabs-closeTab { position: relative; height: 16px; width: 16px; flex-shrink: 0; right: 6px; border-radius: 4px; color: var(--interactive-normal); cursor: pointer; }
+			.channelTabs-closeTab svg { height: 100%; width: 100%; transform: scale(0.85); }
+			.channelTabs-newTab { display:flex; align-items: center; justify-content: center; flex-shrink: 0; height: var(--channelTabs-openTabSize); width: 24px; margin: 0 6px 3px 6px; border-radius: 4px; cursor: pointer; color: var(--interactive-normal); margin-right: 6px; }
+			.channelTabs-newTab:hover { background: var(--background-modifier-hover); color: var(--interactive-hover); }
+			.channelTabs-newTab:active { background: var(--background-modifier-active); color: var(--interactive-active); }
+			.channelTabs-closeTab:hover { background: hsl(359,calc(var(--saturation-factor, 1)*82.6%),59.4%); color: white; }
+			.channelTabs-tabListDropdown { display: flex; align-items: center; justify-content: center; flex-shrink: 0; height: var(--channelTabs-openTabSize); width: 24px; margin: 0 64px 3px 0; border-radius: 4px; cursor: pointer; color: var(--interactive-normal); }
+			.channelTabs-tabListDropdown:hover { background: var(--background-modifier-hover); color: var(--interactive-hover); }
+			.channelTabs-tabListDropdown:active { background: var(--background-modifier-active); color: var(--interactive-active); }
+			.channelTabs-tabListDropdown svg { width: 16px; height: 16px; }
+			.channelTabs-gridContainer { display: flex; margin-right: 6px; }
+			.channelTabs-mentionBadge,
+			.channelTabs-unreadBadge { border-radius: 8px; padding: 0 4px; min-width: 8px; width: fit-content; height: 16px; font-size: 12px; line-height: 16px; font-weight: 600; text-align: center; color: #fff; }
+			.channelTabs-typingBadge { border-radius: 8px; padding-left: 4px; padding-right: 4px; min-width: 8px; width: fit-content; height: 16px; font-size: 12px; line-height: 16px; font-weight: 600; text-align: center; color: #fff; }
+			.channelTabs-mentionBadge { background-color: hsl(359, calc(var(--saturation-factor, 1) * 82.6%), 59.4%); }
+			.channelTabs-unreadBadge { background-color: hsl(235, calc(var(--saturation-factor, 1) * 86%), 65%); }
+			.channelTabs-classicBadgeAlignment { margin-right: 6px; display: inline-block; float: right; }
+			.channelTabs-badgeAlignLeft { float: left; }
+			.channelTabs-badgeAlignRight { float: right; }
+			.channelTabs-tab .channelTabs-mentionBadge,
+			.channelTabs-tab .channelTabs-unreadBadge,
+			.channelTabs-tab .channelTabs-typingBadge { height: 16px; }
+			.channelTabs-tab .channelTabs-noMention,
+			.channelTabs-tab .channelTabs-noUnread { background-color: var(--background-primary); color: var(--text-muted); }
+			.channelTabs-fav .channelTabs-mentionBadge,
+			.channelTabs-fav .channelTabs-unreadBadge { display: inline-block; vertical-align: bottom; float: right; margin-left: 2px; }
+			.channelTabs-fav .channelTabs-typingBadge { display: inline-flex; vertical-align: bottom; float: right; margin-left: 2px; margin-right: 6px; }
+			.channelTabs-fav .channelTabs-noMention,
+			.channelTabs-fav .channelTabs-noUnread { background-color: var(--background-primary); color: var(--text-muted); }
+			.channelTabs-fav .channelTabs-noTyping { display: none; }
+			.channelTabs-fav .channelTabs-favName + div { margin-left: 6px; }
+			.channelTabs-favGroupBtn .channelTabs-noMention,
+			.channelTabs-favGroupBtn .channelTabs-noUnread { background-color: var(--background-primary); color: var(--text-muted); }
+			.channelTabs-favGroupBtn .channelTabs-typingBadge { display: inline-flex; vertical-align: bottom; float: right; margin-left: 2px; }
+			.channelTabs-favGroupBtn .channelTabs-mentionBadge,
+			.channelTabs-favGroupBtn .channelTabs-unreadBadge { display: inline-block; vertical-align: bottom; float: right; margin-left: 2px; }
+			.channelTabs-favGroupBtn .channelTabs-noTyping { display: none; }
+			.channelTabs-favContainer { display: flex; align-items: center; flex-wrap:wrap; -webkit-app-region: drag; }
+			.channelTabs-fav { display: flex; align-items: center; min-width: 0; border-radius: 4px; height: var(--channelTabs-favHeight); background: none; flex: 0 0 1; max-width: var(--channelTabs-tabWidth); margin-bottom: 3px; padding-left: 6px; padding-right: 6px; }
+			.channelTabs-fav:hover { background: var(--background-modifier-hover); }
+			.channelTabs-fav:active { background: var(--background-modifier-active); }
+			.channelTabs-favIcon { height: 20px; border-radius: 50%; -webkit-user-drag: none; }
+			.channelTabs-favName { margin-left: 6px; font-size: var(--channelTabs-tabNameFontSize); line-height: normal; color: var(--interactive-normal); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+			.channelTabs-fav:hover .channelTabs-favName { color: var(--interactive-hover); }
+			.channelTabs-fav:active .channelTabs-favName { color: var(--interactive-active); }
+			.channelTabs-noFavNotice { color: var(--text-muted); font-size: 14px; padding: 3px; }
+			.channelTabs-favGroupBtn { display: flex; align-items: center; min-width: 0; border-radius: 4px; height: var(--channelTabs-favHeight); flex: 0 1 1; max-width: var(--channelTabs-tabWidth); padding: 0 6px; font-size: 12px; color: var(--interactive-normal); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin-bottom: 3px; }
+			.channelTabs-favGroupBtn>:first-child { margin-left: 6px; }
+			.channelTabs-favGroup:hover .channelTabs-favGroupBtn { background: var(--background-modifier-hover); }
+			.channelTabs-favGroup-content { z-index: 1001; display: none; position: absolute; min-width: max-content; background-color: var(--background-surface-high); -webkit-box-shadow: var(--elevation-high); box-shadow: var(--elevation-high); border-radius: 4px; padding: 4px; }
+			.channelTabs-favGroup-content>:last-child { margin-bottom: 0; }
+			.channelTabs-favGroupShow { display:block; }
+			.channelTabs-sliderContainer { display: flex; justify-content: center; padding: 4px 8px; margin: 2px 6px 12px 6px; background: var(--button-secondary-background); border-radius: 8px; }
+			.channelTabs-slider { position: relative; top: -14px; }
+			.channelTabs-minimized { --channelTabs-tabWidth: fit-content; --channelTabs-tabWidthMin: fit-content; }
+			.channelTabs-tab.channelTabs-minimized>div>:first-child~*,
+			.channelTabs-fav.channelTabs-minimized>svg:first-child~*,
+			.channelTabs-tab.channelTabs-minimized>.channelTabs-closeTab { display:none; }
+			[aria-label="Open Quick Switcher"] { pointer-events: none !important; position: absolute !important; z-index: -1 !important; }
+		`;
+	}
+
+	static getMultiRowStyles() {
+		return `
+			.channelTabs-tabContainer[data-multiline="true"] .channelTabs-tabWrap { display: flex !important; flex-wrap: wrap !important; align-content: flex-start; row-gap: var(--channelTabs-rowGap, 3px); column-gap: 0; overflow: visible !important; transition: all 0.3s ease; contain: layout paint; }
+			.channelTabs-tabContainer[data-multiline="true"] .channelTabs-tabWrapper { flex-shrink: 1 !important; }
+			.channelTabs-tabContainer[data-multiline="true"] .channelTabs-tab { flex: 1 1 clamp(var(--channelTabs-tabWidthMin, 100px), 20vw, var(--channelTabs-tabWidth, 220px)); min-width: var(--channelTabs-tabWidthMin, 100px); }
+			.channelTabs-tabContainer:not([data-multiline="true"]) .channelTabs-tabWrap { flex-wrap: nowrap !important; overflow-x: auto !important; overflow-y: hidden !important; scrollbar-width: none; }
+			.channelTabs-tabContainer:not([data-multiline="true"]) .channelTabs-tabWrap::-webkit-scrollbar { display: none; }
+			.channelTabs-tabContainer { transition: all 0.3s ease; }
+		`;
+	}
+
+	// Inline Style Objects
+	static inlineStyles = {
+	tabListMenuItem: { display: "flex", alignItems: "center", width: "100%", minHeight: "26px", cursor: "pointer", position: "relative", zIndex: 1000 },
+	tabListMenuIcon: { width: "18px", height: "18px", marginRight: "10px", borderRadius: "50%", flexShrink: 0 },
+	tabListMenuName: { flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "14px", paddingRight: "8px" },
+	tabListBadgeContainer: { display: "flex", gap: "4px", flexShrink: 0, marginRight: "4px" },
+	mentionBadge: { backgroundColor: "hsl(359, calc(var(--saturation-factor, 1) * 82.6%), 59.4%)", color: "white", borderRadius: "8px", padding: "0 5px", fontSize: "12px", fontWeight: "600", lineHeight: "16px", display: "inline-block" },
+	unreadBadge: { backgroundColor: "hsl(235, calc(var(--saturation-factor, 1) * 86%), 65%)", color: "white", borderRadius: "8px", padding: "0 5px", fontSize: "12px", fontWeight: "600", lineHeight: "16px", display: "inline-block" },
+	shortcutLabelKeys: { color: "var(--text-muted)", padding: "8px", fontSize: "12px", whiteSpace: "pre-wrap" },
+	minimumTabWidthLabel: { pointerEvents: "none" },
+	smallIconCenter: { width: "16px", textAlign: "center" },
+	closedTabsContainer: { maxHeight: "400px", overflowY: "auto", padding: "10px" },
+	closedTabsEmpty: { textAlign: "center", color: "var(--text-muted)", padding: "20px" },
+	closedTabItem: { padding: "10px", borderBottom: "1px solid var(--background-accent)", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", borderRadius: "4px" },
+	closedTabIcon: { width: "20px", height: "20px", borderRadius: "50%" },
+	closedTabInfo: { flex: 1 },
+	closedTabName: { fontWeight: "500" },
+	closedTabMeta: { fontSize: "12px", color: "var(--text-muted)" },
+	closedTabButton: { padding: "4px 12px", borderRadius: "3px", border: "none", background: "var(--button-filled-brand-background)", color: "white", cursor: "pointer", fontSize: "13px" },
+	dropdownMenu: { zIndex: "9999", pointerEvents: "auto", position: "fixed" },
+	menuSeparator: { margin: "2px 0", height: "1px" },
+	menuItem: { pointerEvents: "auto", position: "relative", zIndex: "1" },
+	typingBadgeAlignment: { opacity: 0.7 }
+};
+
+	// Dynamic CSS for tab list menu
+	// Dynamic CSS for tab list menu
+	static getTabListMenuStyle() {
+		return `
+			[id^="popout_"] [role="menu"] { min-width: 300px !important; max-width: 420px !important; }
+			[id^="popout_"] [role="separator"] { margin: 2px 0; height: 1px; }
+			[id^="popout_"] [role="menuitem"] { pointer-events: auto; position: relative; z-index: 1; }
+		`;
+	}
+
+	// Dynamic style methods
+	static getTabListMenuNameStyle(isSelected) {
+		return {
+			...this.inlineStyles.tabListMenuName,
+			fontWeight: isSelected ? "700" : "normal"
+		};
+	}
+
+	static getDropdownMenuPosition(buttonRect) {
+		return {
+			...this.inlineStyles.dropdownMenu,
+			top: (buttonRect.bottom + 8) + "px",
+			right: (window.innerWidth - buttonRect.right) + "px",
+			left: "auto"
+		};
+	}
+
+	// Hover effect handlers  
+	static applyHoverEffect(element) {
+		element.style.backgroundColor = "var(--background-modifier-hover)";
+		element.style.borderRadius = "3px";
+	}
+
+	static removeHoverEffect(element) {
+		element.style.backgroundColor = "transparent";
+	}
+}
+
+let pluginMeta;
+const { ContextMenu, Patcher, Webpack, React, DOM, ReactUtils, UI } = new BdApi(
 	"ChannelTabs",
 );
-var { Data } = BdApi;
+const { Data } = BdApi;
 function getModule(filter, options = {}) {
 	const foundModule = options.fail
 		? void 0
@@ -204,13 +435,14 @@ function getModule(filter, options = {}) {
 function getStack() {
 	const original = Error.prepareStackTrace;
 	Error.prepareStackTrace = (_, stackTraces) => stackTraces;
-	const stack = new Error().stack.slice(1);
+	const stack = new Error("Stack trace").stack.slice(1);
 	Error.prepareStackTrace = original;
 	return stack;
 }
 if (exports.dismissWarning) exports.dismissWarning();
 exports.dismissWarning = null;
-var missingFeatures = [];
+let missingFeatures = [];
+let dismissWarning = null;
 function missingModule({ name = "<unnamed>", feature, fatal = false }) {
 	const stack = getStack();
 	const index = stack.findIndex(
@@ -219,12 +451,12 @@ function missingModule({ name = "<unnamed>", feature, fatal = false }) {
 	const trace = stack.filter((_, i) => i > index).join("\n");
 	console.warn(`Could not find '${name}' module.
 ${trace}`);
-	if (fatal) throw `Could not find '${name}' module.`;
+	if (fatal) throw new Error(`Could not find '${name}' module.`);
 	if (feature != null) {
 		missingFeatures.push(feature);
 		if (dismissWarning) dismissWarning();
 		const content = BdApi.DOM.parseHTML(
-			`<span style="background: white; color: var(--color); padding: 1px 3px; margin-right: 3px; border-radius: 5px;">ChannelTabs</span> These features are unavailable: ${missingFeatures.join(", ")}`,
+			`<span style="background: white; color: var(--text-primary); padding: 1px 3px; margin-right: 3px; border-radius: 5px;">ChannelTabs</span> These features are unavailable: ${missingFeatures.join(", ")}`,
 			true,
 		);
 		dismissWarning = BdApi.UI.showNotice(content, {
@@ -232,7 +464,7 @@ ${trace}`);
 		});
 	}
 }
-var FakeUnreadStateStore = class extends require("events").EventEmitter {
+const FakeUnreadStateStore = class extends require("events").EventEmitter {
 	getUnreadCount() {
 		return 0;
 	}
@@ -246,7 +478,7 @@ var FakeUnreadStateStore = class extends require("events").EventEmitter {
 		return false;
 	}
 };
-var Filters = {};
+const Filters = {};
 for (const [key, value] of Object.entries(Webpack.Filters)) {
 	Filters[key] = function (...args) {
 		const result = value(...args);
@@ -254,187 +486,187 @@ for (const [key, value] of Object.entries(Webpack.Filters)) {
 		return result;
 	};
 }
-var { byKeys, byStrings, byStoreName, bySource } = Filters;
-var NavigationUtils = {
+const { byKeys, byStrings, byStoreName, bySource } = Filters;
+const NavigationUtils = {
 	transitionToGuild: getModule(byKeys("transitionToGuildSync"))
 		?.transitionToGuildSync,
 	transitionTo: getModule(byStrings(`"transitionTo - Transitioning to "`), {
 		searchExports: true,
 	}),
 };
-var Permissions = getModule(byKeys("computePermissions"));
-var SelectedChannelStore = getModule(byStoreName("SelectedChannelStore"));
-var SelectedGuildStore = getModule(byStoreName("SelectedGuildStore"));
-var ChannelStore = getModule(byStoreName("ChannelStore"));
-var UserStore = getModule(byStoreName("UserStore"));
-var UserTypingStore = getModule(byStoreName("TypingStore"));
-var RelationshipStore = getModule(byStoreName("RelationshipStore"));
-var GuildStore = getModule(byStoreName("GuildStore"));
-var DiscordConstants = {
+const Permissions = getModule(byKeys("computePermissions"));
+const SelectedChannelStore = getModule(byStoreName("SelectedChannelStore"));
+const SelectedGuildStore = getModule(byStoreName("SelectedGuildStore"));
+const ChannelStore = getModule(byStoreName("ChannelStore"));
+const UserStore = getModule(byStoreName("UserStore"));
+const UserTypingStore = getModule(byStoreName("TypingStore"));
+const RelationshipStore = getModule(byStoreName("RelationshipStore"));
+const GuildStore = getModule(byStoreName("GuildStore"));
+const DiscordConstants = {
 	ChannelTypes: getModule(byKeys("GUILD_TEXT"), {
 		searchExports: true,
 	}),
 };
-var Textbox = (props) =>
+const Textbox = (props) =>
 	/* @__PURE__ */ React.createElement(
-	"div",
-	{ className: "channelTabs-input" },
+		"div",
+		{ className: "channelTabs-input" },
 		/* @__PURE__ */ React.createElement(BdApi.Components.TextInput, {
-		...props,
-	}),
-);
-var UnreadStateStore =
+			...props,
+		}),
+	);
+const UnreadStateStore =
 	getModule((m) => m.isEstimated, {
 		feature: "Unread/Mention Indicators",
 	}) ?? new FakeUnreadStateStore();
-var Flux = getModule(byKeys("connectStores"), {
+const Flux = getModule(byKeys("connectStores"), {
 	name: "Flux",
 	fatal: true,
 });
-var MutedStore = getModule(byKeys("isMuted", "isChannelMuted"));
-var PermissionUtils = getModule(byKeys("can", "canManageUser"));
-var UserStatusStore = getModule(byStoreName("PresenceStore"));
-var Spinner = getModule((m) => m.Type?.SPINNING_CIRCLE, {
+const MutedStore = getModule(byKeys("isMuted", "isChannelMuted"));
+const PermissionUtils = getModule(byKeys("can", "canManageUser"));
+const UserStatusStore = getModule(byStoreName("PresenceStore"));
+const Spinner = getModule((m) => m.Type?.SPINNING_CIRCLE, {
 	searchExports: true,
 	feature: "Typing Indicators",
 });
-var Tooltip = BdApi.Components.Tooltip;
-var Slider = getModule(
+const Tooltip = BdApi.Components.Tooltip;
+const Slider = getModule(
 	byStrings(
 		`"[UIKit]Slider.handleMouseDown(): assert failed: domNode nodeType !== Element"`,
 	),
 	{ searchExports: true },
 );
-var NavShortcuts = getModule(byKeys("NAVIGATE_BACK", "NAVIGATE_FORWARD"));
-var [TitleBar, TitleBarKey] = Webpack.getWithKey(
+const NavShortcuts = getModule(byKeys("NAVIGATE_BACK", "NAVIGATE_FORWARD"));
+const [TitleBar, TitleBarKey] = Webpack.getWithKey(
 	byStrings(".PlatformTypes.WINDOWS&&(0,", "title"),
 );
 if (!TitleBar) missingModule({ name: "TitleBar", fatal: true });
-var IconUtilities = getModule(byKeys("getChannelIconURL"));
-var standardSidebarView =
+const IconUtilities = getModule(byKeys("getChannelIconURL"));
+const standardSidebarView =
 	BdApi.Webpack.getByKeys("standardSidebarView")?.standardSidebarView ?? "";
-var backdropClasses = getModule(byKeys("backdrop", "withLayer"));
-var scrimClasses = getModule(byKeys("scrim"));
-var noDragClasses = [
+const backdropClasses = getModule(byKeys("backdrop", "withLayer"));
+const scrimClasses = getModule(byKeys("scrim"));
+const noDragClasses = [
 	standardSidebarView,
 	// Settings view
 	backdropClasses?.backdrop,
 	// Anything that has a backdrop
 	scrimClasses?.scrim,
 	// Modal scrims
-].filter((x) => x);
-var systemBarClasses = getModule(byKeys("systemBar"));
-var Icons = {
+].filter(Boolean);
+const systemBarClasses = getModule(byKeys("systemBar"));
+const Icons = {
 	XSmallIcon: () =>
 		/* @__PURE__ */ React.createElement(
-		"svg",
-		{
-			"aria-hidden": "true",
-			role: "img",
-			xmlns: "http://www.w3.org/2000/svg",
-			width: "24",
-			height: "24",
-			fill: "none",
-			viewBox: "0 0 24 24",
-		},
+			"svg",
+			{
+				"aria-hidden": "true",
+				role: "img",
+				xmlns: "http://www.w3.org/2000/svg",
+				width: "24",
+				height: "24",
+				fill: "none",
+				viewBox: "0 0 24 24",
+			},
 			/* @__PURE__ */ React.createElement("path", {
-			fill: "var(--interactive-normal)",
-			d: "M17.3 18.7a1 1 0 0 0 1.4-1.4L13.42 12l5.3-5.3a1 1 0 0 0-1.42-1.4L12 10.58l-5.3-5.3a1 1 0 0 0-1.4 1.42L10.58 12l-5.3 5.3a1 1 0 1 0 1.42 1.4L12 13.42l5.3 5.3Z",
-			class: "",
-		}),
-	),
+				fill: "var(--interactive-normal)",
+				d: "M17.3 18.7a1 1 0 0 0 1.4-1.4L13.42 12l5.3-5.3a1 1 0 0 0-1.42-1.4L12 10.58l-5.3-5.3a1 1 0 0 0-1.4 1.42L10.58 12l-5.3 5.3a1 1 0 1 0 1.42 1.4L12 13.42l5.3 5.3Z",
+				class: "",
+			}),
+		),
 	PlusSmallIcon: () =>
 		/* @__PURE__ */ React.createElement(
-		"svg",
-		{
-			"aria-hidden": "true",
-			role: "img",
-			xmlns: "http://www.w3.org/2000/svg",
-			width: "20",
-			height: "20",
-			fill: "none",
-			viewBox: "0 0 24 24",
-		},
+			"svg",
+			{
+				"aria-hidden": "true",
+				role: "img",
+				xmlns: "http://www.w3.org/2000/svg",
+				width: "20",
+				height: "20",
+				fill: "none",
+				viewBox: "0 0 24 24",
+			},
 			/* @__PURE__ */ React.createElement("path", {
-			fill: "var(--interactive-normal)",
-			d: "M13 6a1 1 0 1 0-2 0v5H6a1 1 0 1 0 0 2h5v5a1 1 0 1 0 2 0v-5h5a1 1 0 1 0 0-2h-5V6Z",
-			class: "",
-		}),
-	),
+				fill: "var(--interactive-normal)",
+				d: "M13 6a1 1 0 1 0-2 0v5H6a1 1 0 1 0 0 2h5v5a1 1 0 1 0 2 0v-5h5a1 1 0 1 0 0-2h-5V6Z",
+				class: "",
+			}),
+		),
 	ChevronLargeLeftIcon: () =>
 		/* @__PURE__ */ React.createElement(
-		"svg",
-		{
-			"aria-hidden": "true",
-			role: "img",
-			xmlns: "http://www.w3.org/2000/svg",
-			width: "24",
-			height: "24",
-			fill: "none",
-			viewBox: "0 0 24 24",
-		},
+			"svg",
+			{
+				"aria-hidden": "true",
+				role: "img",
+				xmlns: "http://www.w3.org/2000/svg",
+				width: "24",
+				height: "24",
+				fill: "none",
+				viewBox: "0 0 24 24",
+			},
 			/* @__PURE__ */ React.createElement("path", {
-			fill: "var(--interactive-normal)",
-			d: "M15.7 3.3a1 1 0 0 1 0 1.4L8.42 12l7.3 7.3a1 1 0 0 1-1.42 1.4l-8-8a1 1 0 0 1 0-1.4l8-8a1 1 0 0 1 1.42 0Z",
-		}),
-	),
+				fill: "var(--interactive-normal)",
+				d: "M15.7 3.3a1 1 0 0 1 0 1.4L8.42 12l7.3 7.3a1 1 0 0 1-1.42 1.4l-8-8a1 1 0 0 1 0-1.4l8-8a1 1 0 0 1 1.42 0Z",
+			}),
+		),
 	ChevronLargeRightIcon: () =>
 		/* @__PURE__ */ React.createElement(
-		"svg",
-		{
-			"aria-hidden": "true",
-			role: "img",
-			xmlns: "http://www.w3.org/2000/svg",
-			width: "24",
-			height: "24",
-			fill: "none",
-			viewBox: "0 0 24 24",
-		},
+			"svg",
+			{
+				"aria-hidden": "true",
+				role: "img",
+				xmlns: "http://www.w3.org/2000/svg",
+				width: "24",
+				height: "24",
+				fill: "none",
+				viewBox: "0 0 24 24",
+			},
 			/* @__PURE__ */ React.createElement("path", {
-			fill: "var(--interactive-normal)",
-			d: "M8.3 3.3a1 1 0 0 0 0 1.4l7.29 7.3-7.3 7.3a1 1 0 1 0 1.42 1.4l8-8a1 1 0 0 0 0-1.4l-8-8a1 1 0 0 0-1.42 0Z",
-		}),
-	),
+				fill: "var(--interactive-normal)",
+				d: "M8.3 3.3a1 1 0 0 0 0 1.4l7.29 7.3-7.3 7.3a1 1 0 1 0 1.42 1.4l8-8a1 1 0 0 0 0-1.4l-8-8a1 1 0 0 0-1.42 0Z",
+			}),
+		),
 	ChevronDownIcon: () =>
 		/* @__PURE__ */ React.createElement(
-		"svg",
-		{
-			"aria-hidden": "true",
-			role: "img",
-			xmlns: "http://www.w3.org/2000/svg",
-			width: "24",
-			height: "24",
-			fill: "none",
-			viewBox: "0 0 24 24",
-		},
+			"svg",
+			{
+				"aria-hidden": "true",
+				role: "img",
+				xmlns: "http://www.w3.org/2000/svg",
+				width: "24",
+				height: "24",
+				fill: "none",
+				viewBox: "0 0 24 24",
+			},
 			/* @__PURE__ */ React.createElement("path", {
-			fill: "currentColor",
-			d: "M5.3 9.3a1 1 0 0 1 1.4 0l5.3 5.29 5.3-5.3a1 1 0 1 1 1.4 1.42l-6 6a1 1 0 0 1-1.4 0l-6-6a1 1 0 0 1 0-1.42Z",
-		}),
-	),
+				fill: "currentColor",
+				d: "M5.3 9.3a1 1 0 0 1 1.4 0l5.3 5.29 5.3-5.3a1 1 0 1 1 1.4 1.42l-6 6a1 1 0 0 1-1.4 0l-6-6a1 1 0 0 1 0-1.42Z",
+			}),
+		),
 };
-var Close =
+const Close =
 	Icons?.XSmallIcon ??
 	(() =>
 		/* @__PURE__ */ React.createElement(
-		"div",
-		{ style: { width: "16px", "text-align": "center" } },
-		"\u2A2F",
-	));
-var PlusAlt =
+			"div",
+			{ style: StyleManager.inlineStyles.smallIconCenter },
+			"\u2A2F",
+		));
+const PlusAlt =
 	Icons?.PlusSmallIcon ??
 	(() => /* @__PURE__ */ React.createElement("b", null, "\uFF0B"));
-var LeftCaret =
+const LeftCaret =
 	Icons?.ChevronLargeLeftIcon ??
 	(() => /* @__PURE__ */ React.createElement("b", null, "<"));
-var RightCaret =
+const RightCaret =
 	Icons?.ChevronLargeRightIcon ??
 	(() => /* @__PURE__ */ React.createElement("b", null, ">"));
-var ChevronDown =
+const ChevronDown =
 	Icons?.ChevronDownIcon ??
 	(() => /* @__PURE__ */ React.createElement("b", null, "▼"));
-var DefaultUserIconGrey = "https://cdn.discordapp.com/embed/avatars/0.png";
-var SettingsMenuIcon = /* @__PURE__ */ React.createElement(
+const DefaultUserIconGrey = "https://cdn.discordapp.com/embed/avatars/0.png";
+const SettingsMenuIcon = /* @__PURE__ */ React.createElement(
 	"svg",
 	{
 		class: "channelTabs-settingsIcon",
@@ -463,15 +695,17 @@ var SettingsMenuIcon = /* @__PURE__ */ React.createElement(
 		height: "10",
 	}),
 );
-var switching = false;
-var patches = [];
-var currentTabDragIndex = -1;
-var currentTabDragDestinationIndex = -1;
-var currentFavDragIndex = -1;
-var currentFavDragDestinationIndex = -1;
-var currentGroupDragIndex = -1;
-var currentGroupDragDestinationIndex = -1;
-var currentGroupOpened = -1;
+let switching = false;
+let patches = [];
+let currentTabDragIndex = -1;
+let currentTabDragDestinationIndex = -1;
+let currentFavDragIndex = -1;
+let currentFavDragDestinationIndex = -1;
+let currentGroupDragIndex = -1;
+let currentGroupDragDestinationIndex = -1;
+let currentGroupOpened = -1;
+const guildChannelCache = new Map();
+let lastCacheClean = Date.now();
 function CreateGuildContextMenuChildren(instance, props, channel) {
 	return ContextMenu.buildMenuChildren([
 		{
@@ -1005,7 +1239,7 @@ function CreateFavBarContextMenu(props, e) {
 }
 function CreateTabListContextMenu(props, e) {
 	const menuItems = [];
-	props.tabs.forEach((tab, index) => {
+	for (const [index, tab] of props.tabs.entries()) {
 		const state = {
 			mentionCount: UnreadStateStore.getMentionCount(tab.channelId) || 0,
 			unreadCount: UnreadStateStore.getUnreadCount(tab.channelId) || 0,
@@ -1018,82 +1252,33 @@ function CreateTabListContextMenu(props, e) {
 				return /* @__PURE__ */ React.createElement(
 					"div",
 					{
-						style: {
-							display: "flex",
-							alignItems: "center",
-							width: "100%",
-							minHeight: "26px",
-							cursor: "pointer",
-							position: "relative",
-							zIndex: 1000
-						},
-						onMouseEnter: (e) => {
-							e.currentTarget.style.backgroundColor = "var(--background-modifier-hover)";
-							e.currentTarget.style.borderRadius = "3px";
-						},
-						onMouseLeave: (e) => {
-							e.currentTarget.style.backgroundColor = "transparent";
-						}
+						style: StyleManager.inlineStyles.tabListMenuItem,
+						onMouseEnter: (e) => StyleManager.applyHoverEffect(e.currentTarget),
+						onMouseLeave: (e) => StyleManager.removeHoverEffect(e.currentTarget)
 					},
 					/* @__PURE__ */ React.createElement("img", {
 						src: getCurrentIconUrl(tab.url),
-						style: {
-							width: "18px",
-							height: "18px",
-							marginRight: "10px",
-							borderRadius: "50%",
-							flexShrink: 0
-						}
+						style: StyleManager.inlineStyles.tabListMenuIcon
 					}),
 					/* @__PURE__ */ React.createElement(
 						"span",
 						{
 							className: "channelTabs-tabName",
-							style: {
-								flex: 1,
-								overflow: "hidden",
-								textOverflow: "ellipsis",
-								whiteSpace: "nowrap",
-								fontWeight: tab.selected ? "700" : "normal",
-								fontSize: "14px",
-								paddingRight: "8px"
-							}
+							style: StyleManager.getTabListMenuNameStyle(tab.selected)
 						},
 						tab.name
 					),
 					/* @__PURE__ */ React.createElement(
 						"div",
-						{ style: { display: "flex", gap: "4px", flexShrink: 0, marginRight: "4px" } },
+						{ style: StyleManager.inlineStyles.tabListBadgeContainer },
 						state.mentionCount > 0 && /* @__PURE__ */ React.createElement(
 							"span",
-							{
-								style: {
-									backgroundColor: "hsl(359, calc(var(--saturation-factor, 1) * 82.6%), 59.4%)",
-									color: "white",
-									borderRadius: "8px",
-									padding: "0 5px",
-									fontSize: "12px",
-									fontWeight: "600",
-									lineHeight: "16px",
-									display: "inline-block"
-								}
-							},
+							{ style: StyleManager.inlineStyles.mentionBadge },
 							state.mentionCount
 						),
 						state.hasUnread && state.mentionCount === 0 && /* @__PURE__ */ React.createElement(
 							"span",
-							{
-								style: {
-									backgroundColor: "hsl(235, calc(var(--saturation-factor, 1) * 86%), 65%)",
-									color: "white",
-									borderRadius: "8px",
-									padding: "0 5px",
-									fontSize: "12px",
-									fontWeight: "600",
-									lineHeight: "16px",
-									display: "inline-block"
-								}
-							},
+							{ style: StyleManager.inlineStyles.unreadBadge },
 							state.unreadCount || "●"
 						)
 					)
@@ -1111,7 +1296,7 @@ function CreateTabListContextMenu(props, e) {
 				type: "separator"
 			});
 		}
-	});
+	}
 	const buttonRect = e.currentTarget.getBoundingClientRect();
 	const favContainer = document.querySelector('.channelTabs-favContainer');
 	const originalAppRegion = favContainer ? favContainer.style.webkitAppRegion : null;
@@ -1125,12 +1310,7 @@ function CreateTabListContextMenu(props, e) {
 		styleEl.id = styleId;
 		document.head.appendChild(styleEl);
 	}
-	styleEl.textContent = `
-		[id^="popout_"] [role="menu"] {
-			min-width: 300px !important;
-			max-width: 420px !important;
-		}
-	`;
+	styleEl.textContent = StyleManager.getTabListMenuStyle();
 	ContextMenu.open(
 		e,
 		ContextMenu.buildMenu([
@@ -1144,10 +1324,10 @@ function CreateTabListContextMenu(props, e) {
 			align: "right",
 			onClose: () => {
 				if (favContainer) {
-					if (originalAppRegion !== null) {
-						favContainer.style.webkitAppRegion = originalAppRegion;
-					} else {
+					if (originalAppRegion === null) {
 						favContainer.style.removeProperty('-webkit-app-region');
+					} else {
+						favContainer.style.webkitAppRegion = originalAppRegion;
 					}
 				}
 				setTimeout(() => {
@@ -1158,32 +1338,14 @@ function CreateTabListContextMenu(props, e) {
 		}
 	);
 	requestAnimationFrame(() => {
+		// Keep custom positioning, but separators/items now styled via CSS
 		const menu = document.querySelector('[role="menu"]');
 		if (menu && menu.style) {
-			menu.style.zIndex = "9999";
-			menu.style.pointerEvents = "auto";
-			menu.style.position = "fixed";
-			menu.style.top = (buttonRect.bottom + 8) + "px";
-			menu.style.right = (window.innerWidth - buttonRect.right) + "px";
-			menu.style.left = "auto";
+			Object.assign(menu.style, StyleManager.getDropdownMenuPosition(buttonRect));
 		}
-		const separators = document.querySelectorAll('[role="separator"]');
-		separators.forEach(sep => {
-			if (sep && sep.style) {
-				sep.style.margin = "2px 0";
-				sep.style.height = "1px";
-			}
-		});
-		const menuItems = document.querySelectorAll('[role="menuitem"]');
-		menuItems.forEach(item => {
-			if (item && item.style) {
-				item.style.pointerEvents = "auto";
-				item.style.position = "relative";
-				item.style.zIndex = "1";
-			}
-		});
 	});
 }
+
 function CreateSettingsContextMenu(instance, e) {
 	ContextMenu.open(
 		e,
@@ -1214,14 +1376,7 @@ function CreateSettingsContextMenu(instance, e) {
 								render: () => {
 									return /* @__PURE__ */ React.createElement(
 										"div",
-										{
-											style: {
-												color: "var(--text-muted)",
-												padding: "8px",
-												"font-size": "12px",
-												"white-space": "pre-wrap",
-											},
-										},
+										{ style: StyleManager.inlineStyles.shortcutLabelKeys },
 										`Ctrl + W - Close Current Tab
 Ctrl + PgUp - Navigate to Left Tab
 Ctrl + PgDn - Navigate to Right Tab
@@ -1282,7 +1437,7 @@ CTRL + Mouse Scroll - Switch Tab Layout
 										type: "toggle",
 										checked: () => instance.props.plugin.settings.autoUpdate !== false,
 										action: () => {
-											const newValue = !(instance.props.plugin.settings.autoUpdate !== false);
+											const newValue = !instance.props.plugin.settings.autoUpdate;
 											instance.props.plugin.settings.autoUpdate = newValue;
 											instance.props.plugin.saveSettings();
 											if (newValue) {
@@ -1417,7 +1572,7 @@ CTRL + Mouse Scroll - Switch Tab Layout
 									},
 									{
 										label: "Minimum Tab Width",
-										style: { "pointer-events": "none" },
+										style: StyleManager.inlineStyles.minimumTabWidthLabel,
 									},
 									{
 										id: "tabWidthMin",
@@ -1425,7 +1580,7 @@ CTRL + Mouse Scroll - Switch Tab Layout
 											return /* @__PURE__ */ React.createElement(
 												"div",
 												{ className: "channelTabs-sliderContainer" },
-											/* @__PURE__ */ React.createElement(Slider, {
+												/* @__PURE__ */ React.createElement(Slider, {
 													"aria-label": "Minimum Tab Width",
 													className: "channelTabs-slider",
 													mini: true,
@@ -1438,13 +1593,10 @@ CTRL + Mouse Scroll - Switch Tab Layout
 													onValueRender: (value) =>
 														Math.floor(value / 10) * 10 + "px",
 													onValueChange: (value) => {
-														(value = Math.floor(value / 10) * 10),
-															(instance.props.plugin.settings.tabWidthMin =
-																value),
-															instance.props.plugin.saveSettings(),
-															instance.props.plugin.applyStyle(
-																"channelTabs-style-constants",
-															);
+														const roundedValue = Math.floor(value / 10) * 10;
+														instance.props.plugin.settings.tabWidthMin = roundedValue;
+														instance.props.plugin.saveSettings();
+														instance.props.plugin.applyStyle("channelTabs-style-constants");
 													},
 												}),
 											);
@@ -1963,35 +2115,17 @@ function formatTimeAgo(timestamp) {
 }
 function showClosedTabsModal() {
 	const closedTabs = TopBarRef.current?.state?.closedTabs || [];
-	BdApi.showConfirmationModal(
+	
+	BdApi.UI.showConfirmationModal(
 		"Closed Tabs History",
-		React.createElement("div", {
-			style: {
-				maxHeight: "400px",
-				overflowY: "auto",
-				padding: "10px"
-			}
-		},
+		React.createElement("div", { style: StyleManager.inlineStyles.closedTabsContainer },
 			closedTabs.length === 0
-				? React.createElement("div", {
-					style: {
-						textAlign: "center",
-						color: "var(--text-muted)",
-						padding: "20px"
-					}
-				}, "No closed tabs in history")
+				? React.createElement("div", { style: StyleManager.inlineStyles.closedTabsEmpty }, 
+					"No closed tabs in history")
 				: closedTabs.map(tab =>
 					React.createElement("div", {
 						key: tab.id,
-						style: {
-							padding: "10px",
-							borderBottom: "1px solid var(--background-modifier-accent)",
-							cursor: "pointer",
-							display: "flex",
-							alignItems: "center",
-							gap: "10px",
-							borderRadius: "4px"
-						},
+						style: StyleManager.inlineStyles.closedTabItem,
 						onMouseEnter: (e) => {
 							e.currentTarget.style.backgroundColor = "var(--background-modifier-hover)";
 						},
@@ -2000,44 +2134,24 @@ function showClosedTabsModal() {
 						},
 						onClick: () => {
 							TopBarRef.current.reopenClosedTab(tab.id);
-							BdApi.closeAllModals();
 						}
 					},
 						React.createElement("img", {
 							src: tab.iconUrl || DefaultUserIconGrey,
-							style: {
-								width: "20px",
-								height: "20px",
-								borderRadius: "50%"
-							}
+							style: StyleManager.inlineStyles.closedTabIcon
 						}),
-						React.createElement("div", {
-							style: { flex: 1 }
-						},
-							React.createElement("div", {
-								style: { fontWeight: "500" }
-							}, tab.name),
-							React.createElement("div", {
-								style: {
-									fontSize: "12px",
-									color: "var(--text-muted)"
-								}
-							}, formatTimeAgo(tab.closedAt) +
-							(tab.history && tab.history.length > 1
-								? ` • ${tab.history.length} pages in history`
-								: "")
+						React.createElement("div", { style: StyleManager.inlineStyles.closedTabInfo },
+							React.createElement("div", { style: StyleManager.inlineStyles.closedTabName }, 
+								tab.name),
+							React.createElement("div", { style: StyleManager.inlineStyles.closedTabMeta }, 
+								formatTimeAgo(tab.closedAt) +
+								(tab.history && tab.history.length > 1
+									? ` • ${tab.history.length} pages in history`
+									: "")
 							)
 						),
 						React.createElement("button", {
-							style: {
-								padding: "4px 12px",
-								borderRadius: "3px",
-								border: "none",
-								background: "var(--brand-experiment)",
-								color: "white",
-								cursor: "pointer",
-								fontSize: "13px"
-							},
+							style: StyleManager.inlineStyles.closedTabButton,
 							onClick: (e) => {
 								e.stopPropagation();
 								TopBarRef.current.reopenClosedTab(tab.id);
@@ -2059,30 +2173,32 @@ function showClosedTabsModal() {
 		}
 	);
 }
-var closeAllDropdowns = () => {
-	var dropdowns = document.getElementsByClassName(
+const closeAllDropdowns = () => {
+	const dropdowns = document.getElementsByClassName(
 		"channelTabs-favGroup-content",
 	);
-	var i;
-	for (i = 0; i < dropdowns.length; i++) {
-		var openDropdown = dropdowns[i];
+	for (const openDropdown of dropdowns) {
 		if (openDropdown.classList.contains("channelTabs-favGroupShow")) {
 			openDropdown.classList.remove("channelTabs-favGroupShow");
 		}
 	}
 	currentGroupOpened = -1;
 };
-var mergeLists = (...items) => {
+const mergeLists = (...items) => {
 	return items
 		.filter((item) => item.include === void 0 || item.include)
 		.flatMap((item) => item.values);
 };
-var getGuildChannels = (...guildIds) => {
-	const channels = ChannelStore.getGuildChannels
-		? Object.values(ChannelStore.getGuildChannels())
-		: ChannelStore.getMutableGuildChannels
-			? Object.values(ChannelStore.getMutableGuildChannels())
-			: [];
+const getGuildChannels = (...guildIds) => {
+	let channels;
+	if (ChannelStore.getGuildChannels) {
+		channels = Object.values(ChannelStore.getGuildChannels());
+	} else if (ChannelStore.getMutableGuildChannels) {
+		channels = Object.values(ChannelStore.getMutableGuildChannels());
+	} else {
+		channels = [];
+	}
+	
 	return channels.filter(
 		(c) =>
 			guildIds.includes(c.guild_id) &&
@@ -2090,9 +2206,22 @@ var getGuildChannels = (...guildIds) => {
 			c.type !== DiscordConstants.ChannelTypes.GUILD_CATEGORY,
 	);
 };
-var updateFavEntry = (fav) => {
+const updateFavEntry = (fav) => {
 	if (fav.guildId) {
-		const channelIds = getGuildChannels(fav.guildId)
+		// Clean cache every 30 seconds
+		if (Date.now() - lastCacheClean > 30000) {
+			guildChannelCache.clear();
+			lastCacheClean = Date.now();
+		}
+		
+		// Cache raw channels, keep permission/mute checks live
+		let channels = guildChannelCache.get(fav.guildId);
+		if (!channels) {
+			channels = getGuildChannels(fav.guildId);
+			guildChannelCache.set(fav.guildId, channels);
+		}
+		
+		const channelIds = channels
 			.filter(
 				(channel) =>
 					PermissionUtils.can(Permissions.VIEW_CHANNEL, channel) &&
@@ -2141,7 +2270,7 @@ var updateFavEntry = (fav) => {
 		};
 	}
 };
-var getCurrentUserStatus = (pathname = location.pathname) => {
+const getCurrentUserStatus = (pathname = location.pathname) => {
 	const cId = (pathname.match(/^\/channels\/(\d+|@me|@favorites)\/(\d+)/) ||
 		[])[2];
 	if (cId) {
@@ -2150,6 +2279,7 @@ var getCurrentUserStatus = (pathname = location.pathname) => {
 			return "none";
 		} else if (channel?.isDM()) {
 			const user = UserStore.getUser(channel.getRecipientId());
+			if (!user) return "none";
 			const status = UserStatusStore.getStatus(user.id);
 			return status;
 		} else if (channel?.isGroupDM()) {
@@ -2158,12 +2288,12 @@ var getCurrentUserStatus = (pathname = location.pathname) => {
 	}
 	return "none";
 };
-var getChannelTypingTooltipText = (userIds) => {
+const getChannelTypingTooltipText = (userIds) => {
 	if (userIds) {
 		const usernames = userIds
-			.map((userId) => UserStore.getUser(userId))
-			.filter((user) => user)
-			.map((user) => user.tag);
+		.map((userId) => UserStore.getUser(userId))
+		.filter(Boolean)
+		.map((user) => user.tag);
 		const remainingUserCount = userIds.length - usernames.length;
 		const text = (() => {
 			if (usernames.length === 0) {
@@ -2181,38 +2311,36 @@ var getChannelTypingTooltipText = (userIds) => {
 	}
 	return "Someone is Typing...";
 };
-var getChannelTypingUsers = (channel_id) => {
+const getChannelTypingUsers = (channel_id) => {
 	const channel = ChannelStore.getChannel(channel_id);
 	const selfId = UserStore.getCurrentUser()?.id;
 	if (channel) {
-		const userIds = Object.keys(
-			UserTypingStore.getTypingUsers(channel_id),
-		).filter((uId) => uId !== selfId);
+		const typingData = UserTypingStore.getTypingUsers(channel_id) || {};
+		const userIds = Object.keys(typingData).filter((uId) => uId !== selfId);
 		const typingUsers = [...new Set(userIds)];
 		return typingUsers;
 	}
 	return null;
 };
-var isChannelTyping = (channel_id) => {
+const isChannelTyping = (channel_id) => {
 	const channel = ChannelStore.getChannel(channel_id);
 	const selfId = UserStore.getCurrentUser()?.id;
 	if (channel) {
-		const userIds = Object.keys(
-			UserTypingStore.getTypingUsers(channel_id),
-		).filter((uId) => uId !== selfId);
+		const typingData = UserTypingStore.getTypingUsers(channel_id) || {};
+		const userIds = Object.keys(typingData).filter((uId) => uId !== selfId);
 		const typingUsers = [...new Set(userIds)];
-		if (typingUsers) return typingUsers.length === 0 ? false : true;
+		return typingUsers && typingUsers.length > 0;
 	}
 	return false;
 };
-var isChannelDM = (channel_id) => {
+const isChannelDM = (channel_id) => {
 	return (() => {
 		const c = ChannelStore.getChannel(channel_id);
 		return c && (c.isDM() || c.isGroupDM());
 	})();
 };
-var getCurrentName = (pathname = location.pathname) => {
-	const [_, gId, cId] =
+const getCurrentName = (pathname = location.pathname) => {
+	const [, gId, cId] =
 		pathname.match(/^\/channels\/(\d+|@me|@favorites)\/\b(\d+|\w+(-\w+)*)\b/) ||
 		[];
 	if (cId) {
@@ -2237,26 +2365,28 @@ var getCurrentName = (pathname = location.pathname) => {
 		else return pathname;
 	} else {
 		if (pathname === "/channels/@me") return "Friends";
-		else if (pathname.match(/^\/[a-z\-]+$/))
+		if (pathname.match(/^\/[a-z-]+$/))
 			return pathname
 				.substr(1)
 				.split("-")
 				.map((part) => part.substr(0, 1).toUpperCase() + part.substr(1))
 				.join(" ");
-		else return pathname;
+		return pathname;
 	}
 };
-var getCurrentIconUrl = (pathname = location.pathname) => {
+const getCurrentIconUrl = (pathname = location.pathname) => {
 	try {
-		const [_, gId, cId] =
+		const [, gId, cId] =
 			pathname.match(
 				/^\/channels\/(\d+|@me|@favorites)(?:\/\b(\d+|\w+(-\w+)*)\b)?/,
 			) || [];
 		if (gId) {
 			if (cId && gId.startsWith("@")) {
 				const channel = ChannelStore.getChannel(cId);
-				if (channel.isDM())
-					return UserStore.getUser(channel.getRecipientId()).getAvatarURL();
+				if (channel.isDM()) {
+					const user = UserStore.getUser(channel.getRecipientId());
+					return user ? user.getAvatarURL() : DefaultUserIconGrey;
+				}
 				return IconUtilities.getChannelIconURL(channel);
 			} else if (!gId.startsWith("@")) {
 				return (
@@ -2270,7 +2400,7 @@ var getCurrentIconUrl = (pathname = location.pathname) => {
 	}
 	return DefaultUserIconGrey;
 };
-var GetTabStyles = (viewMode, item) => {
+const GetTabStyles = (viewMode, item) => {
 	if (item === "unreadBadge") {
 		if (viewMode === "classic") return " channelTabs-classicBadgeAlignment";
 		else if (viewMode === "alt") return " channelTabs-badgeAlignLeft";
@@ -2283,12 +2413,13 @@ var GetTabStyles = (viewMode, item) => {
 	}
 	return "";
 };
-var TabIcon = (props) =>
+
+const TabIcon = (props) =>
 	/* @__PURE__ */ React.createElement("img", {
 	className: "channelTabs-tabIcon",
 	src: getCurrentIconUrl(props.url),
 });
-var TabStatus = (props) =>
+const TabStatus = (props) =>
 	/* @__PURE__ */ React.createElement("rect", {
 	width: 6,
 	height: 6,
@@ -2302,13 +2433,13 @@ var TabStatus = (props) =>
 		(props.currentStatus == "offline" ? " channelTabs-offlineIcon" : "") +
 		(props.currentStatus == "none" ? " channelTabs-noneIcon" : ""),
 });
-var TabName = (props) =>
+const TabName = (props) =>
 	/* @__PURE__ */ React.createElement(
 	"span",
 	{ className: "channelTabs-tabName" },
 	props.name,
 );
-var TabClose = (props) =>
+const TabClose = (props) =>
 	props.tabCount < 2
 		? null
 		: /* @__PURE__ */ React.createElement(
@@ -2322,18 +2453,18 @@ var TabClose = (props) =>
 			},
 				/* @__PURE__ */ React.createElement(Close, null),
 		);
-var TabUnreadBadge = (props) =>
+const TabUnreadBadge = (props) =>
 	/* @__PURE__ */ React.createElement(
 	"div",
 	{
 		className:
 			"channelTabs-unreadBadge" +
-			(!props.hasUnread ? " channelTabs-noUnread" : "") +
+			(props.hasUnread ? "" : " channelTabs-noUnread") +
 			GetTabStyles(props.viewMode, "unreadBadge"),
 	},
 	props.unreadCount + (props.unreadEstimated ? "+" : ""),
 );
-var TabMentionBadge = (props) =>
+const TabMentionBadge = (props) =>
 	/* @__PURE__ */ React.createElement(
 	"div",
 	{
@@ -2344,7 +2475,7 @@ var TabMentionBadge = (props) =>
 	},
 	props.mentionCount,
 );
-var TabTypingBadge = ({ viewMode, isTyping, userIds }) => {
+const TabTypingBadge = ({ viewMode, isTyping, userIds }) => {
 	if (isTyping === false || !Spinner) return null;
 	const text = getChannelTypingTooltipText(userIds);
 	return /* @__PURE__ */ React.createElement(
@@ -2362,14 +2493,12 @@ var TabTypingBadge = ({ viewMode, isTyping, userIds }) => {
 				type: "pulsingEllipsis",
 				className: `channelTabs-typingBadge`,
 				animated: isTyping,
-				style: {
-					opacity: 0.7,
-				},
+				style: StyleManager.inlineStyles.typingBadgeAlignment,
 			}),
 		),
 	);
 };
-var CozyTab = (props) => {
+const CozyTab = (props) => {
 	return /* @__PURE__ */ React.createElement(
 		"div",
 		null,
@@ -2381,17 +2510,11 @@ var CozyTab = (props) => {
 				height: "20",
 				viewBox: "0 0 20 20",
 			},
-			props.currentStatus === "none"
-				? /* @__PURE__ */ React.createElement(
-					"foreignObject",
-					{ x: 0, y: 0, width: 20, height: 20 },
-						/* @__PURE__ */ React.createElement(TabIcon, { url: props.url }),
-				)
-				: /* @__PURE__ */ React.createElement(
-					"foreignObject",
-					{ x: 0, y: 0, width: 20, height: 20 },
-						/* @__PURE__ */ React.createElement(TabIcon, { url: props.url }),
-				),
+			/* @__PURE__ */ React.createElement(
+				"foreignObject",
+				{ x: 0, y: 0, width: 20, height: 20 },
+				/* @__PURE__ */ React.createElement(TabIcon, { url: props.url }),
+			),
 			props.currentStatus === "none"
 				? null
 				: /* @__PURE__ */ React.createElement(TabStatus, {
@@ -2405,53 +2528,70 @@ var CozyTab = (props) => {
 			/* @__PURE__ */ React.createElement(
 				"div",
 				{ className: "channelTabs-gridItemBR" },
-				!(props.selected
-					? props.showActiveTabTypingBadge
-					: props.showTabTypingBadge)
-					? null
-					: /* @__PURE__ */ React.createElement(TabTypingBadge, {
-						viewMode: "alt",
+				(() => {
+					const showTypingBadge = props.selected
+						? props.showActiveTabTypingBadge
+						: props.showTabTypingBadge;
+					
+					if (!showTypingBadge) return null;
+					
+					return /* @__PURE__ */ React.createElement(TabTypingBadge, {
+						viewMode: "classic",
 						isTyping: props.hasUsersTyping,
 						userIds: getChannelTypingUsers(props.channelId),
-					}),
+					});
+				})(),
 			),
 			/* @__PURE__ */ React.createElement(
 				"div",
 				{ className: "channelTabs-gridItemTL" },
-				!(props.selected
-					? props.showActiveTabUnreadBadges
-					: props.showTabUnreadBadges)
-					? null
-					: !props.channelId ||
-						(ChannelStore.getChannel(props.channelId)?.isPrivate() ?? true)
-						? null
-						: !(props.selected
-							? props.showEmptyActiveTabBadges
-							: props.showEmptyTabBadges) && !props.hasUnread
-							? null
-							: /* @__PURE__ */ React.createElement(TabUnreadBadge, {
-								viewMode: "alt",
-								unreadCount: props.unreadCount,
-								unreadEstimated: props.unreadEstimated,
-								hasUnread: props.hasUnread,
-								mentionCount: props.mentionCount,
-							}),
+				(() => {
+					const showBadges = props.selected
+						? props.showActiveTabUnreadBadges
+						: props.showTabUnreadBadges;
+					
+					if (!showBadges) return null;
+					
+					if (!props.channelId || (ChannelStore.getChannel(props.channelId)?.isPrivate() ?? true)) {
+						return null;
+					}
+					
+					const showEmpty = props.selected
+						? props.showEmptyActiveTabBadges
+						: props.showEmptyTabBadges;
+					
+					if (!showEmpty && !props.hasUnread) return null;
+					
+					return /* @__PURE__ */ React.createElement(TabUnreadBadge, {
+						viewMode: "alt",
+						unreadCount: props.unreadCount,
+						unreadEstimated: props.unreadEstimated,
+						hasUnread: props.hasUnread,
+						mentionCount: props.mentionCount,
+					});
+				})(),
 			),
 			/* @__PURE__ */ React.createElement(
 				"div",
 				{ className: "channelTabs-gridItemTR" },
-				!(props.selected
-					? props.showActiveTabMentionBadges
-					: props.showTabMentionBadges)
-					? null
-					: !(props.selected
+				(() => {
+					const showMentionBadges = props.selected
+						? props.showActiveTabMentionBadges
+						: props.showTabMentionBadges;
+					
+					if (!showMentionBadges) return null;
+					
+					const showEmpty = props.selected
 						? props.showEmptyActiveTabBadges
-						: props.showEmptyTabBadges) && props.mentionCount === 0
-						? null
-						: /* @__PURE__ */ React.createElement(TabMentionBadge, {
-							viewMode: "alt",
-							mentionCount: props.mentionCount,
-						}),
+						: props.showEmptyTabBadges;
+					
+					if (!showEmpty && props.mentionCount === 0) return null;
+					
+					return /* @__PURE__ */ React.createElement(TabMentionBadge, {
+						viewMode: "alt",
+						mentionCount: props.mentionCount,
+					});
+				})(),
 			),
 			/* @__PURE__ */ React.createElement("div", {
 				className: "channelTabs-gridItemBL",
@@ -2459,7 +2599,7 @@ var CozyTab = (props) => {
 		),
 	);
 };
-var CompactTab = (props) => {
+const CompactTab = (props) => {
 	return /* @__PURE__ */ React.createElement(
 		"div",
 		null,
@@ -2471,17 +2611,11 @@ var CompactTab = (props) => {
 				height: "20",
 				viewBox: "0 0 20 20",
 			},
-			props.currentStatus === "none"
-				? /* @__PURE__ */ React.createElement(
-					"foreignObject",
-					{ x: 0, y: 0, width: 20, height: 20 },
-						/* @__PURE__ */ React.createElement(TabIcon, { url: props.url }),
-				)
-				: /* @__PURE__ */ React.createElement(
-					"foreignObject",
-					{ x: 0, y: 0, width: 20, height: 20 },
-						/* @__PURE__ */ React.createElement(TabIcon, { url: props.url }),
-				),
+			/* @__PURE__ */ React.createElement(
+				"foreignObject",
+				{ x: 0, y: 0, width: 20, height: 20 },
+				/* @__PURE__ */ React.createElement(TabIcon, { url: props.url }),
+			),
 			props.currentStatus === "none"
 				? null
 				: /* @__PURE__ */ React.createElement(TabStatus, {
@@ -2489,63 +2623,75 @@ var CompactTab = (props) => {
 				}),
 		),
 		/* @__PURE__ */ React.createElement(TabName, { name: props.name }),
-		!(props.selected
-			? props.showActiveTabTypingBadge
-			: props.showTabTypingBadge)
-			? null
-			: /* @__PURE__ */ React.createElement(
+		(() => {
+			const showTypingBadge = props.selected
+				? props.showActiveTabTypingBadge
+				: props.showTabTypingBadge;
+			
+			if (!showTypingBadge) return null;
+			
+			return /* @__PURE__ */ React.createElement(
 				React.Fragment,
 				null,
-					/* @__PURE__ */ React.createElement(TabTypingBadge, {
+				/* @__PURE__ */ React.createElement(TabTypingBadge, {
 					viewMode: "classic",
 					isTyping: props.hasUsersTyping,
 					userIds: getChannelTypingUsers(props.channelId),
 				}),
-			),
-		!(props.selected
-			? props.showActiveTabUnreadBadges
-			: props.showTabUnreadBadges)
-			? null
-			: /* @__PURE__ */ React.createElement(
-				React.Fragment,
-				null,
-				!props.channelId ||
-					(ChannelStore.getChannel(props.channelId)?.isPrivate() ?? true)
-					? null
-					: !(props.selected
-						? props.showEmptyActiveTabBadges
-						: props.showEmptyTabBadges) && !props.hasUnread
-						? null
-						: /* @__PURE__ */ React.createElement(TabUnreadBadge, {
-							viewMode: "classic",
-							unreadCount: props.unreadCount,
-							unreadEstimated: props.unreadEstimated,
-							hasUnread: props.hasUnread,
-							mentionCount: props.mentionCount,
-						}),
-			),
-		!(props.selected
-			? props.showActiveTabMentionBadges
-			: props.showTabMentionBadges)
-			? null
-			: /* @__PURE__ */ React.createElement(
-				React.Fragment,
-				null,
-				!(props.selected
-					? props.showEmptyActiveTabBadges
-					: props.showEmptyTabBadges) && props.mentionCount === 0
-					? null
-					: /* @__PURE__ */ React.createElement(TabMentionBadge, {
-						viewMode: "classic",
-						mentionCount: props.mentionCount,
-					}),
-			),
+			);
+		})(),
+		(() => {
+			const showUnreadBadges = props.selected
+				? props.showActiveTabUnreadBadges
+				: props.showTabUnreadBadges;
+			
+			if (!showUnreadBadges) return null;
+			
+			if (!props.channelId || (ChannelStore.getChannel(props.channelId)?.isPrivate() ?? true)) {
+				return null;
+			}
+			
+			const showEmpty = props.selected
+				? props.showEmptyActiveTabBadges
+				: props.showEmptyTabBadges;
+			
+			if (!showEmpty && !props.hasUnread) return null;
+			
+			return /* @__PURE__ */ React.createElement(TabUnreadBadge, {
+				viewMode: "classic",
+				unreadCount: props.unreadCount,
+				unreadEstimated: props.unreadEstimated,
+				hasUnread: props.hasUnread,
+				mentionCount: props.mentionCount,
+			});
+		})(),
+		(() => {
+			const showMentionBadges = props.selected
+				? props.showActiveTabMentionBadges
+				: props.showTabMentionBadges;
+			
+			if (!showMentionBadges) return null;
+			
+			const showEmpty = props.selected
+				? props.showEmptyActiveTabBadges
+				: props.showEmptyTabBadges;
+			
+			if (!showEmpty && props.mentionCount === 0) return null;
+			
+			return /* @__PURE__ */ React.createElement(TabMentionBadge, {
+				viewMode: "classic",
+				mentionCount: props.mentionCount,
+			});
+		})(),
 	);
 };
-var Tab = (props) =>
+const Tab = (props) =>
 	/* @__PURE__ */ React.createElement(
 	"div",
 	{
+		role: "tab",
+		"aria-selected": props.selected,
+		tabIndex: props.selected ? 0 : -1,
 		className:
 			"channelTabs-tab" +
 			(props.selected ? " channelTabs-selected" : "") +
@@ -2557,6 +2703,22 @@ var Tab = (props) =>
 		"data-unread-estimated": props.unreadEstimated,
 		onClick: () => {
 			if (!props.selected) props.switchToTab(props.tabIndex);
+		},
+		onKeyDown: (e) => {
+			if (e.key === 'Enter' || e.key === ' ') {
+				e.preventDefault();
+				if (!props.selected) props.switchToTab(props.tabIndex);
+			} else if (e.key === 'ArrowLeft' && props.tabIndex > 0) {
+				e.preventDefault();
+				const nextIndex = props.tabIndex - 1;
+				props.switchToTab(nextIndex);
+				props.focusTab?.(nextIndex);
+			} else if (e.key === 'ArrowRight' && props.tabIndex < props.tabCount - 1) {
+				e.preventDefault();
+				const nextIndex = props.tabIndex + 1;
+				props.switchToTab(nextIndex);
+				props.focusTab?.(nextIndex);
+			}
 		},
 		onMouseUp: (e) => {
 			if (e.button !== 1) return;
@@ -2587,8 +2749,6 @@ var Tab = (props) =>
 									currentTabDragIndex,
 									currentTabDragDestinationIndex,
 								);
-								currentTabDragDestinationIndex =
-									currentTabDragDestinationIndex;
 								currentTabDragIndex = currentTabDragDestinationIndex;
 							}
 						}
@@ -2617,9 +2777,9 @@ var Tab = (props) =>
 		closeTab: () => props.closeTab(props.tabIndex),
 	}),
 );
-var FavMoveToGroupList = (props) => {
-	var groups = props.favGroups.map((group, index) => {
-		var entry = {
+const FavMoveToGroupList = (props) => {
+	const groups = props.favGroups.map((group, index) => {
+		const entry = {
 			label: group.name,
 			id: "entry" + index,
 			action: () => props.moveToFavGroup(props.favIndex, group.groupId),
@@ -2636,12 +2796,12 @@ var FavMoveToGroupList = (props) => {
 	}
 	return groups;
 };
-var FavIcon = (props) =>
+const FavIcon = (props) =>
 	/* @__PURE__ */ React.createElement("img", {
 	className: "channelTabs-favIcon",
 	src: getCurrentIconUrl(props.url),
 });
-var FavStatus = (props) =>
+const FavStatus = (props) =>
 	/* @__PURE__ */ React.createElement("rect", {
 	width: 6,
 	height: 6,
@@ -2655,23 +2815,23 @@ var FavStatus = (props) =>
 		(props.currentStatus == "offline" ? " channelTabs-offlineIcon" : "") +
 		(props.currentStatus == "none" ? " channelTabs-noneIcon" : ""),
 });
-var FavName = (props) =>
+const FavName = (props) =>
 	/* @__PURE__ */ React.createElement(
 	"span",
 	{ className: "channelTabs-favName" },
 	props.name,
 );
-var FavUnreadBadge = (props) =>
+const FavUnreadBadge = (props) =>
 	/* @__PURE__ */ React.createElement(
 	"div",
 	{
 		className:
 			"channelTabs-unreadBadge" +
-			(!props.hasUnread ? " channelTabs-noUnread" : ""),
+			(props.hasUnread ? "" : " channelTabs-noUnread"),
 	},
 	props.unreadCount + (props.unreadEstimated ? "+" : ""),
 );
-var FavMentionBadge = (props) =>
+const FavMentionBadge = (props) =>
 	/* @__PURE__ */ React.createElement(
 	"div",
 	{
@@ -2681,7 +2841,7 @@ var FavMentionBadge = (props) =>
 	},
 	props.mentionCount,
 );
-var FavTypingBadge = ({ isTyping, userIds }) => {
+const FavTypingBadge = ({ isTyping, userIds }) => {
 	if (!Spinner) return null;
 	const text = getChannelTypingTooltipText(userIds);
 	return /* @__PURE__ */ React.createElement(
@@ -2694,26 +2854,29 @@ var FavTypingBadge = ({ isTyping, userIds }) => {
 				...tooltipProps,
 				className:
 					"channelTabs-typingBadge" +
-					(!isTyping ? " channelTabs-noTyping" : ""),
+					(isTyping ? "" : " channelTabs-noTyping"),
 			},
 				/* @__PURE__ */ React.createElement(Spinner, {
 				type: "pulsingEllipsis",
-				animated: !isTyping ? false : true,
+				animated: isTyping,
 			}),
 		),
 	);
 };
-var Fav = (props) =>
+const Fav = (props) =>
 	/* @__PURE__ */ React.createElement(
 	"div",
 	{
+		role: "button",
+		"aria-label": props.name,
+		tabIndex: 0,
 		className:
 			"channelTabs-fav" +
-			(props.channelId
-				? " channelTabs-channel"
-				: props.guildId
-					? " channelTabs-guild"
-					: "") +
+			(() => {
+				if (props.channelId) return " channelTabs-channel";
+				if (props.guildId) return " channelTabs-guild";
+				return "";
+			})() +
 			(props.selected ? " channelTabs-selected" : "") +
 			(props.minimized ? " channelTabs-minimized" : "") +
 			(props.hasUnread ? " channelTabs-unread" : "") +
@@ -2728,6 +2891,19 @@ var Fav = (props) =>
 					SelectedChannelStore.getChannelId(props.guildId),
 				)
 				: NavigationUtils.transitionTo(props.url),
+		onKeyDown: (e) => {
+			if (e.key === 'Enter' || e.key === ' ') {
+				e.preventDefault();
+				if (props.guildId) {
+					NavigationUtils.transitionToGuild(
+						props.guildId,
+						SelectedChannelStore.getChannelId(props.guildId),
+					);
+				} else {
+					NavigationUtils.transitionTo(props.url);
+				}
+			}
+		},
 		onMouseUp: (e) => {
 			if (e.button !== 1) return;
 			e.preventDefault();
@@ -2757,8 +2933,6 @@ var Fav = (props) =>
 									currentFavDragIndex,
 									currentFavDragDestinationIndex,
 								);
-								currentFavDragDestinationIndex =
-									currentFavDragDestinationIndex;
 								currentFavDragIndex = currentFavDragDestinationIndex;
 							}
 						}
@@ -2789,17 +2963,11 @@ var Fav = (props) =>
 			height: "20",
 			viewBox: "0 0 20 20",
 		},
-		props.currentStatus === "none"
-			? /* @__PURE__ */ React.createElement(
-				"foreignObject",
-				{ x: 0, y: 0, width: 20, height: 20 },
-						/* @__PURE__ */ React.createElement(FavIcon, { url: props.url }),
-			)
-			: /* @__PURE__ */ React.createElement(
-				"foreignObject",
-				{ x: 0, y: 0, width: 20, height: 20 },
-						/* @__PURE__ */ React.createElement(FavIcon, { url: props.url }),
-			),
+		/* @__PURE__ */ React.createElement(
+			"foreignObject",
+			{ x: 0, y: 0, width: 20, height: 20 },
+			/* @__PURE__ */ React.createElement(FavIcon, { url: props.url }),
+		),
 		props.currentStatus === "none"
 			? null
 			: /* @__PURE__ */ React.createElement(FavStatus, {
@@ -2807,45 +2975,60 @@ var Fav = (props) =>
 			}),
 	),
 		/* @__PURE__ */ React.createElement(FavName, { name: props.name }),
-	!(props.showFavUnreadBadges && (props.channelId || props.guildId))
-		? null
-		: /* @__PURE__ */ React.createElement(
+		(props.showFavUnreadBadges && (props.channelId || props.guildId))
+		? /* @__PURE__ */ React.createElement(
 			React.Fragment,
 			null,
-			isChannelDM(props.channelId)
-				? null
-				: !props.showEmptyFavBadges && props.unreadCount === 0
-					? null
-					: /* @__PURE__ */ React.createElement(FavUnreadBadge, {
-						unreadCount: props.unreadCount,
-						unreadEstimated: props.unreadEstimated,
-						hasUnread: props.hasUnread,
-					}),
-		),
-	!(props.showFavMentionBadges && (props.channelId || props.guildId))
-		? null
-		: /* @__PURE__ */ React.createElement(
-			React.Fragment,
-			null,
-			!props.showEmptyFavBadges && props.mentionCount === 0
-				? null
-				: /* @__PURE__ */ React.createElement(FavMentionBadge, {
-					mentionCount: props.mentionCount,
-				}),
-		),
-	!(props.showFavTypingBadge && (props.channelId || props.guildId))
-		? null
-		: /* @__PURE__ */ React.createElement(
-			React.Fragment,
-			null,
-					/* @__PURE__ */ React.createElement(FavTypingBadge, {
-				isTyping: props.isTyping,
-				userIds: getChannelTypingUsers(props.channelId),
-			}),
-		),
+			(() => {
+				if (!props.showFavUnreadBadges || (!props.channelId && !props.guildId)) {
+					return null;
+				}
+				
+				if (isChannelDM(props.channelId)) {
+					return null;
+				}
+				
+				if (!props.showEmptyFavBadges && props.unreadCount === 0) {
+					return null;
+				}
+				
+				return /* @__PURE__ */ React.createElement(FavUnreadBadge, {
+					unreadCount: props.unreadCount,
+					unreadEstimated: props.unreadEstimated,
+					hasUnread: props.hasUnread,
+				});
+			})(),
+		)
+		: null,
+		(() => {
+			if (!props.showFavMentionBadges || (!props.channelId && !props.guildId)) {
+				return null;
+			}
+			
+			if (!props.showEmptyFavBadges && props.mentionCount === 0) {
+				return null;
+			}
+			
+			return /* @__PURE__ */ React.createElement(FavMentionBadge, {
+				mentionCount: props.mentionCount,
+			});
+		})(),
+		(() => {
+			if (!props.showFavMentionBadges || (!props.channelId && !props.guildId)) {
+				return null;
+			}
+			
+			if (!props.showEmptyFavBadges && props.mentionCount === 0) {
+				return null;
+			}
+			
+			return /* @__PURE__ */ React.createElement(FavMentionBadge, {
+				mentionCount: props.mentionCount,
+			});
+		})(),
 );
-var NewTab = (props) =>
-    /* @__PURE__ */ React.createElement(
+const NewTab = (props) =>
+	/* @__PURE__ */ React.createElement(
 	"div",
 	{
 		className: "channelTabs-newTab",
@@ -2856,9 +3039,9 @@ var NewTab = (props) =>
 			props.openNewTab();
 		}
 	},
-        /* @__PURE__ */ React.createElement(PlusAlt, null),
+		/* @__PURE__ */ React.createElement(PlusAlt, null),
 );
-var TabListDropdown = (props) =>
+const TabListDropdown = (props) =>
 	/* @__PURE__ */ React.createElement(
 	"div",
 	{
@@ -2868,18 +3051,18 @@ var TabListDropdown = (props) =>
 	},
 		/* @__PURE__ */ React.createElement(ChevronDown, null)
 );
-var NoFavItemsPlaceholder = (props) =>
+const NoFavItemsPlaceholder = (props) =>
 	/* @__PURE__ */ React.createElement(
 	"span",
 	{ className: "channelTabs-noFavNotice" },
 	"You don't have any favs yet. Right click a tab to mark it as favourite. You can disable this bar in the settings.",
 );
-var FavItems = (props) => {
-	var isDefault = props.group === null;
+const FavItems = (props) => {
+	const isDefault = props.group === null;
 	return props.favs
-		.filter((item) => item)
+	.filter(Boolean)
 		.map((fav, favIndex) => {
-			var canCreate = isDefault
+			const canCreate = isDefault
 				? fav.groupId === -1
 				: fav.groupId === props.group.groupId;
 			return canCreate
@@ -2924,7 +3107,7 @@ var FavItems = (props) => {
 				: null;
 		});
 };
-var FavFolder = (props) =>
+const FavFolder = (props) =>
 	/* @__PURE__ */ React.createElement(
 	"div",
 	{
@@ -2956,8 +3139,6 @@ var FavFolder = (props) =>
 									currentGroupDragIndex,
 									currentGroupDragDestinationIndex,
 								);
-								currentGroupDragDestinationIndex =
-									currentGroupDragDestinationIndex;
 								currentGroupDragIndex = currentGroupDragDestinationIndex;
 							}
 						}
@@ -2993,22 +3174,22 @@ var FavFolder = (props) =>
 			},
 		},
 		props.favGroup.name,
-		props.showFavGroupMentionBadges
-			? props.mentionCountGroup == 0 && !props.showEmptyFavGroupBadges
-				? null
-				: /* @__PURE__ */ React.createElement(FavMentionBadge, {
-					mentionCount: props.mentionCountGroup,
-				})
-			: null,
-		props.showFavGroupUnreadBadges
-			? props.unreadCountGroup == 0 && !props.showEmptyFavGroupBadges
-				? null
-				: /* @__PURE__ */ React.createElement(FavUnreadBadge, {
-					unreadCount: props.unreadCountGroup,
-					unreadEstimated: props.unreadEstimatedGroup,
-					hasUnread: props.hasUnreadGroup,
-				})
-			: null,
+		(() => {
+			if (!props.showFavGroupMentionBadges) return null;
+			if (props.mentionCountGroup === 0 && !props.showEmptyFavGroupBadges) return null;
+			return /* @__PURE__ */ React.createElement(FavMentionBadge, {
+				mentionCount: props.mentionCountGroup,
+			});
+		})(),
+		(() => {
+			if (!props.showFavGroupUnreadBadges) return null;
+			if (props.unreadCountGroup === 0 && !props.showEmptyFavGroupBadges) return null;
+			return /* @__PURE__ */ React.createElement(FavUnreadBadge, {
+				unreadCount: props.unreadCountGroup,
+				unreadEstimated: props.unreadEstimatedGroup,
+				hasUnread: props.hasUnreadGroup,
+			});
+		})(),
 		props.showFavGroupTypingBadge && props.isTypingGroup
 			? /* @__PURE__ */ React.createElement(FavTypingBadge, {
 				isTyping: props.isTypingGroup,
@@ -3032,32 +3213,31 @@ var FavFolder = (props) =>
 		}),
 	),
 );
-var FavFolders = (props) => {
+const FavFolders = (props) => {
 	return props.favGroups.map((favGroup, index) => {
 		return React.createElement(
 			Flux.connectStores(
 				[UnreadStateStore, SelectedChannelStore, UserTypingStore],
 				() => {
-					var unreadCount = 0;
-					var unreadEstimated = 0;
-					var hasUnread = false;
-					var mentionCount = 0;
-					var isTyping = false;
+					let unreadCount = 0;
+					let unreadEstimated = 0;
+					let hasUnread = false;
+					let mentionCount = 0;
+					let isTyping = false;
 					props.favs
-						.filter((item) => item)
-						.forEach((fav, favIndex) => {
-							var canCreate = fav.groupId === favGroup.groupId;
-							if (canCreate) {
-								var hasUnreads = isChannelDM(fav.channelId);
-								var result = updateFavEntry(fav);
-								if (!hasUnreads) unreadCount += result.unreadCount;
-								mentionCount += result.mentionCount;
-								if (!hasUnreads) unreadEstimated += result.unreadEstimated;
-								if (!hasUnreads)
-									hasUnread = result.hasUnread ? true : hasUnread;
-								isTyping = result.isTyping ? true : isTyping;
-							}
-						});
+					.filter(Boolean)
+					for (const fav of props.favs) {
+						if (fav && fav.groupId === favGroup.groupId) {
+							const hasUnreads = isChannelDM(fav.channelId);
+							const result = updateFavEntry(fav);
+							if (!hasUnreads) unreadCount += result.unreadCount;
+							mentionCount += result.mentionCount;
+							if (!hasUnreads) unreadEstimated += result.unreadEstimated;
+							if (!hasUnreads)
+								hasUnread = result.hasUnread ? true : hasUnread;
+							isTyping = result.isTyping ? true : isTyping;
+						}
+					}
 					return {
 						unreadCount,
 						mentionCount,
@@ -3102,9 +3282,8 @@ function previousTab() {
 			TopBarRef.current.state.tabs.length,
 		);
 }
-function closeCurrentTab() {
-	if (TopBarRef.current)
-		TopBarRef.current.closeTab(TopBarRef.current.state.selectedTabIndex);
+function expDecay(a, b, decay, dt) {
+	return b + (a - b) * Math.exp((-decay * dt) / 1e3);
 }
 function HorizontalScroll(props) {
 	const {
@@ -3124,9 +3303,7 @@ function HorizontalScroll(props) {
 	const targetRef = React.useRef(0);
 	const lastRef = React.useRef(performance.now());
 	const resetLastRef = React.useRef(false);
-	function expDecay(a, b, decay, dt) {
-		return b + (a - b) * Math.exp((-decay * dt) / 1e3);
-	}
+	
 	function update() {
 		if (!container.current) return;
 		const now = performance.now();
@@ -3209,7 +3386,7 @@ function HorizontalScroll(props) {
 		children
 	);
 }
-var TabBar = React.forwardRef((props, ref) => {
+const TabBar = React.forwardRef((props, ref) => {
 	const scrollRef = React.useRef(null);
 	const tabRefs = React.useRef(new Map());
 	const isMultiRow = props.tabLayoutMode === "multi";
@@ -3222,9 +3399,19 @@ var TabBar = React.forwardRef((props, ref) => {
 			scrollRef.current.scrollToElement(element);
 		}
 	}, [props.tabs, isMultiRow]);
+
+	const focusTab = React.useCallback((index) => {
+		const tab = props.tabs[index];
+		if (!tab) return;
+		const key = tab.id ?? tab.channelId ?? tab.url ?? `tab-${index}`;
+		const element = tabRefs.current.get(key);
+		element?.focus();
+	}, [props.tabs]);
+
 	React.useImperativeHandle(ref, () => ({
-		scrollToTab
-	}), [scrollToTab]);
+		scrollToTab,
+		focusTab
+	}), [scrollToTab, focusTab]);
 	const renderTabs = () => props.tabs.map((tab, tabIndex) => {
 		const stableKey = tab.id ?? tab.channelId ?? tab.url ?? `tab-${tabIndex}`;
 		return React.createElement(
@@ -3239,7 +3426,7 @@ var TabBar = React.forwardRef((props, ref) => {
 					currentStatus: getCurrentUserStatus(tab.url),
 				}),
 			)((result) =>
-                /* @__PURE__ */ React.createElement("div",
+				/* @__PURE__ */ React.createElement("div",
 				{
 					ref: el => {
 						if (el) {
@@ -3250,10 +3437,11 @@ var TabBar = React.forwardRef((props, ref) => {
 					},
 					key: stableKey,
 					className: "channelTabs-tabWrapper",
-					style: !isMultiRow ? { flexShrink: 0 } : {}
+					style: isMultiRow ? {} : { flexShrink: 0 }
 				},
-                /* @__PURE__ */ React.createElement(Tab, {
+				/* @__PURE__ */ React.createElement(Tab, {
 					switchToTab: props.switchToTab,
+					focusTab: focusTab,
 					closeTab: props.closeTab,
 					addToFavs: props.addToFavs,
 					minimizeTab: props.minimizeTab,
@@ -3297,18 +3485,31 @@ var TabBar = React.forwardRef((props, ref) => {
 		scrollToTab,
 		tabs: props.tabs
 	};
+	const tabWrapStyle = isMultiRow ? {
+		display: "flex",
+		flexWrap: "wrap",
+		overflowX: "hidden",
+		scrollbarWidth: "none",
+	} : {
+		display: "flex",
+		flexWrap: "nowrap",
+		overflowX: "auto",
+		scrollbarWidth: "none",
+	};
 	return /* @__PURE__ */ React.createElement(
 		"div",
 		{
+			role: "tablist",
+			"aria-label": "Channel tabs",
 			className: "channelTabs-tabContainer",
 			"data-tab-count": props.tabs.length,
 			"data-multiline": isMultiRow,
 		},
 		props.leading,
-        /* @__PURE__ */ React.createElement(
+		/* @__PURE__ */ React.createElement(
 			"div",
 			{ className: "channelTabs-tabNav" },
-            /* @__PURE__ */ React.createElement(
+			/* @__PURE__ */ React.createElement(
 				"div",
 				{
 					className: "channelTabs-tabNavLeft",
@@ -3324,14 +3525,14 @@ var TabBar = React.forwardRef((props, ref) => {
 							!props.canGoBack() ? 0.5 : 1
 					},
 					onContextMenu: () => {
-						!props.useStandardNav
-							? NavShortcuts.NAVIGATE_BACK.action()
-							: props.previousTab();
+						props.useStandardNav
+							? props.previousTab()
+							: NavShortcuts.NAVIGATE_BACK.action();
 					},
 				},
-                /* @__PURE__ */ React.createElement(LeftCaret, null),
+				/* @__PURE__ */ React.createElement(LeftCaret, null),
 			),
-            /* @__PURE__ */ React.createElement(
+			/* @__PURE__ */ React.createElement(
 				"div",
 				{
 					className: "channelTabs-tabNavRight",
@@ -3347,51 +3548,50 @@ var TabBar = React.forwardRef((props, ref) => {
 							!props.canGoForward() ? 0.5 : 1
 					},
 					onContextMenu: () => {
-						!props.useStandardNav
-							? NavShortcuts.NAVIGATE_FORWARD.action()
-							: props.nextTab();
+						props.useStandardNav
+							? props.nextTab()
+							: NavShortcuts.NAVIGATE_FORWARD.action();
 					},
 				},
-                /* @__PURE__ */ React.createElement(RightCaret, null),
+				/* @__PURE__ */ React.createElement(RightCaret, null),
 			),
-            /* @__PURE__ */ React.createElement(
+			/* @__PURE__ */ React.createElement(
 				"div",
 				{
 					className: "channelTabs-tabNavClose",
 					onClick: () => {
 						props.closeCurrentTab();
 					},
+					onDoubleClick: (e) => {
+						e.preventDefault();
+						e.stopPropagation();
+					},
 					onContextMenu: props.openNewTab,
 				},
-                /* @__PURE__ */ React.createElement(Close, null),
+				/* @__PURE__ */ React.createElement(Close, null),
 			),
 		),
-        /* @__PURE__ */ React.createElement(
+		/* @__PURE__ */ React.createElement(
 			HorizontalScroll,
 			{
 				innerRef: scrollRef,
 				className: "channelTabs-tabWrap",
 				onToggleLayout: props.toggleTabLayoutMode,
 				disableScroll: isMultiRow,
-				style: {
-					display: "flex",
-					flexWrap: isMultiRow ? "wrap" : "nowrap",
-					overflowX: isMultiRow ? "hidden" : "auto",
-					scrollbarWidth: "none",
-				},
+				style: tabWrapStyle,
 			},
 			renderTabs()
 		),
-        /* @__PURE__ */ React.createElement(NewTab, {
+		/* @__PURE__ */ React.createElement(NewTab, {
 			openNewTab: props.openNewTab,
 		}),
-        /* @__PURE__ */ React.createElement(TabListDropdown, dropdownProps),
+		/* @__PURE__ */ React.createElement(TabListDropdown, dropdownProps),
 		props.trailing,
 	);
 });
 /* Set display name for debugging */
 TabBar.displayName = 'TabBar';
-var FavBar = (props) =>
+const FavBar = (props) =>
 	/* @__PURE__ */ React.createElement(
 	"div",
 	{
@@ -3415,7 +3615,7 @@ var FavBar = (props) =>
 		),
 	props.trailing,
 );
-var TopBar = class TopBar2 extends React.Component {
+const TopBar = class TopBar2 extends React.Component {
 	constructor(props) {
 		super(props);
 		this.isHistoryNavigation = false;
@@ -3495,7 +3695,7 @@ var TopBar = class TopBar2 extends React.Component {
 			() => {
 				this.props.plugin.settings.tabLayoutMode = newMode;
 				this.props.plugin.saveSettings();
-				BdApi.showToast(
+				BdApi.UI.showToast(
 					`📑 ${newMode === "single" ? "Single row mode" : "Multi-row mode"}`,
 					{ type: "info", timeout: 2000 }
 				);
@@ -3506,7 +3706,7 @@ var TopBar = class TopBar2 extends React.Component {
 				announcement.style.left = '-10000px';
 				announcement.textContent = `Tab layout changed to ${newMode === "single" ? "single row" : "multi-row"} mode`;
 				document.body.appendChild(announcement);
-				setTimeout(() => document.body.removeChild(announcement), 1000);
+				setTimeout(() => announcement.remove(), 1000);
 				if (this.tabBarRef.current) {
 					const selectedIndex = this.state.selectedTabIndex;
 					requestAnimationFrame(() => {
@@ -3521,10 +3721,8 @@ var TopBar = class TopBar2 extends React.Component {
 			{
 				tabs: this.state.tabs.map((tab, index) => {
 					if (index == tabIndex)
-						return Object.assign({}, tab, {
-							minimized: !tab.minimized,
-						});
-					else return Object.assign({}, tab);
+						return { ...tab, minimized: !tab.minimized };
+					else return { ...tab };
 				}),
 			},
 			this.props.plugin.saveSettings,
@@ -3532,7 +3730,6 @@ var TopBar = class TopBar2 extends React.Component {
 	}
 	switchToTab(tabIndex) {
 		this.isHistoryNavigation = false;
-		const tab = this.state.tabs[tabIndex];
 		this.setState(
 			{
 				tabs: this.state.tabs.map((t, index) => {
@@ -3544,7 +3741,7 @@ var TopBar = class TopBar2 extends React.Component {
 						}
 						return updatedTab;
 					} else {
-						return Object.assign({}, t, { selected: false });
+						return { ...t, selected: false };
 					}
 				}),
 				selectedTabIndex: tabIndex,
@@ -3695,40 +3892,72 @@ var TopBar = class TopBar2 extends React.Component {
 		const currentTab = this.state.tabs[this.state.selectedTabIndex];
 		const newHistoryIndex = currentTab.historyIndex - 1;
 		const targetUrl = currentTab.history[newHistoryIndex];
-		this.setState({
-			tabs: this.state.tabs.map((tab, index) => {
-				if (index === this.state.selectedTabIndex) {
-					return { ...tab, historyIndex: newHistoryIndex };
-				}
-				return tab;
-			})
-		}, () => {
-			this.isHistoryNavigation = true;
-			switching = true;
-			NavigationUtils.transitionTo(targetUrl);
+		
+		this.isHistoryNavigation = true;
+		switching = true;
+		NavigationUtils.transitionTo(targetUrl);
+		setTimeout(() => {
+			if (!TopBarRef.current) return;
+			
+			const channelId = SelectedChannelStore.getChannelId();
+			
+			this.setState({
+				tabs: this.state.tabs.map((tab, index) => {
+					if (index === this.state.selectedTabIndex) {
+						return {
+							...tab,
+							name: getCurrentName(targetUrl),
+							url: targetUrl,
+							channelId,
+							currentStatus: getCurrentUserStatus(targetUrl),
+							historyIndex: newHistoryIndex
+						};
+					}
+					return tab;
+				})
+			}, () => {
+				this.isHistoryNavigation = false;
+				this.props.plugin.saveSettings();
+			});
+			
 			switching = false;
-			this.props.plugin.saveSettings();
-		});
+		}, 0);
 	}
 	goForward() {
 		if (!this.canGoForward()) return;
 		const currentTab = this.state.tabs[this.state.selectedTabIndex];
 		const newHistoryIndex = currentTab.historyIndex + 1;
 		const targetUrl = currentTab.history[newHistoryIndex];
-		this.setState({
-			tabs: this.state.tabs.map((tab, index) => {
-				if (index === this.state.selectedTabIndex) {
-					return { ...tab, historyIndex: newHistoryIndex };
-				}
-				return tab;
-			})
-		}, () => {
-			this.isHistoryNavigation = true;
-			switching = true;
-			NavigationUtils.transitionTo(targetUrl);
+		
+		this.isHistoryNavigation = true;
+		switching = true;
+		NavigationUtils.transitionTo(targetUrl);
+		setTimeout(() => {
+			if (!TopBarRef.current) return;
+			
+			const channelId = SelectedChannelStore.getChannelId();
+			
+			this.setState({
+				tabs: this.state.tabs.map((tab, index) => {
+					if (index === this.state.selectedTabIndex) {
+						return {
+							...tab,
+							name: getCurrentName(targetUrl),
+							url: targetUrl,
+							channelId,
+							currentStatus: getCurrentUserStatus(targetUrl),
+							historyIndex: newHistoryIndex
+						};
+					}
+					return tab;
+				})
+			}, () => {
+				this.isHistoryNavigation = false;
+				this.props.plugin.saveSettings();
+			});
+			
 			switching = false;
-			this.props.plugin.saveSettings();
-		});
+		}, 0);
 	}
 	hideFavBar() {
 		this.setState(
@@ -3743,7 +3972,7 @@ var TopBar = class TopBar2 extends React.Component {
 	}
 	renameFav(currentName, favIndex) {
 		let name = currentName;
-		BdApi.showConfirmationModal(
+		BdApi.UI.showConfirmationModal(
 			"What should the new name be?",
 			/* @__PURE__ */ React.createElement(Textbox, {
 				onChange: (newContent) => (name = newContent.trim()),
@@ -3754,8 +3983,8 @@ var TopBar = class TopBar2 extends React.Component {
 					this.setState(
 						{
 							favs: this.state.favs.map((fav, index) => {
-								if (index === favIndex) return Object.assign({}, fav, { name });
-								else return Object.assign({}, fav);
+								if (index === favIndex) return { ...fav, name };
+								else return { ...fav };
 							}),
 						},
 						this.props.plugin.saveSettings,
@@ -3769,10 +3998,8 @@ var TopBar = class TopBar2 extends React.Component {
 			{
 				favs: this.state.favs.map((fav, index) => {
 					if (index == favIndex)
-						return Object.assign({}, fav, {
-							minimized: !fav.minimized,
-						});
-					else return Object.assign({}, fav);
+						return { ...fav, minimized: !fav.minimized };
+					else return { ...fav };
 				}),
 			},
 			this.props.plugin.saveSettings,
@@ -3792,7 +4019,7 @@ var TopBar = class TopBar2 extends React.Component {
 	 * provided channel id (which should be empty when a guildId is provided)
 	 */
 	addToFavs(name, url, channelId, guildId) {
-		var groupId = -1;
+		const groupId = -1;
 		this.setState(
 			{
 				favs: [...this.state.favs, { name, url, channelId, guildId, groupId }],
@@ -3807,25 +4034,25 @@ var TopBar = class TopBar2 extends React.Component {
 		this.setState({ favs }, this.props.plugin.saveSettings);
 	}
 	createFavGroupId() {
-		var generatedId = this.state.favGroups.length;
-		var isUnique = false;
-		var duplicateFound = false;
+		let generatedId = this.state.favGroups.length;
+		let isUnique = false;
+		let duplicateFound = false;
 		while (!isUnique) {
-			for (var i = 0; i < this.state.favGroups.length; i++) {
-				var group = this.state.favGroups[i];
+			for (const group of this.state.favGroups) {
 				if (generatedId === group.groupId) duplicateFound = true;
 			}
-			if (!duplicateFound) isUnique = true;
-			else {
+			if (duplicateFound) {
 				generatedId++;
 				duplicateFound = false;
+			} else {
+				isUnique = true;
 			}
 		}
 		return generatedId;
 	}
 	addFavGroup() {
 		let name = "New Group";
-		BdApi.showConfirmationModal(
+		BdApi.UI.showConfirmationModal(
 			"What should the new name be?",
 			/* @__PURE__ */ React.createElement(Textbox, {
 				onChange: (newContent) => (name = newContent.trim()),
@@ -3848,7 +4075,7 @@ var TopBar = class TopBar2 extends React.Component {
 	}
 	renameFavGroup(currentName, groupId) {
 		let name = currentName;
-		BdApi.showConfirmationModal(
+		BdApi.UI.showConfirmationModal(
 			"What should the new name be?",
 			/* @__PURE__ */ React.createElement(Textbox, {
 				onChange: (newContent) => (name = newContent.trim()),
@@ -3860,8 +4087,8 @@ var TopBar = class TopBar2 extends React.Component {
 						{
 							favGroups: this.state.favGroups.map((group, index) => {
 								if (group.groupId === groupId)
-									return Object.assign({}, group, { name });
-								else return Object.assign({}, group);
+									return { ...group, name };
+								else return { ...group };
 							}),
 						},
 						this.props.plugin.saveSettings,
@@ -3883,8 +4110,8 @@ var TopBar = class TopBar2 extends React.Component {
 			{
 				favs: this.state.favs.map((fav, index) => {
 					if (fav.groupId === groupId)
-						return Object.assign({}, fav, { groupId: -1 });
-					else return Object.assign({}, fav);
+						return { ...fav, groupId: -1 };
+					else return { ...fav };
 				}),
 			},
 			this.props.plugin.saveSettings,
@@ -3895,9 +4122,9 @@ var TopBar = class TopBar2 extends React.Component {
 			{
 				favs: this.state.favs.map((fav, index) => {
 					if (index === favIndex) {
-						return Object.assign({}, fav, { groupId });
+						return { ...fav, groupId };
 					} else {
-						return Object.assign({}, fav);
+						return { ...fav };
 					}
 				}),
 			},
@@ -3987,11 +4214,11 @@ var TopBar = class TopBar2 extends React.Component {
 	openTabInNewTab(tab) {
 		this.setState(
 			{
-				tabs: [...this.state.tabs, Object.assign({}, tab, {
+				tabs: [...this.state.tabs, { ...tab,
 					selected: false,
 					history: tab.history ? [...tab.history] : [tab.url],
 					historyIndex: tab.historyIndex || 0
-				})],
+				}],
 			},
 			this.props.plugin.saveSettings,
 		);
@@ -4050,9 +4277,8 @@ var TopBar = class TopBar2 extends React.Component {
 		return /* @__PURE__ */ React.createElement(
 			"div",
 			{ id: "channelTabs-container", ref: this.containerRef },
-			!this.state.showTabBar
-				? null
-				: /* @__PURE__ */ React.createElement(TabBar, {
+			this.state.showTabBar
+				? /* @__PURE__ */ React.createElement(TabBar, {
 					leading: this.props.leading,
 					trailing,
 					tabs: this.state.tabs,
@@ -4089,10 +4315,10 @@ var TopBar = class TopBar2 extends React.Component {
 					canGoForward: this.canGoForward,
 					goBack: this.goBack,
 					goForward: this.goForward
-				}),
-			!this.state.showFavBar
-				? null
-				: /* @__PURE__ */ React.createElement(FavBar, {
+				})
+				: null,
+			this.state.showFavBar
+				? /* @__PURE__ */ React.createElement(FavBar, {
 					leading: this.state.showTabBar ? null : this.props.leading,
 					trailing: this.state.showTabBar ? null : trailing,
 					favs: this.state.favs,
@@ -4120,7 +4346,8 @@ var TopBar = class TopBar2 extends React.Component {
 					renameFavGroup: this.renameFavGroup,
 					openFavGroupInNewTab: this.openFavGroupInNewTab,
 					hideFavBar: this.hideFavBar,
-				}),
+				})
+				: null,
 		);
 	}
 	componentDidMount() {
@@ -4140,7 +4367,7 @@ var TopBar = class TopBar2 extends React.Component {
 		document.body.style.removeProperty("--custom-app-top-bar-height");
 	}
 };
-var TopBarRef = React.createRef();
+const TopBarRef = React.createRef();
 module.exports = class ChannelTabs {
 	constructor(meta) {
 		this.meta = meta;
@@ -4173,633 +4400,50 @@ module.exports = class ChannelTabs {
 		this.patchContextMenus();
 		this.ifReopenLastChannelDefault();
 		document.addEventListener("keydown", this.keybindHandler);
-		window.onclick = (event) => this.clickHandler(event);
+		document.addEventListener("click", this.clickHandler);
 	}
 	stop() {
 		this.removeStyle();
 		document.removeEventListener("keydown", this.keybindHandler);
-		window.onclick = null;
+		document.removeEventListener("click", this.clickHandler);
 		Patcher.unpatchAll();
 		this.promises.cancel();
-		patches.forEach((patch) => patch());
+		for (const patch of patches) {
+			patch();
+		}
 		this.updateManager.stop();
+		guildChannelCache.clear();
 	}
-	applyStyle() {
-		const CompactVariables = `
-				:root {	
-					--channelTabs-tabHeight: 22px;
-					--channelTabs-favHeight: 22px;
-					--channelTabs-tabNameFontSize: 12px;
-					--channelTabs-openTabSize: 18px;
-				}
-			`;
-		const CozyVariables = `
-				:root {	
-					--channelTabs-tabHeight: 32px;
-					--channelTabs-favHeight: 28px;
-					--channelTabs-tabNameFontSize: 13px;
-					--channelTabs-openTabSize: 24px;
-				}
-			`;
-		const ConstantVariables = `
-				:root {	
-					--channelTabs-tabWidth: 220px;
-					--channelTabs-tabWidthMin: ${this.settings.tabWidthMin}px;
-				}
-			`;
-		const PrivacyStyle = `
-				#app-mount .channelTabs-favGroupBtn {
-					color: transparent !important;
-				}
-				#app-mount .channelTabs-tabName {
-					color: transparent;
-					background-color: var(--interactive-normal);
-					opacity: 0.5;
-				}
-				#app-mount .channelTabs-selected .channelTabs-tabName {
-					background-color: var(--interactive-active);
-				}
-				#app-mount .channelTabs-favName {
-					color: transparent;
-					background-color: var(--interactive-normal);
-					opacity: 0.5;
-				}
-			`;
-		const RadialStatusStyle = `
-				.channelTabs-tabIconWrapper,
-				.channelTabs-favIconWrapper {
-					overflow: visible;
-				}
-				.channelTabs-tabIconWrapper img[src*="com/avatars/"],
-				.channelTabs-favIconWrapper img[src*="com/avatars/"] {
-					-webkit-clip-path: inset(1px round 50%);
-					clip-path: inset(2px round 50%);
-				}
-				.channelTabs-tabIconWrapper rect,
-				.channelTabs-favIconWrapper rect {
-					x: 0;
-					y: 0;
-					rx: 50%;
-					ry: 50%;
-					-webkit-mask: none;
-					mask: none;
-					fill: none;
-					height: 20px;
-					width: 20px;
-					stroke-width: 2px;
-				}
-				.channelTabs-onlineIcon {
-					stroke: hsl(139, calc(var(--saturation-factor, 1) * 47.3%), 43.9%);
-				}
-				.channelTabs-idleIcon {
-					stroke: hsl(38, calc(var(--saturation-factor, 1) * 95.7%), 54.1%);
-				}
-				.channelTabs-doNotDisturbIcon {
-					stroke: hsl(359, calc(var(--saturation-factor, 1) * 82.6%), 59.4%);
-				}
-				.channelTabs-offlineIcon {
-					stroke: hsl(214, calc(var(--saturation-factor, 1) * 9.9%), 50.4%);
-				}
-			`;
-		const tabNavStyle = `
-				.channelTabs-tabContainer .channelTabs-tabNav {
-					display:flex;
-					margin: 0 6px 3px 0;
-				}
-				.channelTabs-tabNavClose svg {
-					transform: scale(0.75);
-				}
-				.channelTabs-tabNavLeft svg,
-				.channelTabs-tabNavRight svg {
-					transform: scale(0.6);
-				}
-				/* if clickable */
-				.channelTabs-tabContainer .channelTabs-tabNav>div:hover {
-					color: var(--interactive-hover);
-					background-color: var(--background-modifier-hover);
-				}
-				.channelTabs-tabContainer .channelTabs-tabNav>div:active {
-					color: var(--interactive-active);
-					background-color: var(--background-modifier-active);
-				}
-				/* if only 1 tab */
-				.channelTabs-tabContainer[data-tab-count="1"] .channelTabs-tabNav>.channelTabs-tabNavClose {
-					color: var(--interactive-muted);
-					background: none;
-				}
-				.channelTabs-tabNav>div {
-					display: flex;
-					align-items: center;
-					justify-content: center;
-					height: var(--channelTabs-tabHeight);
-					width: 32px;
-					border-radius: 4px;
-					margin-right: 3px;
-					color: var(--interactive-normal);
-				}
-			`;
-		const BaseStyle = `
-			/* 
-			*/
-			.channelTabs-input .bd-text-input {
-			border: 1px solid var(--input-border);
-			width: 100%;
-			}
-			.channelTabs-tabNav {
-				display:none;
-			}
-			div:has(> div > #channelTabs-container) {
-				grid-template-rows: [top] auto [titleBarEnd] min-content [noticeEnd] 1fr [end];
-			}
-			${noDragClasses.map((x) => `.${x}`).join(", ")} {
-				-webkit-app-region: no-drag;
-			}
-			.${systemBarClasses.systemBar}, .channelTabs-trailing {
-				--custom-app-top-bar-height: 32px;
-			}
-			/*
-			*/
-			#channelTabs-container {
-				z-index: 1000;
-				background: none;
-				flex: 1;
-				max-width: 100vw;
-			}
-			.channelTabs-tabContainer {
-				display: flex;
-				align-items: center;
-			}
-			.channelTabs-trailing {
-				display: flex;
-				align-items: center;
-				gap: 12px;
-				margin-left: auto;
-			}
-			.channelTabs-tabContainer > *, .channelTabs-favContainer > * {
-				-webkit-app-region: no-drag;
-			}
-			#channelTabs-container>:not(#channelTabs-settingsMenu)+div {
-				padding-top: 4px;
-				border-top: 1px solid var(--background-modifier-accent);
-			}
-			.channelTabs-tab {
-				display: flex;
-				align-items: center;
-				height: var(--channelTabs-tabHeight);
-				background: none;
-				border-radius: 4px;
-				max-width: var(--channelTabs-tabWidth);
-				min-width: var(--channelTabs-tabWidthMin);
-				flex: 1 1 var(--channelTabs-tabWidthMin);
-				margin-bottom: 3px;
-			}
-			.channelTabs-tab>div:first-child {
-				display: flex;
-				width: calc(100% - 16px);
-				align-items: center;
-			}
-			.channelTabs-tab:not(.channelTabs-selected):hover {
-				background: var(--background-modifier-hover);
-			}
-			.channelTabs-tab:not(.channelTabs-selected):active {
-				background: var(--background-modifier-active);
-			}
-			.channelTabs-tab.channelTabs-selected {
-				background: var(--background-modifier-selected);
-			}
-			.channelTabs-tab.channelTabs-unread:not(.channelTabs-selected),
-			.channelTabs-tab.channelTabs-unread:not(.channelTabs-selected),
-			.channelTabs-tab.channelTabs-mention:not(.channelTabs-selected) {
-				color: var(--interactive-hover);
-			}
-			.channelTabs-tab.channelTabs-unread:not(.channelTabs-selected):hover,
-			.channelTabs-tab.channelTabs-mention:not(.channelTabs-selected):hover {
-				color: var(--interactive-active);
-			}
-			/*
-			*/
-			/*
-			*/
-			html:not(.platform-win) #channelTabs-settingsMenu {
-				margin-right: 0;
-			}
-			#channelTabs-settingsMenu {
-				display: flex;
-				justify-content: center;
-				align-items: center;
-				width: 32px;
-				height: 32px;
-				z-index: 1000;
-				cursor: pointer;
-			}
-			#channelTabs-settingsMenu:hover {
-				background: var(--background-modifier-hover);
-			}
-			.channelTabs-settingsIcon {
-				width: 20px;
-				height: 20px;
-			}
-			/*
-			*/
-			/*
-			*/
-			.channelTabs-tab .channelTabs-tabName {
-				margin-right: 6px;
-				font-size: var(--channelTabs-tabNameFontSize);
-				line-height: normal;
-				color: var(--interactive-normal);
-				overflow: hidden;
-				white-space: nowrap;
-				text-overflow: ellipsis;
-			}
-			.channelTabs-tab:not(.channelTabs-selected):hover .channelTabs-tabName {
-				color: var(--interactive-hover);
-			}
-			.channelTabs-tab:not(.channelTabs-selected):active .channelTabs-tabName,
-			.channelTabs-tab.channelTabs-selected .channelTabs-tabName {
-				color: var(--interactive-active);
-			}
-			/*
-			*/
-			/*
-			*/
-			.channelTabs-tabIcon {
-				height: 20px;
-				border-radius: 50%;
-				-webkit-user-drag: none;
-			}
-			.channelTabs-tabIconWrapper {
-				margin: 0 6px;
-				flex-shrink: 0;
-			}
-			.channelTabs-onlineIcon {
-				fill: hsl(139, calc(var(--saturation-factor, 1) * 47.3%), 43.9%);
-				mask: url(#svg-mask-status-online);
-			}
-			.channelTabs-idleIcon {
-				fill: hsl(38, calc(var(--saturation-factor, 1) * 95.7%), 54.1%);
-				mask: url(#svg-mask-status-idle);
-			}
-			.channelTabs-doNotDisturbIcon {
-				fill: hsl(359, calc(var(--saturation-factor, 1) * 82.6%), 59.4%);
-				mask: url(#svg-mask-status-dnd);
-			}
-			.channelTabs-offlineIcon {
-				fill: hsl(214, calc(var(--saturation-factor, 1) * 9.9%), 50.4%);
-				mask: url(#svg-mask-status-offline);
-			}
-			/*
-			*/
-			/*
-			*/
-			.channelTabs-closeTab {
-				position: relative;
-				height: 16px;
-				width: 16px;
-				flex-shrink: 0;
-				right: 6px;
-				border-radius: 4px;
-				color: var(--interactive-normal);
-				cursor: pointer;
-			}
-			.channelTabs-closeTab svg {
-				height: 100%;
-				width: 100%;
-				transform: scale(0.85);
-			}
-			.channelTabs-newTab {
-				display:flex;
-				align-items: center;
-				justify-content: center;
-				flex-shrink: 0;
-				height: var(--channelTabs-openTabSize);
-				width: 24px;
-				margin: 0 6px 3px 6px;
-				border-radius: 4px;
-				cursor: pointer;
-				color: var(--interactive-normal);
-				margin-right: 6px;
-			}
-			.channelTabs-newTab:hover {
-				background: var(--background-modifier-hover);
-				color: var(--interactive-hover);
-			}
-			.channelTabs-newTab:active {
-				background: var(--background-modifier-active);
-				color: var(--interactive-active);
-			}
-			.channelTabs-closeTab:hover {
-				background: hsl(359,calc(var(--saturation-factor, 1)*82.6%),59.4%);
-				color: white;
-			}
-			.channelTabs-tabListDropdown {
-				display: flex;
-				align-items: center;
-				justify-content: center;
-				flex-shrink: 0;
-				height: var(--channelTabs-openTabSize);
-				width: 24px;
-				margin: 0 64px 3px 0;
-				border-radius: 4px;
-				cursor: pointer;
-				color: var(--interactive-normal);
-			}
-			.channelTabs-tabListDropdown:hover {
-				background: var(--background-modifier-hover);
-				color: var(--interactive-hover);
-			}
-			.channelTabs-tabListDropdown:active {
-				background: var(--background-modifier-active);
-				color: var(--interactive-active);
-			}
-			.channelTabs-tabListDropdown svg {
-				width: 16px;
-				height: 16px;
-			}
-			/*
-			*/
-			/*
-			*/
-			.channelTabs-gridContainer {
-				display: flex;
-				margin-right: 6px;
-			}
-			.channelTabs-mentionBadge,
-			.channelTabs-unreadBadge {
-				border-radius: 8px;
-				padding: 0 4px;
-				min-width: 8px;
-				width: fit-content;
-				height: 16px;
-				font-size: 12px;
-				line-height: 16px;
-				font-weight: 600;
-				text-align: center;
-				color: #fff;
-			}
-			.channelTabs-typingBadge {
-				border-radius: 8px;
-				padding-left: 4px;
-				padding-right: 4px;
-				min-width: 8px;
-				width: fit-content;
-				height: 16px;
-				font-size: 12px;
-				line-height: 16px;
-				font-weight: 600;
-				text-align: center;
-				color: #fff;
-			}
-			.channelTabs-mentionBadge {
-				background-color: hsl(359, calc(var(--saturation-factor, 1) * 82.6%), 59.4%);
-			}
-			.channelTabs-unreadBadge {
-				background-color: hsl(235, calc(var(--saturation-factor, 1) * 86%), 65%);
-			}
-			.channelTabs-classicBadgeAlignment {
-				margin-right: 6px;
-				display: inline-block;
-				float: right;
-			}
-			.channelTabs-badgeAlignLeft {
-				float: left;
-			}
-			.channelTabs-badgeAlignRight {
-				float: right;
-			}
-			.channelTabs-tab .channelTabs-mentionBadge,
-			.channelTabs-tab .channelTabs-unreadBadge,
-			.channelTabs-tab .channelTabs-typingBadge {
-				height: 16px;
-			}
-			.channelTabs-tab .channelTabs-noMention,
-			.channelTabs-tab .channelTabs-noUnread {
-				background-color: var(--background-primary);
-				color: var(--text-muted);
-			}
-			.channelTabs-fav .channelTabs-mentionBadge,
-			.channelTabs-fav .channelTabs-unreadBadge {
-				display: inline-block;
-				vertical-align: bottom;
-				float: right;
-				margin-left: 2px;
-			}
-			.channelTabs-fav .channelTabs-typingBadge {
-				display: inline-flex;
-				vertical-align: bottom;
-				float: right;
-				margin-left: 2px;
-				margin-right: 6px;
-			}
-			.channelTabs-fav .channelTabs-noMention,
-			.channelTabs-fav .channelTabs-noUnread {
-				background-color: var(--background-primary);
-				color: var(--text-muted);
-			}
-			.channelTabs-fav .channelTabs-noTyping {
-				display: none;
-			}
-			.channelTabs-fav .channelTabs-favName + div {
-				margin-left: 6px;
-			}
-			.channelTabs-favGroupBtn .channelTabs-noMention,
-			.channelTabs-favGroupBtn .channelTabs-noUnread {
-				background-color: var(--background-primary);
-				color: var(--text-muted);
-			}
-			.channelTabs-favGroupBtn .channelTabs-typingBadge {
-				display: inline-flex;
-				vertical-align: bottom;
-				float: right;
-				margin-left: 2px;
-			}
-			.channelTabs-favGroupBtn .channelTabs-mentionBadge,
-			.channelTabs-favGroupBtn .channelTabs-unreadBadge {
-				display: inline-block;
-				vertical-align: bottom;
-				float: right;
-				margin-left: 2px;
-			}
-			.channelTabs-favGroupBtn .channelTabs-noTyping {
-				display: none;
-			}
-			/*
-			*/
-			/*
-			*/
-			.channelTabs-favContainer {
-				display: flex;
-				align-items: center;
-				flex-wrap:wrap;
-				-webkit-app-region: drag;
-			}
-			.channelTabs-fav {
-				display: flex;
-				align-items: center;
-				min-width: 0;
-				border-radius: 4px;
-				height: var(--channelTabs-favHeight);
-				background: none;
-				flex: 0 0 1;
-				max-width: var(--channelTabs-tabWidth);
-				margin-bottom: 3px;
-				padding-left: 6px;
-				padding-right: 6px;
-			}
-			.channelTabs-fav:hover {
-				background: var(--background-modifier-hover);
-			}
-			.channelTabs-fav:active {
-				background: var(--background-modifier-active);
-			}
-			.channelTabs-favIcon {
-				height: 20px;
-				border-radius: 50%;
-				-webkit-user-drag: none;
-			}
-			.channelTabs-favName {
-				margin-left: 6px;
-				font-size: var(--channelTabs-tabNameFontSize);
-				line-height: normal;
-				color: var(--interactive-normal);
-				overflow: hidden;
-				white-space: nowrap;
-				text-overflow: ellipsis;
-			}
-			.channelTabs-fav:hover .channelTabs-favName {
-				color: var(--interactive-hover);
-			}
-			.channelTabs-fav:active .channelTabs-favName {
-				color: var(--interactive-active);
-			}
-			.channelTabs-noFavNotice {
-				color: var(--text-muted);
-				font-size: 14px;
-				padding: 3px;
-			}
-			/*
-			*/
-			/*
-			*/
-			.channelTabs-favGroupBtn {
-				display: flex;
-				align-items: center;
-				min-width: 0;
-				border-radius: 4px;
-				height: var(--channelTabs-favHeight);
-				flex: 0 1 1;
-				max-width: var(--channelTabs-tabWidth);
-				padding: 0 6px;
-				font-size: 12px;
-				color: var(--interactive-normal);
-				overflow: hidden;
-				white-space: nowrap;
-				text-overflow: ellipsis;
-				margin-bottom: 3px;
-			}
-			.channelTabs-favGroupBtn>:first-child {
-				margin-left: 6px;
-			}
-			.channelTabs-favGroup:hover .channelTabs-favGroupBtn {
-				background: var(--background-modifier-hover);
-			}
-			.channelTabs-favGroup-content {
-				z-index: 1001;
-				display: none;
-				position: absolute;
-				min-width: max-content;
-				background-color: var(--background-surface-high);
-				-webkit-box-shadow: var(--elevation-high);
-				box-shadow: var(--elevation-high);
-				border-radius: 4px;
-				padding: 4px;
-			}
-			.channelTabs-favGroup-content>:last-child {
-				margin-bottom: 0;
-			}
-			.channelTabs-favGroupShow {
-				display:block;
-			}
-			.channelTabs-sliderContainer {
-				display: flex;
-				justify-content: center;
-				padding: 4px 8px;
-				margin: 2px 6px 12px 6px;
-				background: var(--slider-background-normal);
-				border-radius: var(--slider-background-radius);
-			}
-			.channelTabs-slider {
-				position: relative;
-				top: -14px;
-			}
-			.channelTabs-minimized {
-				--channelTabs-tabWidth: fit-content;
-				--channelTabs-tabWidthMin: fit-content;
-			}
-			.channelTabs-tab.channelTabs-minimized>div>:first-child~*,
-			.channelTabs-fav.channelTabs-minimized>svg:first-child~*,
-			.channelTabs-tab.channelTabs-minimized>.channelTabs-closeTab {
-				display:none;
-			}
-			/* Remove Discord's title from the interaction layer */
-			[aria-label="Open Quick Switcher"],
-			[aria-label="Open Quick Switcher"]:parent {
-				pointer-events: none !important;
-				position: absolute !important;
-				z-index: -1 !important;
-			}
-			/*
-			*/
-			`;
-		const MultiRowStyles = `
-			/* Multi-row layout - unlimited rows */
-			.channelTabs-tabContainer[data-multiline="true"] .channelTabs-tabWrap {
-				display: flex !important;
-				flex-wrap: wrap !important;
-				align-content: flex-start;
-				row-gap: var(--channelTabs-rowGap, 3px);
-				column-gap: 0;
-				overflow: visible !important;
-				transition: all 0.3s ease;
-				contain: layout paint; /* NEW - performance optimization */
-			}
-			/* Tab sizing in multi-row mode - improved responsive sizing */
-			.channelTabs-tabContainer[data-multiline="true"] .channelTabs-tabWrapper {
-				flex-shrink: 1 !important;
-			}
-			.channelTabs-tabContainer[data-multiline="true"] .channelTabs-tab {
-				flex: 1 1 clamp(var(--channelTabs-tabWidthMin, 100px), 20vw, var(--channelTabs-tabWidth, 220px));
-				min-width: var(--channelTabs-tabWidthMin, 100px);
-			}
-			/* Single-row mode - keep existing behavior */
-			.channelTabs-tabContainer:not([data-multiline="true"]) .channelTabs-tabWrap {
-				flex-wrap: nowrap !important;
-				overflow-x: auto !important;
-				overflow-y: hidden !important;
-				scrollbar-width: none;
-			}
-			.channelTabs-tabContainer:not([data-multiline="true"]) .channelTabs-tabWrap::-webkit-scrollbar {
-				display: none;
-			}
-			/* Smooth transition when switching modes */
-			.channelTabs-tabContainer {
-				transition: all 0.3s ease;
-			}
-			`;
-		if (this.settings.compactStyle === true)
-			DOM.addStyle("channelTabs-style-compact", CompactVariables);
-		if (this.settings.compactStyle === false)
-			DOM.addStyle("channelTabs-style-cozy", CozyVariables);
-		if (this.settings.privacyMode === true)
-			DOM.addStyle("channelTabs-style-private", PrivacyStyle);
-		if (this.settings.radialStatusMode === true)
-			DOM.addStyle("channelTabs-style-radialstatus", RadialStatusStyle);
-		if (this.settings.showNavButtons === true)
-			DOM.addStyle("channelTabs-style-tabnav", tabNavStyle);
-		DOM.addStyle("channelTabs-style-constants", ConstantVariables);
-		DOM.addStyle("channelTabs-style", BaseStyle);
-		DOM.addStyle("channelTabs-style-multirow", MultiRowStyles);
-		DOM.removeStyle("channelTabs-style-multirow");
+	applyStyle(styleId = null) {
+		if (!styleId || styleId === "channelTabs-style-compact") {
+			if (this.settings.compactStyle === true)
+				DOM.addStyle("channelTabs-style-compact", StyleManager.getCompactVariables());
+		}
+		if (!styleId || styleId === "channelTabs-style-cozy") {
+			if (this.settings.compactStyle === false)
+				DOM.addStyle("channelTabs-style-cozy", StyleManager.getCozyVariables());
+		}
+		if (!styleId || styleId === "channelTabs-style-private") {
+			if (this.settings.privacyMode === true)
+				DOM.addStyle("channelTabs-style-private", StyleManager.getPrivacyStyle());
+		}
+		if (!styleId || styleId === "channelTabs-style-radialstatus") {
+			if (this.settings.radialStatusMode === true)
+				DOM.addStyle("channelTabs-style-radialstatus", StyleManager.getRadialStatusStyle());
+		}
+		if (!styleId || styleId === "channelTabs-style-tabnav") {
+			if (this.settings.showNavButtons === true)
+				DOM.addStyle("channelTabs-style-tabnav", StyleManager.getTabNavStyle());
+		}
+		if (!styleId || styleId === "channelTabs-style-constants") {
+			DOM.addStyle("channelTabs-style-constants", StyleManager.getConstantVariables(this.settings.tabWidthMin));
+		}
+		if (!styleId || styleId === "channelTabs-style") {
+			DOM.addStyle("channelTabs-style", StyleManager.getBaseStyle(noDragClasses, systemBarClasses));
+		}
+		if (!styleId || styleId === "channelTabs-style-multirow") {
+			DOM.addStyle("channelTabs-style-multirow", StyleManager.getMultiRowStyles());
+		}
 	}
 	removeStyle() {
 		DOM.removeStyle("channelTabs-style-compact");
@@ -4809,6 +4453,7 @@ module.exports = class ChannelTabs {
 		DOM.removeStyle("channelTabs-style-tabnav");
 		DOM.removeStyle("channelTabs-style-constants");
 		DOM.removeStyle("channelTabs-style");
+		DOM.removeStyle("channelTabs-style-multirow");
 	}
 	ifNoTabsExist() {
 		if (this.settings.tabs.length == 0)
@@ -4985,14 +4630,13 @@ module.exports = class ChannelTabs {
 				shiftKey: true,
 				keyCode: 84,
 				action: () => {
-					props.switchToTab(index);
-					if (props.scrollToTab) {
-						setTimeout(() => props.scrollToTab(index), 50);
+					if (TopBarRef.current) {
+						TopBarRef.current.reopenLastClosedTab();
 					}
 				}
 			},
 		];
-		keybinds.forEach((keybind) => {
+		for (const keybind of keybinds) {
 			if (
 				e.altKey === (keybind.altKey ?? false) &&
 				e.ctrlKey === (keybind.ctrlKey ?? false) &&
@@ -5002,7 +4646,7 @@ module.exports = class ChannelTabs {
 				e.stopPropagation();
 				keybind.action();
 			}
-		});
+		}
 	}
 	onSwitch() {
 		if (switching) return;
@@ -5054,7 +4698,7 @@ module.exports = class ChannelTabs {
 							};
 						}
 						else {
-							return Object.assign({}, tab);
+							return { ...tab };
 						}
 					}),
 				},
@@ -5081,20 +4725,10 @@ module.exports = class ChannelTabs {
 		return out;
 	}
 	nextTab() {
-		if (TopBarRef.current)
-			TopBarRef.current.switchToTab(
-				(TopBarRef.current.state.selectedTabIndex + 1) %
-				TopBarRef.current.state.tabs.length,
-			);
+		nextTab();
 	}
 	previousTab() {
-		if (TopBarRef.current)
-			TopBarRef.current.switchToTab(
-				(TopBarRef.current.state.selectedTabIndex -
-					1 +
-					TopBarRef.current.state.tabs.length) %
-				TopBarRef.current.state.tabs.length,
-			);
+		previousTab();
 	}
 	closeCurrentTab() {
 		if (TopBarRef.current)
@@ -5148,7 +4782,7 @@ module.exports = class ChannelTabs {
 			return this.meta.name;
 		} else {
 			const user_id = UserStore.getCurrentUser()?.id;
-			return this.meta.name + "_new" + (user_id != null ? "_" + user_id : "");
+			return this.meta.name + "_new" + (user_id === null ? "" : "_" + user_id);
 		}
 	}
 	loadSettings() {
@@ -5165,7 +4799,7 @@ module.exports = class ChannelTabs {
 		}
 		this.settings.favs = this.settings.favs.map((fav) => {
 			if (fav.channelId === void 0) {
-				const match = fav.url.match(/^\/channels\/[^\/]+\/(\d+)$/);
+				const match = fav.url.match(/^\/channels\/[^/]+\/(\d+)$/);
 				if (match) return Object.assign(fav, { channelId: match[1] });
 			}
 			if (fav.groupId === void 0) {
@@ -5272,7 +4906,7 @@ module.exports = class ChannelTabs {
 									});
 								}
 								this.saveSettings();
-								BdApi.showToast(
+								BdApi.UI.showToast(
 									`📑 ${value === "single" ? "Single row mode" : "Multi-row mode"}`,
 									{ type: "info", timeout: 2000 }
 								);
@@ -5369,14 +5003,14 @@ module.exports = class ChannelTabs {
 							min: 58,
 							max: 220,
 							value: this.settings.tabWidthMin,
-							onChange: (value) => (
-								(this.settings.tabWidthMin = Math.round(value)),
-								this.saveSettings(),
+							onChange: (value) => {
+								this.settings.tabWidthMin = Math.round(value);
+								this.saveSettings();
 								document.documentElement.style.setProperty(
 									"--channelTabs-tabWidthMin",
 									this.settings.tabWidthMin + "px",
-								)
-							),
+								);
+							},
 							defaultValue: 100,
 							markers: [60, 85, 100, 125, 150, 175, 200, 220],
 							units: "px",
@@ -5733,7 +5367,7 @@ module.exports = class ChannelTabs {
 									TopBarRef.current.setState({ closedTabs: [] },
 										TopBarRef.current.props.plugin.saveSettings
 									);
-									BdApi.showToast("Closed tabs history cleared", { type: "success" });
+									BdApi.UI.showToast("Closed tabs history cleared", { type: "success" });
 								}
 							},
 							color: "red",
