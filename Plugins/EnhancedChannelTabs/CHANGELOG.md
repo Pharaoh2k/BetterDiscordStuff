@@ -1,5 +1,38 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+## 3.1.0
+- Replaced incorrect and obsolete Discord CSS vars with current ones
+- Replaced var with const/let for modern JavaScript practices
+- Simplified complex nested ternaries into readable if-statements
+- Replaced Object.assign with object spread syntax {...obj}
+- Changed .forEach() to for...of loops for better performance
+- Fixed negated conditions for better readability
+- Removed redundant code and self-assignments
+- Applied consistent filtering with Boolean helper
+- Removed unused function parameters (favIndex)
+- Used childNode.remove() instead of parentNode.removeChild()
+- Moved pure functions (expDecay) to outer scope to prevent recreation on render
+- Removed duplicate method implementations (made methods call standalone functions)
+- Fixed comma operator misuse in arrow functions (converted to block body)
+- Centralized all styles into a dedicated StyleManager class for better maintainability
+- Moved all CSS strings from applyStyle() into StyleManager static methods
+- Extracted all inline React styles into StyleManager.inlineStyles object
+- Created reusable style helper methods (applyHoverEffect, removeHoverEffect)
+- Separated dynamic styles into dedicated methods (getTabListMenuNameStyle, getDropdownMenuPosition)
+- Refactored applyStyle() to use centralized StyleManager for all style operations
+- Improved style organization with clear separation between CSS strings and JS style objects
+- Fixed a few minor non-breaking code issues
+- Fixed Ctrl+Shift+T keybind throwing error due to undefined variables
+- Fixed click handler overwriting global onclick instead of using addEventListener
+- Fixed potential crash when user data unavailable in DM status detection
+- Fixed potential crash when fetching avatar URL for DM channels
+- Fixed potential crash when typing store returns null/undefined
+- Improved performance by caching guild channel lookups while keeping permission/mute checks live
+- Added ARIA roles, labels, and keyboard navigation for tabs (Arrow keys, Enter, Space)
+- Added keyboard support for favorite buttons (Enter, Space)
+- Improved focus management for keyboard tab navigation
+- Reduced imperative DOM manipulation in context menus by moving styles to CSS
+ 
 ## 3.0.8
 - Merged the following upstream changes:
 - Fixed the topbar preventing interaction with image viewer controls
