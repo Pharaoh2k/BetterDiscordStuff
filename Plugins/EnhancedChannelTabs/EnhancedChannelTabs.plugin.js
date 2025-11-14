@@ -187,6 +187,7 @@ class UpdateManager {
 	}
 }
 class StyleManager {
+	// CSS String Methods
 	static getCompactVariables() {
 		return `
 			:root { --channelTabs-tabHeight: 22px; --channelTabs-favHeight: 22px; --channelTabs-tabNameFontSize: 12px; --channelTabs-openTabSize: 18px; }
@@ -343,6 +344,7 @@ class StyleManager {
 			.channelTabs-tabContainer { transition: all 0.3s ease; }
 		`;
 	}
+	// Inline Style Objects
 	static inlineStyles = {
 	tabListMenuItem: { display: "flex", alignItems: "center", width: "100%", minHeight: "26px", cursor: "pointer", position: "relative", zIndex: 1000 },
 	tabListMenuIcon: { width: "18px", height: "18px", marginRight: "10px", borderRadius: "50%", flexShrink: 0 },
@@ -366,6 +368,8 @@ class StyleManager {
 	menuItem: { pointerEvents: "auto", position: "relative", zIndex: "1" },
 	typingBadgeAlignment: { opacity: 0.7 }
 };
+	// Dynamic CSS for tab list menu
+	// Dynamic CSS for tab list menu
 	static getTabListMenuStyle() {
 		return `
 			[id^="popout_"] [role="menu"] { min-width: 300px !important; max-width: 420px !important; }
@@ -373,6 +377,7 @@ class StyleManager {
 			[id^="popout_"] [role="menuitem"] { pointer-events: auto; position: relative; z-index: 1; }
 		`;
 	}
+	// Dynamic style methods
 	static getTabListMenuNameStyle(isSelected) {
 		return {
 			...this.inlineStyles.tabListMenuName,
@@ -387,6 +392,7 @@ class StyleManager {
 			left: "auto"
 		};
 	}
+	// Hover effect handlers  
 	static applyHoverEffect(element) {
 		element.style.backgroundColor = "var(--background-modifier-hover)";
 		element.style.borderRadius = "3px";
@@ -528,8 +534,11 @@ const backdropClasses = getModule(byKeys("backdrop", "withLayer"));
 const scrimClasses = getModule(byKeys("scrim"));
 const noDragClasses = [
 	standardSidebarView,
+	// Settings view
 	backdropClasses?.backdrop,
+	// Anything that has a backdrop
 	scrimClasses?.scrim,
+	// Modal scrims
 ].filter(Boolean);
 const systemBarClasses = getModule(byKeys("systemBar"));
 const Icons = {
@@ -640,7 +649,7 @@ const RightCaret =
 	(() => /* @__PURE__ */ React.createElement("b", null, ">"));
 const ChevronDown =
 	Icons?.ChevronDownIcon ??
-	(() => /* @__PURE__ */ React.createElement("b", null, "▼"));
+	(() => /* @__PURE__ */ React.createElement("b", null, "\u25BC"));
 const DefaultUserIconGrey = "https://cdn.discordapp.com/embed/avatars/0.png";
 const SettingsMenuIcon = /* @__PURE__ */ React.createElement(
 	"svg",
@@ -1314,6 +1323,7 @@ function CreateTabListContextMenu(props, e) {
 		}
 	);
 	requestAnimationFrame(() => {
+		// Keep custom positioning, but separators/items now styled via CSS
 		const menu = document.querySelector('[role="menu"]');
 		if (menu && menu.style) {
 			Object.assign(menu.style, StyleManager.getDropdownMenuPosition(buttonRect));
@@ -1472,7 +1482,8 @@ CTRL + Mouse Scroll - Switch Tab Layout
 													reopenLastChannel: !instance.state.reopenLastChannel,
 												},
 												() => {
-													instance.props.plugin.settings.reopenLastChannel = !instance.props.plugin.settings.reopenLastChannel;
+													instance.props.plugin.settings.reopenLastChannel =
+														!instance.props.plugin.settings.reopenLastChannel;
 													instance.props.plugin.saveSettings();
 												},
 											);
@@ -1495,7 +1506,8 @@ CTRL + Mouse Scroll - Switch Tab Layout
 													compactStyle: !instance.state.compactStyle,
 												},
 												() => {
-													instance.props.plugin.settings.compactStyle = !instance.props.plugin.settings.compactStyle;
+													instance.props.plugin.settings.compactStyle =
+														!instance.props.plugin.settings.compactStyle;
 													instance.props.plugin.removeStyle();
 													instance.props.plugin.applyStyle();
 													instance.props.plugin.saveSettings();
@@ -1514,7 +1526,8 @@ CTRL + Mouse Scroll - Switch Tab Layout
 													privacyMode: !instance.state.privacyMode,
 												},
 												() => {
-													instance.props.plugin.settings.privacyMode = !instance.props.plugin.settings.privacyMode;
+													instance.props.plugin.settings.privacyMode =
+														!instance.props.plugin.settings.privacyMode;
 													instance.props.plugin.removeStyle();
 													instance.props.plugin.applyStyle();
 													instance.props.plugin.saveSettings();
@@ -1533,7 +1546,8 @@ CTRL + Mouse Scroll - Switch Tab Layout
 													radialStatusMode: !instance.state.radialStatusMode,
 												},
 												() => {
-													instance.props.plugin.settings.radialStatusMode = !instance.props.plugin.settings.radialStatusMode;
+													instance.props.plugin.settings.radialStatusMode =
+														!instance.props.plugin.settings.radialStatusMode;
 													instance.props.plugin.removeStyle();
 													instance.props.plugin.applyStyle();
 													instance.props.plugin.saveSettings();
@@ -1591,7 +1605,8 @@ CTRL + Mouse Scroll - Switch Tab Layout
 													showTabBar: !instance.state.showTabBar,
 												},
 												() => {
-													instance.props.plugin.settings.showTabBar = !instance.props.plugin.settings.showTabBar;
+													instance.props.plugin.settings.showTabBar =
+														!instance.props.plugin.settings.showTabBar;
 													instance.props.plugin.saveSettings();
 												},
 											);
@@ -1609,7 +1624,8 @@ CTRL + Mouse Scroll - Switch Tab Layout
 													showFavBar: !instance.state.showFavBar,
 												},
 												() => {
-													instance.props.plugin.settings.showFavBar = !instance.props.plugin.settings.showFavBar;
+													instance.props.plugin.settings.showFavBar =
+														!instance.props.plugin.settings.showFavBar;
 													instance.props.plugin.saveSettings();
 												},
 											);
@@ -1627,7 +1643,8 @@ CTRL + Mouse Scroll - Switch Tab Layout
 													showQuickSettings: !instance.state.showQuickSettings,
 												},
 												() => {
-													instance.props.plugin.settings.showQuickSettings = !instance.props.plugin.settings.showQuickSettings;
+													instance.props.plugin.settings.showQuickSettings =
+														!instance.props.plugin.settings.showQuickSettings;
 													instance.props.plugin.saveSettings();
 												},
 											);
@@ -1644,7 +1661,8 @@ CTRL + Mouse Scroll - Switch Tab Layout
 													showNavButtons: !instance.state.showNavButtons,
 												},
 												() => {
-													instance.props.plugin.settings.showNavButtons = !instance.props.plugin.settings.showNavButtons;
+													instance.props.plugin.settings.showNavButtons =
+														!instance.props.plugin.settings.showNavButtons;
 													instance.props.plugin.removeStyle();
 													instance.props.plugin.applyStyle();
 													instance.props.plugin.saveSettings();
@@ -1666,10 +1684,12 @@ CTRL + Mouse Scroll - Switch Tab Layout
 										action: () => {
 											instance.setState(
 												{
-													alwaysFocusNewTabs: !instance.state.alwaysFocusNewTabs,
+													alwaysFocusNewTabs:
+														!instance.state.alwaysFocusNewTabs,
 												},
 												() => {
-													instance.props.plugin.settings.alwaysFocusNewTabs = !instance.props.plugin.settings.alwaysFocusNewTabs;
+													instance.props.plugin.settings.alwaysFocusNewTabs =
+														!instance.props.plugin.settings.alwaysFocusNewTabs;
 													instance.props.plugin.saveSettings();
 												},
 											);
@@ -1686,7 +1706,8 @@ CTRL + Mouse Scroll - Switch Tab Layout
 													useStandardNav: !instance.state.useStandardNav,
 												},
 												() => {
-													instance.props.plugin.settings.useStandardNav = !instance.props.plugin.settings.useStandardNav;
+													instance.props.plugin.settings.useStandardNav =
+														!instance.props.plugin.settings.useStandardNav;
 													instance.props.plugin.saveSettings();
 												},
 											);
@@ -1719,10 +1740,13 @@ CTRL + Mouse Scroll - Switch Tab Layout
 										action: () => {
 											instance.setState(
 												{
-													showFavMentionBadges: !instance.state.showFavMentionBadges,
+													showFavMentionBadges:
+														!instance.state.showFavMentionBadges,
 												},
 												() => {
-													instance.props.plugin.settings.showFavMentionBadges = !instance.props.plugin.settings.showFavMentionBadges;
+													instance.props.plugin.settings.showFavMentionBadges =
+														!instance.props.plugin.settings
+															.showFavMentionBadges;
 													instance.props.plugin.saveSettings();
 												},
 											);
@@ -1736,10 +1760,12 @@ CTRL + Mouse Scroll - Switch Tab Layout
 										action: () => {
 											instance.setState(
 												{
-													showFavUnreadBadges: !instance.state.showFavUnreadBadges,
+													showFavUnreadBadges:
+														!instance.state.showFavUnreadBadges,
 												},
 												() => {
-													instance.props.plugin.settings.showFavUnreadBadges = !instance.props.plugin.settings.showFavUnreadBadges;
+													instance.props.plugin.settings.showFavUnreadBadges =
+														!instance.props.plugin.settings.showFavUnreadBadges;
 													instance.props.plugin.saveSettings();
 												},
 											);
@@ -1753,10 +1779,12 @@ CTRL + Mouse Scroll - Switch Tab Layout
 										action: () => {
 											instance.setState(
 												{
-													showFavTypingBadge: !instance.state.showFavTypingBadge,
+													showFavTypingBadge:
+														!instance.state.showFavTypingBadge,
 												},
 												() => {
-													instance.props.plugin.settings.showFavTypingBadge = !instance.props.plugin.settings.showFavTypingBadge;
+													instance.props.plugin.settings.showFavTypingBadge =
+														!instance.props.plugin.settings.showFavTypingBadge;
 													instance.props.plugin.saveSettings();
 												},
 											);
@@ -1770,10 +1798,12 @@ CTRL + Mouse Scroll - Switch Tab Layout
 										action: () => {
 											instance.setState(
 												{
-													showEmptyFavBadges: !instance.state.showEmptyFavBadges,
+													showEmptyFavBadges:
+														!instance.state.showEmptyFavBadges,
 												},
 												() => {
-													instance.props.plugin.settings.showEmptyFavBadges = !instance.props.plugin.settings.showEmptyFavBadges;
+													instance.props.plugin.settings.showEmptyFavBadges =
+														!instance.props.plugin.settings.showEmptyFavBadges;
 													instance.props.plugin.saveSettings();
 												},
 											);
@@ -1801,10 +1831,13 @@ CTRL + Mouse Scroll - Switch Tab Layout
 										action: () => {
 											instance.setState(
 												{
-													showFavGroupMentionBadges: !instance.state.showFavGroupMentionBadges,
+													showFavGroupMentionBadges:
+														!instance.state.showFavGroupMentionBadges,
 												},
 												() => {
-													instance.props.plugin.settings.showFavGroupMentionBadges = !instance.props.plugin.settings.showFavGroupMentionBadges;
+													instance.props.plugin.settings.showFavGroupMentionBadges =
+														!instance.props.plugin.settings
+															.showFavGroupMentionBadges;
 													instance.props.plugin.saveSettings();
 												},
 											);
@@ -1819,10 +1852,13 @@ CTRL + Mouse Scroll - Switch Tab Layout
 										action: () => {
 											instance.setState(
 												{
-													showFavGroupUnreadBadges: !instance.state.showFavGroupUnreadBadges,
+													showFavGroupUnreadBadges:
+														!instance.state.showFavGroupUnreadBadges,
 												},
 												() => {
-													instance.props.plugin.settings.showFavGroupUnreadBadges = !instance.props.plugin.settings.showFavGroupUnreadBadges;
+													instance.props.plugin.settings.showFavGroupUnreadBadges =
+														!instance.props.plugin.settings
+															.showFavGroupUnreadBadges;
 													instance.props.plugin.saveSettings();
 												},
 											);
@@ -1837,10 +1873,13 @@ CTRL + Mouse Scroll - Switch Tab Layout
 										action: () => {
 											instance.setState(
 												{
-													showFavGroupTypingBadge: !instance.state.showFavGroupTypingBadge,
+													showFavGroupTypingBadge:
+														!instance.state.showFavGroupTypingBadge,
 												},
 												() => {
-													instance.props.plugin.settings.showFavGroupTypingBadge = !instance.props.plugin.settings.showFavGroupTypingBadge;
+													instance.props.plugin.settings.showFavGroupTypingBadge =
+														!instance.props.plugin.settings
+															.showFavGroupTypingBadge;
 													instance.props.plugin.saveSettings();
 												},
 											);
@@ -1855,10 +1894,13 @@ CTRL + Mouse Scroll - Switch Tab Layout
 										action: () => {
 											instance.setState(
 												{
-													showEmptyFavGroupBadges: !instance.state.showEmptyFavGroupBadges,
+													showEmptyFavGroupBadges:
+														!instance.state.showEmptyFavGroupBadges,
 												},
 												() => {
-													instance.props.plugin.settings.showEmptyFavGroupBadges = !instance.props.plugin.settings.showEmptyFavGroupBadges;
+													instance.props.plugin.settings.showEmptyFavGroupBadges =
+														!instance.props.plugin.settings
+															.showEmptyFavGroupBadges;
 													instance.props.plugin.saveSettings();
 												},
 											);
@@ -1885,10 +1927,13 @@ CTRL + Mouse Scroll - Switch Tab Layout
 										action: () => {
 											instance.setState(
 												{
-													showTabMentionBadges: !instance.state.showTabMentionBadges,
+													showTabMentionBadges:
+														!instance.state.showTabMentionBadges,
 												},
 												() => {
-													instance.props.plugin.settings.showTabMentionBadges = !instance.props.plugin.settings.showTabMentionBadges;
+													instance.props.plugin.settings.showTabMentionBadges =
+														!instance.props.plugin.settings
+															.showTabMentionBadges;
 													instance.props.plugin.saveSettings();
 												},
 											);
@@ -1902,10 +1947,12 @@ CTRL + Mouse Scroll - Switch Tab Layout
 										action: () => {
 											instance.setState(
 												{
-													showTabUnreadBadges: !instance.state.showTabUnreadBadges,
+													showTabUnreadBadges:
+														!instance.state.showTabUnreadBadges,
 												},
 												() => {
-													instance.props.plugin.settings.showTabUnreadBadges = !instance.props.plugin.settings.showTabUnreadBadges;
+													instance.props.plugin.settings.showTabUnreadBadges =
+														!instance.props.plugin.settings.showTabUnreadBadges;
 													instance.props.plugin.saveSettings();
 												},
 											);
@@ -1919,10 +1966,12 @@ CTRL + Mouse Scroll - Switch Tab Layout
 										action: () => {
 											instance.setState(
 												{
-													showTabTypingBadge: !instance.state.showTabTypingBadge,
+													showTabTypingBadge:
+														!instance.state.showTabTypingBadge,
 												},
 												() => {
-													instance.props.plugin.settings.showTabTypingBadge = !instance.props.plugin.settings.showTabTypingBadge;
+													instance.props.plugin.settings.showTabTypingBadge =
+														!instance.props.plugin.settings.showTabTypingBadge;
 													instance.props.plugin.saveSettings();
 												},
 											);
@@ -1936,10 +1985,12 @@ CTRL + Mouse Scroll - Switch Tab Layout
 										action: () => {
 											instance.setState(
 												{
-													showEmptyTabBadges: !instance.state.showEmptyTabBadges,
+													showEmptyTabBadges:
+														!instance.state.showEmptyTabBadges,
 												},
 												() => {
-													instance.props.plugin.settings.showEmptyTabBadges = !instance.props.plugin.settings.showEmptyTabBadges;
+													instance.props.plugin.settings.showEmptyTabBadges =
+														!instance.props.plugin.settings.showEmptyTabBadges;
 													instance.props.plugin.saveSettings();
 												},
 											);
@@ -1967,10 +2018,13 @@ CTRL + Mouse Scroll - Switch Tab Layout
 										action: () => {
 											instance.setState(
 												{
-													showActiveTabMentionBadges: !instance.state.showActiveTabMentionBadges,
+													showActiveTabMentionBadges:
+														!instance.state.showActiveTabMentionBadges,
 												},
 												() => {
-													instance.props.plugin.settings.showActiveTabMentionBadges = !instance.props.plugin.settings.showActiveTabMentionBadges;
+													instance.props.plugin.settings.showActiveTabMentionBadges =
+														!instance.props.plugin.settings
+															.showActiveTabMentionBadges;
 													instance.props.plugin.saveSettings();
 												},
 											);
@@ -1985,10 +2039,13 @@ CTRL + Mouse Scroll - Switch Tab Layout
 										action: () => {
 											instance.setState(
 												{
-													showActiveTabUnreadBadges: !instance.state.showActiveTabUnreadBadges,
+													showActiveTabUnreadBadges:
+														!instance.state.showActiveTabUnreadBadges,
 												},
 												() => {
-													instance.props.plugin.settings.showActiveTabUnreadBadges = !instance.props.plugin.settings.showActiveTabUnreadBadges;
+													instance.props.plugin.settings.showActiveTabUnreadBadges =
+														!instance.props.plugin.settings
+															.showActiveTabUnreadBadges;
 													instance.props.plugin.saveSettings();
 												},
 											);
@@ -2003,10 +2060,13 @@ CTRL + Mouse Scroll - Switch Tab Layout
 										action: () => {
 											instance.setState(
 												{
-													showActiveTabTypingBadge: !instance.state.showActiveTabTypingBadge,
+													showActiveTabTypingBadge:
+														!instance.state.showActiveTabTypingBadge,
 												},
 												() => {
-													instance.props.plugin.settings.showActiveTabTypingBadge = !instance.props.plugin.settings.showActiveTabTypingBadge;
+													instance.props.plugin.settings.showActiveTabTypingBadge =
+														!instance.props.plugin.settings
+															.showActiveTabTypingBadge;
 													instance.props.plugin.saveSettings();
 												},
 											);
@@ -2021,10 +2081,13 @@ CTRL + Mouse Scroll - Switch Tab Layout
 										action: () => {
 											instance.setState(
 												{
-													showEmptyActiveTabBadges: !instance.state.showEmptyActiveTabBadges,
+													showEmptyActiveTabBadges:
+														!instance.state.showEmptyActiveTabBadges,
 												},
 												() => {
-													instance.props.plugin.settings.showEmptyActiveTabBadges = !instance.props.plugin.settings.showEmptyActiveTabBadges;
+													instance.props.plugin.settings.showEmptyActiveTabBadges =
+														!instance.props.plugin.settings
+															.showEmptyActiveTabBadges;
 													instance.props.plugin.saveSettings();
 												},
 											);
@@ -2180,10 +2243,12 @@ const getGuildChannels = (...guildIds) => {
 };
 const updateFavEntry = (fav) => {
 	if (fav.guildId) {
+		// Clean cache every 30 seconds
 		if (Date.now() - lastCacheClean > 30000) {
 			guildChannelCache.clear();
 			lastCacheClean = Date.now();
 		}
+		// Cache raw channels, keep permission/mute checks live
 		let channels = guildChannelCache.get(fav.guildId);
 		if (!channels) {
 			channels = getGuildChannels(fav.guildId);
@@ -2681,8 +2746,8 @@ const Tab = (props) =>
 		onMouseDown: (e) => {
 			let mouseMove = (e2) => {
 				if (
-					Math.sqrt((e.pageX - e2.pageX) ** 2) > 20 ||
-					Math.sqrt((e.pageY - e2.pageY) ** 2) > 20
+					Math.abs(e.pageX - e2.pageX) > 20 ||
+					Math.abs(e.pageY - e2.pageY) > 20
 				) {
 					currentTabDragIndex = props.tabIndex;
 					document.removeEventListener("mousemove", mouseMove);
@@ -2865,8 +2930,8 @@ const Fav = (props) =>
 		onMouseDown: (e) => {
 			let mouseMove = (e2) => {
 				if (
-					Math.sqrt((e.pageX - e2.pageX) ** 2) > 20 ||
-					Math.sqrt((e.pageY - e2.pageY) ** 2) > 20
+					Math.abs(e.pageX - e2.pageX) > 20 ||
+					Math.abs(e.pageY - e2.pageY) > 20
 				) {
 					currentFavDragIndex = props.favIndex;
 					document.removeEventListener("mousemove", mouseMove);
@@ -3064,8 +3129,8 @@ const FavFolder = (props) =>
 		onMouseDown: (e) => {
 			let mouseMove = (e2) => {
 				if (
-					Math.sqrt((e.pageX - e2.pageX) ** 2) > 20 ||
-					Math.sqrt((e.pageY - e2.pageY) ** 2) > 20
+					Math.abs(e.pageX - e2.pageX) > 20 ||
+					Math.abs(e.pageY - e2.pageY) > 20
 				) {
 					currentGroupDragIndex = props.groupIndex;
 					document.removeEventListener("mousemove", mouseMove);
@@ -3551,6 +3616,7 @@ const FavBar = (props) =>
 	props.trailing,
 );
 const TopBar = class TopBar2 extends React.Component {
+	//#region Constructor
 	constructor(props) {
 		super(props);
 		this.isHistoryNavigation = false;
@@ -3621,6 +3687,8 @@ const TopBar = class TopBar2 extends React.Component {
 		this.tabBarRef = React.createRef();
 		this.containerRef = React.createRef();
 	}
+	//#endregion
+	//#region Tab Functions
 	toggleTabLayoutMode() {
 		const newMode = this.state.tabLayoutMode === "single" ? "multi" : "single";
 		this.setState(
@@ -3814,6 +3882,7 @@ const TopBar = class TopBar2 extends React.Component {
 			this.props.plugin.saveSettings,
 		);
 	}
+	//#endregion
 	canGoBack() {
 		const currentTab = this.state.tabs[this.state.selectedTabIndex];
 		return currentTab?.historyIndex > 0;
@@ -3886,6 +3955,7 @@ const TopBar = class TopBar2 extends React.Component {
 			switching = false;
 		}, 0);
 	}
+	//#region Fav Functions
 	hideFavBar() {
 		this.setState(
 			{
@@ -3960,6 +4030,8 @@ const TopBar = class TopBar2 extends React.Component {
 		favs.splice(toIndex, 0, this.state.favs[fromIndex]);
 		this.setState({ favs }, this.props.plugin.saveSettings);
 	}
+	//#endregion
+	//#region Fav Group Functions
 	createFavGroupId() {
 		let generatedId = this.state.favGroups.length;
 		let isUnique = false;
@@ -4066,6 +4138,8 @@ const TopBar = class TopBar2 extends React.Component {
 		favGroups.splice(toIndex, 0, this.state.favGroups[fromIndex]);
 		this.setState({ favGroups }, this.props.plugin.saveSettings);
 	}
+	//#endregion
+	//#region New Tab Functions
 	saveChannel(guildId, channelId, name) {
 		const newUrl = `/channels/${guildId || "@me"}/${channelId}`;
 		if (this.state.alwaysFocusNewTabs) {
@@ -4184,6 +4258,8 @@ const TopBar = class TopBar2 extends React.Component {
 			this.state.favs.filter((fav) => fav && fav.groupId === groupId),
 		);
 	}
+	//#endregion
+	//#region Other Functions
 	render() {
 		const trailing = /* @__PURE__ */ React.createElement(
 			"div",
@@ -4293,9 +4369,11 @@ const TopBar = class TopBar2 extends React.Component {
 		this.observer.disconnect();
 		document.body.style.removeProperty("--custom-app-top-bar-height");
 	}
+	//#endregion
 };
 const TopBarRef = React.createRef();
 module.exports = class ChannelTabs {
+	//#region Start/Stop Functions
 	constructor(meta) {
 		this.meta = meta;
 		pluginMeta = meta;
@@ -4341,6 +4419,7 @@ module.exports = class ChannelTabs {
 		this.updateManager.stop();
 		guildChannelCache.clear();
 	}
+	//#endregion
 	applyStyle(styleId = null) {
 		if (!styleId || styleId === "channelTabs-style-compact") {
 			if (this.settings.compactStyle === true)
@@ -4382,6 +4461,7 @@ module.exports = class ChannelTabs {
 		DOM.removeStyle("channelTabs-style");
 		DOM.removeStyle("channelTabs-style-multirow");
 	}
+	//#region Init/Default Functions
 	ifNoTabsExist() {
 		if (this.settings.tabs.length == 0)
 			this.settings.tabs = [
@@ -4406,6 +4486,8 @@ module.exports = class ChannelTabs {
 			switching = false;
 		}
 	}
+	//#endregion
+	//#region Patches
 	patchTitleBar(promiseState) {
 		if (promiseState.cancelled) return;
 		Patcher.after(TitleBar, TitleBarKey, (thisObject, [props], returnValue) => {
@@ -4525,6 +4607,8 @@ module.exports = class ChannelTabs {
 			}),
 		);
 	}
+	//#endregion
+	//#region Handlers
 	clickHandler(e) {
 		if (!e.target.matches(".channelTabs-favGroupBtn")) {
 			closeAllDropdowns();
@@ -4575,6 +4659,8 @@ module.exports = class ChannelTabs {
 			}
 		}
 	}
+	//#endregion
+	//#region General Functions
 	onSwitch() {
 		if (switching) return;
 		if (TopBarRef.current) {
@@ -4609,7 +4695,8 @@ module.exports = class ChannelTabs {
 								selected: true,
 								currentStatus: getCurrentUserStatus(location.pathname),
 								channelId,
-								minimized: this.settings.tabs[
+								minimized:
+									this.settings.tabs[
 									this.settings.tabs.findIndex((tab2) => tab2.selected)
 								].minimized,
 								history: newHistory,
@@ -4639,7 +4726,8 @@ module.exports = class ChannelTabs {
 				selected: true,
 				currentStatus: getCurrentUserStatus(location.pathname),
 				channelId,
-				minimized: this.settings.tabs[
+					minimized:
+						this.settings.tabs[
 					this.settings.tabs.findIndex((tab) => tab.selected)
 				].minimized,
 			};
@@ -4651,6 +4739,8 @@ module.exports = class ChannelTabs {
 		if (this.settings.showFavBar) out.push(...itemsFav);
 		return out;
 	}
+	//#endregion
+	//#region Hotkey Functions
 	nextTab() {
 		nextTab();
 	}
@@ -4665,6 +4755,8 @@ module.exports = class ChannelTabs {
 		if (!TopBarRef.current) return;
 		TopBarRef.current.openNewTab();
 	}
+	//#endregion
+	//#region Settings
 	get defaultVariables() {
 		return {
 			tabs: [],
@@ -4762,6 +4854,7 @@ module.exports = class ChannelTabs {
 	getSettingsPanel() {
 		return UI.buildSettingsPanel({
 			settings: [
+				//#region Startup Settings
 				{
 					id: "startupSettings",
 					type: "category",
@@ -4780,6 +4873,8 @@ module.exports = class ChannelTabs {
 						},
 					],
 				},
+				//#endregion
+				//#region General Appearance
 				{
 					id: "generalAppearance",
 					type: "category",
@@ -4944,6 +5039,8 @@ module.exports = class ChannelTabs {
 						},
 					],
 				},
+				//#endregion
+				//#region Behavior Settings
 				{
 					id: "behavior",
 					type: "category",
@@ -4981,6 +5078,8 @@ module.exports = class ChannelTabs {
 						},
 					],
 				},
+				//#endregion
+				//#region Badge Visibility - Favs
 				{
 					id: "badgeVisibilityFavorites",
 					type: "category",
@@ -5048,6 +5147,8 @@ module.exports = class ChannelTabs {
 						},
 					],
 				},
+				//#endregion
+				//#region Badge Visibility - Fav Groups
 				{
 					id: "badgeVisibilityFavoriteGroups",
 					type: "category",
@@ -5115,6 +5216,8 @@ module.exports = class ChannelTabs {
 						},
 					],
 				},
+				//#endregion
+				//#region Badge Visibility - Tabs
 				{
 					id: "badgeVisibilityTabs",
 					type: "category",
@@ -5182,6 +5285,8 @@ module.exports = class ChannelTabs {
 						},
 					],
 				},
+				//#endregion
+				//#region Badge Visibility - Active Tabs
 				{
 					id: "badgeVisibilityActiveTabs",
 					type: "category",
@@ -5249,6 +5354,7 @@ module.exports = class ChannelTabs {
 						},
 					],
 				},
+				//#endregion
 				{
 					id: "closedTabsSettings",
 					type: "category",
@@ -5305,5 +5411,6 @@ module.exports = class ChannelTabs {
 			],
 		});
 	}
+	//#endregion
 };
 /*@end@*/
