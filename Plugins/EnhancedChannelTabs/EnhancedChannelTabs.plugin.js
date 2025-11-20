@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 3.1.0
+ * @version 3.1.1
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
  */
@@ -186,6 +186,7 @@ class UpdateManager {
 		return false;
 	}
 }
+
 class StyleManager {
 	// CSS String Methods
 	static getCompactVariables() {
@@ -193,16 +194,19 @@ class StyleManager {
 			:root { --channelTabs-tabHeight: 22px; --channelTabs-favHeight: 22px; --channelTabs-tabNameFontSize: 12px; --channelTabs-openTabSize: 18px; }
 		`;
 	}
+
 	static getCozyVariables() {
 		return `
 			:root { --channelTabs-tabHeight: 32px; --channelTabs-favHeight: 28px; --channelTabs-tabNameFontSize: 13px; --channelTabs-openTabSize: 24px; }
 		`;
 	}
+
 	static getConstantVariables(tabWidthMin) {
 		return `
 			:root { --channelTabs-tabWidth: 220px; --channelTabs-tabWidthMin: ${tabWidthMin}px; }
 		`;
 	}
+
 	static getPrivacyStyle() {
 		return `
 			#app-mount .channelTabs-favGroupBtn { color: transparent !important; }
@@ -211,6 +215,7 @@ class StyleManager {
 			#app-mount .channelTabs-favName { color: transparent; background-color: var(--interactive-normal); opacity: 0.5; }
 		`;
 	}
+
 	static getRadialStatusStyle() {
 		return `
 			.channelTabs-tabIconWrapper,
@@ -225,6 +230,7 @@ class StyleManager {
 			.channelTabs-offlineIcon { stroke: hsl(214, calc(var(--saturation-factor, 1) * 9.9%), 50.4%); }
 		`;
 	}
+
 	static getTabNavStyle() {
 		return `
 			.channelTabs-tabContainer .channelTabs-tabNav { display:flex; margin: 0 6px 3px 0; }
@@ -237,6 +243,7 @@ class StyleManager {
 			.channelTabs-tabNav>div { display: flex; align-items: center; justify-content: center; height: var(--channelTabs-tabHeight); width: 32px; border-radius: 4px; margin-right: 3px; color: var(--interactive-normal); }
 		`;
 	}
+
 	static getBaseStyle(noDragClasses, systemBarClasses) {
 		return `
 			.channelTabs-input .bd-text-input { border: 1px solid var(--input-border); width: 100%; }
@@ -334,6 +341,7 @@ class StyleManager {
 			[aria-label="Open Quick Switcher"] { pointer-events: none !important; position: absolute !important; z-index: -1 !important; }
 		`;
 	}
+
 	static getMultiRowStyles() {
 		return `
 			.channelTabs-tabContainer[data-multiline="true"] .channelTabs-tabWrap { display: flex !important; flex-wrap: wrap !important; align-content: flex-start; row-gap: var(--channelTabs-rowGap, 3px); column-gap: 0; overflow: visible !important; transition: all 0.3s ease; contain: layout paint; }
@@ -344,6 +352,7 @@ class StyleManager {
 			.channelTabs-tabContainer { transition: all 0.3s ease; }
 		`;
 	}
+
 	// Inline Style Objects
 	static inlineStyles = {
 	tabListMenuItem: { display: "flex", alignItems: "center", width: "100%", minHeight: "26px", cursor: "pointer", position: "relative", zIndex: 1000 },
@@ -368,7 +377,7 @@ class StyleManager {
 	menuItem: { pointerEvents: "auto", position: "relative", zIndex: "1" },
 	typingBadgeAlignment: { opacity: 0.7 }
 };
-	// Dynamic CSS for tab list menu
+
 	// Dynamic CSS for tab list menu
 	static getTabListMenuStyle() {
 		return `
@@ -377,6 +386,7 @@ class StyleManager {
 			[id^="popout_"] [role="menuitem"] { pointer-events: auto; position: relative; z-index: 1; }
 		`;
 	}
+
 	// Dynamic style methods
 	static getTabListMenuNameStyle(isSelected) {
 		return {
@@ -384,6 +394,7 @@ class StyleManager {
 			fontWeight: isSelected ? "700" : "normal"
 		};
 	}
+
 	static getDropdownMenuPosition(buttonRect) {
 		return {
 			...this.inlineStyles.dropdownMenu,
@@ -392,15 +403,18 @@ class StyleManager {
 			left: "auto"
 		};
 	}
+
 	// Hover effect handlers  
 	static applyHoverEffect(element) {
 		element.style.backgroundColor = "var(--background-modifier-hover)";
 		element.style.borderRadius = "3px";
 	}
+
 	static removeHoverEffect(element) {
 		element.style.backgroundColor = "transparent";
 	}
 }
+
 let pluginMeta;
 const { ContextMenu, Patcher, Webpack, React, DOM, ReactUtils, UI } = new BdApi(
 	"ChannelTabs",
@@ -1330,6 +1344,7 @@ function CreateTabListContextMenu(props, e) {
 		}
 	});
 }
+
 function CreateSettingsContextMenu(instance, e) {
 	ContextMenu.open(
 		e,
@@ -2152,6 +2167,7 @@ function formatTimeAgo(timestamp) {
 }
 function showClosedTabsModal() {
 	const closedTabs = TopBarRef.current?.state?.closedTabs || [];
+	
 	BdApi.UI.showConfirmationModal(
 		"Closed Tabs History",
 		React.createElement("div", { style: StyleManager.inlineStyles.closedTabsContainer },
@@ -2234,6 +2250,7 @@ const getGuildChannels = (...guildIds) => {
 	} else {
 		channels = [];
 	}
+	
 	return channels.filter(
 		(c) =>
 			guildIds.includes(c.guild_id) &&
@@ -2243,17 +2260,18 @@ const getGuildChannels = (...guildIds) => {
 };
 const updateFavEntry = (fav) => {
 	if (fav.guildId) {
-		// Clean cache every 30 seconds
 		if (Date.now() - lastCacheClean > 30000) {
 			guildChannelCache.clear();
 			lastCacheClean = Date.now();
 		}
+		
 		// Cache raw channels, keep permission/mute checks live
 		let channels = guildChannelCache.get(fav.guildId);
 		if (!channels) {
 			channels = getGuildChannels(fav.guildId);
 			guildChannelCache.set(fav.guildId, channels);
 		}
+		
 		const channelIds = channels
 			.filter(
 				(channel) =>
@@ -2446,6 +2464,7 @@ const GetTabStyles = (viewMode, item) => {
 	}
 	return "";
 };
+
 const TabIcon = (props) =>
 	/* @__PURE__ */ React.createElement("img", {
 	className: "channelTabs-tabIcon",
@@ -2564,7 +2583,9 @@ const CozyTab = (props) => {
 					const showTypingBadge = props.selected
 						? props.showActiveTabTypingBadge
 						: props.showTabTypingBadge;
+					
 					if (!showTypingBadge) return null;
+					
 					return /* @__PURE__ */ React.createElement(TabTypingBadge, {
 						viewMode: "classic",
 						isTyping: props.hasUsersTyping,
@@ -2579,14 +2600,19 @@ const CozyTab = (props) => {
 					const showBadges = props.selected
 						? props.showActiveTabUnreadBadges
 						: props.showTabUnreadBadges;
+					
 					if (!showBadges) return null;
+					
 					if (!props.channelId || (ChannelStore.getChannel(props.channelId)?.isPrivate() ?? true)) {
 						return null;
 					}
+					
 					const showEmpty = props.selected
 						? props.showEmptyActiveTabBadges
 						: props.showEmptyTabBadges;
+					
 					if (!showEmpty && !props.hasUnread) return null;
+					
 					return /* @__PURE__ */ React.createElement(TabUnreadBadge, {
 						viewMode: "alt",
 						unreadCount: props.unreadCount,
@@ -2603,11 +2629,15 @@ const CozyTab = (props) => {
 					const showMentionBadges = props.selected
 						? props.showActiveTabMentionBadges
 						: props.showTabMentionBadges;
+					
 					if (!showMentionBadges) return null;
+					
 					const showEmpty = props.selected
 						? props.showEmptyActiveTabBadges
 						: props.showEmptyTabBadges;
+					
 					if (!showEmpty && props.mentionCount === 0) return null;
+					
 					return /* @__PURE__ */ React.createElement(TabMentionBadge, {
 						viewMode: "alt",
 						mentionCount: props.mentionCount,
@@ -2648,7 +2678,9 @@ const CompactTab = (props) => {
 			const showTypingBadge = props.selected
 				? props.showActiveTabTypingBadge
 				: props.showTabTypingBadge;
+			
 			if (!showTypingBadge) return null;
+			
 			return /* @__PURE__ */ React.createElement(
 				React.Fragment,
 				null,
@@ -2663,14 +2695,19 @@ const CompactTab = (props) => {
 			const showUnreadBadges = props.selected
 				? props.showActiveTabUnreadBadges
 				: props.showTabUnreadBadges;
+			
 			if (!showUnreadBadges) return null;
+			
 			if (!props.channelId || (ChannelStore.getChannel(props.channelId)?.isPrivate() ?? true)) {
 				return null;
 			}
+			
 			const showEmpty = props.selected
 				? props.showEmptyActiveTabBadges
 				: props.showEmptyTabBadges;
+			
 			if (!showEmpty && !props.hasUnread) return null;
+			
 			return /* @__PURE__ */ React.createElement(TabUnreadBadge, {
 				viewMode: "classic",
 				unreadCount: props.unreadCount,
@@ -2683,11 +2720,15 @@ const CompactTab = (props) => {
 			const showMentionBadges = props.selected
 				? props.showActiveTabMentionBadges
 				: props.showTabMentionBadges;
+			
 			if (!showMentionBadges) return null;
+			
 			const showEmpty = props.selected
 				? props.showEmptyActiveTabBadges
 				: props.showEmptyTabBadges;
+			
 			if (!showEmpty && props.mentionCount === 0) return null;
+			
 			return /* @__PURE__ */ React.createElement(TabMentionBadge, {
 				viewMode: "classic",
 				mentionCount: props.mentionCount,
@@ -2993,12 +3034,15 @@ const Fav = (props) =>
 				if (!props.showFavUnreadBadges || (!props.channelId && !props.guildId)) {
 					return null;
 				}
+				
 				if (isChannelDM(props.channelId)) {
 					return null;
 				}
+				
 				if (!props.showEmptyFavBadges && props.unreadCount === 0) {
 					return null;
 				}
+				
 				return /* @__PURE__ */ React.createElement(FavUnreadBadge, {
 					unreadCount: props.unreadCount,
 					unreadEstimated: props.unreadEstimated,
@@ -3011,9 +3055,11 @@ const Fav = (props) =>
 			if (!props.showFavMentionBadges || (!props.channelId && !props.guildId)) {
 				return null;
 			}
+			
 			if (!props.showEmptyFavBadges && props.mentionCount === 0) {
 				return null;
 			}
+			
 			return /* @__PURE__ */ React.createElement(FavMentionBadge, {
 				mentionCount: props.mentionCount,
 			});
@@ -3022,9 +3068,11 @@ const Fav = (props) =>
 			if (!props.showFavMentionBadges || (!props.channelId && !props.guildId)) {
 				return null;
 			}
+			
 			if (!props.showEmptyFavBadges && props.mentionCount === 0) {
 				return null;
 			}
+			
 			return /* @__PURE__ */ React.createElement(FavMentionBadge, {
 				mentionCount: props.mentionCount,
 			});
@@ -3306,6 +3354,7 @@ function HorizontalScroll(props) {
 	const targetRef = React.useRef(0);
 	const lastRef = React.useRef(performance.now());
 	const resetLastRef = React.useRef(false);
+	
 	function update() {
 		if (!container.current) return;
 		const now = performance.now();
@@ -3401,6 +3450,7 @@ const TabBar = React.forwardRef((props, ref) => {
 			scrollRef.current.scrollToElement(element);
 		}
 	}, [props.tabs, isMultiRow]);
+
 	const focusTab = React.useCallback((index) => {
 		const tab = props.tabs[index];
 		if (!tab) return;
@@ -3408,6 +3458,7 @@ const TabBar = React.forwardRef((props, ref) => {
 		const element = tabRefs.current.get(key);
 		element?.focus();
 	}, [props.tabs]);
+
 	React.useImperativeHandle(ref, () => ({
 		scrollToTab,
 		focusTab
@@ -3896,12 +3947,15 @@ const TopBar = class TopBar2 extends React.Component {
 		const currentTab = this.state.tabs[this.state.selectedTabIndex];
 		const newHistoryIndex = currentTab.historyIndex - 1;
 		const targetUrl = currentTab.history[newHistoryIndex];
+		
 		this.isHistoryNavigation = true;
 		switching = true;
 		NavigationUtils.transitionTo(targetUrl);
 		setTimeout(() => {
 			if (!TopBarRef.current) return;
+			
 			const channelId = SelectedChannelStore.getChannelId();
+			
 			this.setState({
 				tabs: this.state.tabs.map((tab, index) => {
 					if (index === this.state.selectedTabIndex) {
@@ -3920,6 +3974,7 @@ const TopBar = class TopBar2 extends React.Component {
 				this.isHistoryNavigation = false;
 				this.props.plugin.saveSettings();
 			});
+			
 			switching = false;
 		}, 0);
 	}
@@ -3928,12 +3983,15 @@ const TopBar = class TopBar2 extends React.Component {
 		const currentTab = this.state.tabs[this.state.selectedTabIndex];
 		const newHistoryIndex = currentTab.historyIndex + 1;
 		const targetUrl = currentTab.history[newHistoryIndex];
+		
 		this.isHistoryNavigation = true;
 		switching = true;
 		NavigationUtils.transitionTo(targetUrl);
 		setTimeout(() => {
 			if (!TopBarRef.current) return;
+			
 			const channelId = SelectedChannelStore.getChannelId();
+			
 			this.setState({
 				tabs: this.state.tabs.map((tab, index) => {
 					if (index === this.state.selectedTabIndex) {
@@ -3952,6 +4010,7 @@ const TopBar = class TopBar2 extends React.Component {
 				this.isHistoryNavigation = false;
 				this.props.plugin.saveSettings();
 			});
+			
 			switching = false;
 		}, 0);
 	}
@@ -4354,6 +4413,9 @@ const TopBar = class TopBar2 extends React.Component {
 		);
 	}
 	componentDidMount() {
+		TopBarInstances.add(this);
+		TopBarRef.current = this;
+
 		const container = this.containerRef.current;
 		function update() {
 			document.body.style.setProperty(
@@ -4366,12 +4428,18 @@ const TopBar = class TopBar2 extends React.Component {
 		update();
 	}
 	componentWillUnmount() {
+		TopBarInstances.delete(this);
+		if (TopBarRef.current === this) {
+			TopBarRef.current = TopBarInstances.size > 0 ? Array.from(TopBarInstances).pop() : null;
+		}
+
 		this.observer.disconnect();
 		document.body.style.removeProperty("--custom-app-top-bar-height");
 	}
 	//#endregion
 };
-const TopBarRef = React.createRef();
+const TopBarRef = { current: null };
+const TopBarInstances = new Set();
 module.exports = class ChannelTabs {
 	//#region Start/Stop Functions
 	constructor(meta) {
@@ -4420,6 +4488,7 @@ module.exports = class ChannelTabs {
 		guildChannelCache.clear();
 	}
 	//#endregion
+
 	applyStyle(styleId = null) {
 		if (!styleId || styleId === "channelTabs-style-compact") {
 			if (this.settings.compactStyle === true)
@@ -4533,7 +4602,6 @@ module.exports = class ChannelTabs {
 					tabs: this.settings.tabs,
 					favs: this.settings.favs,
 					favGroups: this.settings.favGroups,
-					ref: TopBarRef,
 					plugin: this,
 				});
 		});
