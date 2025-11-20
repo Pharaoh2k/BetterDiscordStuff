@@ -1,5 +1,8 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+## 3.1.1
+- Fixed TopBar reference handling to resolve initialization timing issues caused by Discord update.
+
 ## 3.1.0
 - Replaced incorrect and obsolete Discord CSS vars with current ones
 - Replaced var with const/let for modern JavaScript practices
