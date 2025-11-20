@@ -1,7 +1,7 @@
 # EnhancedChannelTabs
 A BetterDiscord plugin that brings browser-style tabs and bookmarks to Discord.
 
-![Version](https://img.shields.io/badge/version-3.1.0-blue.svg)
+![Version](https://img.shields.io/badge/version-3.1.1-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Discord](https://img.shields.io/badge/discord-BetterDiscord-7289DA.svg)
 
