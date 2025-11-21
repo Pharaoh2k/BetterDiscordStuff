@@ -213,12 +213,7 @@ class UpdateManager {
           return versions;
      }
      isNewer(v1, v2 = this.version) {
-          const [a, b] = [v1, v2].map(v => v.split('.').map(Number));
-          for (let i = 0; i < Math.max(a.length, b.length); i++) {
-               if ((a[i] || 0) > (b[i] || 0)) return true;
-               if ((a[i] || 0) < (b[i] || 0)) return false;
-          }
-          return false;
+          return BdApi.Utils.semverCompare(v2, v1) === 1;
      }
 }
 function getConfigWithCurrentValues(current, defaults = CONFIG.defaultConfig) {
