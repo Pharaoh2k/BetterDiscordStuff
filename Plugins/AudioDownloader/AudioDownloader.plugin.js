@@ -1,7 +1,7 @@
 /**
  * @name AudioDownloader
- * @version 1.0.0
- * @website https://x.com/_Pharaoh2k
+ * @version 1.0.1
+ * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/AudioDownloader/AudioDownloader.plugin.js
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/AudioDownloader/AudioDownloader.plugin.js
  * @authorId 874825550408089610
@@ -38,7 +38,6 @@ const log = (...a) => DEV && console.log(`[${TAG}]`, ...a);
 const CONFIG = {
      info: {
           name: "AudioDownloader",
-          version: "1.0.0",
           github: "Pharaoh2k/BetterDiscordStuff"
      },
      defaultConfig: [{
@@ -85,38 +84,29 @@ class UpdateManager {
                     BdApi.UI.showToast(`[${this.name}] You're up to date.`, { type: 'info' });
                }
           } catch (e) {
+               log('Update check failed:', e);
                if (!silent) BdApi.UI.showToast(`[${this.name}] Update check failed`, { type: 'error' });
           }
      }
-    showUpdateNotice(version, text) {
-		this.notice?.();
-		this.notice = BdApi.UI.showNotice(
-			`${this.name} v${version} is available`,
-			{
-				type: 'info',
-				buttons: [{
-					label: 'Update',
-					onClick: (closeOrEvent) => {
-						if (typeof closeOrEvent === 'function') {
-							closeOrEvent();
-						} else if (this.notice && typeof this.notice === 'function') {
-							this.notice();
-						}
-						this.applyUpdate(text, version);
-					}
-				}, {
-					label: 'Dismiss',
-					onClick: (closeOrEvent) => {
-						if (typeof closeOrEvent === 'function') {
-							closeOrEvent();
-						} else if (this.notice && typeof this.notice === 'function') {
-							this.notice();
-						}
-					}
-				}]
-			}
-		);
-	}
+     showUpdateNotice(version, text) {
+          this.notice?.();
+          this.notice = BdApi.UI.showNotice(
+               `${this.name} v${version} is available`,
+               {
+                    type: 'info',
+                    buttons: [{
+                         label: 'Update',
+                         onClick: (close) => {
+                              close();
+                              this.applyUpdate(text, version);
+                         }
+                    }, {
+                         label: 'Dismiss',
+                         onClick: (close) => close()
+                    }]
+               }
+          );
+     }
      applyUpdate(text, version) {
           try {
                require('fs').writeFileSync(__filename, text);
@@ -164,42 +154,63 @@ class UpdateManager {
           }
      }
      parseChangelog(md, from, to) {
-          const lines = md.split('\n');
-          const versions = [];
-          let current = null;
-          let items = [];
-          for (const line of lines) {
-               const ver = line.match(/^###\s+([\d.]+)/)?.[1];
-               if (ver) {
-                    if (current) versions.push({ version: current, items });
-                    current = ver;
-                    items = [];
-               } else if (line.trim().startsWith('-') && current) {
-                    const item = line.trim().substring(1).trim();
-                    if (item) items.push(item);
-               }
-          }
-          if (current) versions.push({ version: current, items });
+          const versions = this._parseChangelogVersions(md);
           const relevant = versions.filter(v =>
                this.isNewer(v.version, from) && !this.isNewer(v.version, to)
           );
           const grouped = { added: [], improved: [], fixed: [], other: [] };
+          const getType = (lower) => {
+               if (lower.includes("fix")) return "fixed";
+               if (lower.includes("add") || lower.includes("initial")) return "added";
+               if (lower.includes("improv") || lower.includes("updat")) return "improved";
+               return "other";
+          };
           for (const v of relevant) {
                for (const item of v.items) {
                     const lower = item.toLowerCase();
                     const tagged = `${item} (v${v.version})`;
-                    if (lower.includes('fix')) grouped.fixed.push(tagged);
-                    else if (lower.includes('add') || lower.includes('initial')) grouped.added.push(tagged);
-                    else if (lower.includes('improv') || lower.includes('updat')) grouped.improved.push(tagged);
-                    else grouped.other.push(tagged);
+                    grouped[getType(lower)].push(tagged);
                }
           }
+          const sections = [
+               ["New Features", "added", "added"],
+               ["Improvements", "improved", "improved"],
+               ["Bug Fixes", "fixed", "fixed"],
+               ["Other Changes", "other", "progress"]
+          ];
           const result = [];
-          if (grouped.added.length) result.push({ title: "New Features", type: "added", items: grouped.added });
-          if (grouped.improved.length) result.push({ title: "Improvements", type: "improved", items: grouped.improved });
-          if (grouped.fixed.length) result.push({ title: "Bug Fixes", type: "fixed", items: grouped.fixed });
-          if (grouped.other.length) result.push({ title: "Other Changes", type: "progress", items: grouped.other });
+          for (const [title, key, type] of sections) {
+               if (grouped[key].length) {
+                    result.push({ title, type, items: grouped[key] });
+               }
+          }
           return result;
+     }
+     _parseChangelogVersions(md) {
+          const lines = md.split("\n");
+          const versions = [];
+          let current = null;
+          let items = [];
+          const push = () => {
+               if (!current) return;
+               versions.push({ version: current, items });
+               items = [];
+          };
+          for (const line of lines) {
+               const ver = line.match(/^###\s+([\d.]+)/)?.[1];
+               if (ver) {
+                    push();
+                    current = ver;
+                    continue;
+               }
+               if (!current) continue;
+               const trimmed = line.trim();
+               if (!trimmed.startsWith("-")) continue;
+               const item = trimmed.substring(1).trim();
+               if (item) items.push(item);
+          }
+          push();
+          return versions;
      }
      isNewer(v1, v2 = this.version) {
           const [a, b] = [v1, v2].map(v => v.split('.').map(Number));
@@ -217,10 +228,11 @@ function getConfigWithCurrentValues(current, defaults = CONFIG.defaultConfig) {
      }));
 }
 module.exports = class AudioDownloader {
-     constructor() {
+     constructor(meta) {
+          this.meta = meta;
           this.updateManager = new UpdateManager(
-               CONFIG.info.name,
-               CONFIG.info.version,
+               this.meta?.name ?? CONFIG.info.name,
+               this.meta?.version ?? "1.0.0",
                CONFIG.info.github
           );
           this.settings = this.getSettings();
@@ -259,20 +271,22 @@ module.exports = class AudioDownloader {
      }
      getSettingsPanel() {
           const config = getConfigWithCurrentValues(this.settings);
-          config.push({
-               type: "button",
-               id: "checkUpdate",
-               name: "Check for Updates",
-               note: "Manually check for plugin updates",
-               onClick: () => this.updateManager.check()
-          });
-          config.push({
-               type: "button",
-               id: "viewChangelog",
-               name: "View Changelog",
-               note: "View all version changes",
-               onClick: () => this.updateManager.showFullChangelog()
-          });
+          config.push(
+               {
+                    type: "button",
+                    id: "checkUpdate",
+                    name: "Check for Updates",
+                    note: "Manually check for plugin updates",
+                    onClick: () => this.updateManager.check()
+               },
+               {
+                    type: "button",
+                    id: "viewChangelog",
+                    name: "View Changelog",
+                    note: "View all version changes",
+                    onClick: () => this.updateManager.showFullChangelog()
+               }
+          );
           const panel = BdApi.UI.buildSettingsPanel({
                settings: config,
                onChange: (_, id, value) => this.saveSettings({ [id]: value })
@@ -290,13 +304,15 @@ module.exports = class AudioDownloader {
           if (!audio) return;
           const CM = BdApi.ContextMenu;
           const slot = menuTree.props.children.props.children;
-          slot.push(CM.buildItem({ type: "separator" }));
-          slot.push(CM.buildItem({
-               type: "text",
-               id: "download-audio",
-               label: "Download Audio",
-               action: () => this.openInBrowser(audio.url)
-          }));
+          slot.push(
+               CM.buildItem({ type: "separator" }),
+               CM.buildItem({
+                    type: "text",
+                    id: "download-audio",
+                    label: "Download Audio",
+                    action: () => this.openInBrowser(audio.url)
+               })
+          );
      }
      findAudio(msg = {}) {
           if (msg.voiceMessageSettings?.audioURL)
