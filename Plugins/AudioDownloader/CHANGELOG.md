@@ -1,5 +1,8 @@
 # [AudioDownloader](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=AudioDownloader "AudioDownloader") Changelog
 
+### 1.0.1
+- Minor code quality improvements
+
 ### 1.0.0
 - Initial release
 - Added download functionality for voice messages
