@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 3.1.1
+ * @version 3.1.2
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
  */
@@ -537,9 +537,13 @@ const Slider = getModule(
 	{ searchExports: true },
 );
 const NavShortcuts = getModule(byKeys("NAVIGATE_BACK", "NAVIGATE_FORWARD"));
-const [TitleBar, TitleBarKey] = Webpack.getWithKey(
-	byStrings(".PlatformTypes.WINDOWS&&(0,", "title"),
-);
+const [TitleBar, TitleBarKey] = 
+	Webpack.getWithKey(byStrings("leading", "trailing", "windowKey")) ||
+	Webpack.getWithKey(byStrings("windowKey", "onDoubleClick", "leading")) ||
+	Webpack.getWithKey(byStrings("trailing", "windowKey", "showDivider")) ||
+	Webpack.getWithKey(byStrings("bar", "leading", "windowKey")) ||
+	[null, null];
+
 if (!TitleBar) missingModule({ name: "TitleBar", fatal: true });
 const IconUtilities = getModule(byKeys("getChannelIconURL"));
 const standardSidebarView =
