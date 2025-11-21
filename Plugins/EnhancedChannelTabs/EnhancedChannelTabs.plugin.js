@@ -538,10 +538,10 @@ const Slider = getModule(
 );
 const NavShortcuts = getModule(byKeys("NAVIGATE_BACK", "NAVIGATE_FORWARD"));
 const [TitleBar, TitleBarKey] = 
+	Webpack.getWithKey(byStrings("PlatformTypes", "leading", "trailing")) ||
+	Webpack.getWithKey(byStrings("getPlatform", "leading", "trailing")) ||
 	Webpack.getWithKey(byStrings("leading", "trailing", "windowKey")) ||
 	Webpack.getWithKey(byStrings("windowKey", "onDoubleClick", "leading")) ||
-	Webpack.getWithKey(byStrings("trailing", "windowKey", "showDivider")) ||
-	Webpack.getWithKey(byStrings("bar", "leading", "windowKey")) ||
 	[null, null];
 
 if (!TitleBar) missingModule({ name: "TitleBar", fatal: true });
