@@ -267,32 +267,27 @@ module.exports = class AudioDownloader {
      getSettingsPanel() {
           const config = getConfigWithCurrentValues(this.settings);
           config.push(
-               {
-                    type: "button",
-                    id: "checkUpdate",
-                    name: "Check for Updates",
-                    note: "Manually check for plugin updates",
-                    onClick: () => this.updateManager.check()
-               },
-               {
-                    type: "button",
-                    id: "viewChangelog",
-                    name: "View Changelog",
-                    note: "View all version changes",
-                    onClick: () => this.updateManager.showFullChangelog()
-               }
+              {
+                  type: "button",
+                  id: "checkUpdate",
+                  name: "Check for Updates",
+                  note: "Manually check for plugin updates",
+                  children: "Check Now",
+                  onClick: () => this.updateManager.check()
+              },
+              {
+                  type: "button",
+                  id: "viewChangelog",
+                  name: "View Changelog",
+                  note: "View all version changes",
+                  children: "View Changelog",
+                  onClick: () => this.updateManager.showFullChangelog()
+              }
           );
-          const panel = BdApi.UI.buildSettingsPanel({
+          return BdApi.UI.buildSettingsPanel({
                settings: config,
                onChange: (_, id, value) => this.saveSettings({ [id]: value })
-          });
-          requestAnimationFrame(() => {
-               const checkBtn = document.querySelector("#checkUpdate .bd-button-content");
-               if (checkBtn) checkBtn.textContent = "Check Now";
-               const changelogBtn = document.querySelector("#viewChangelog .bd-button-content");
-               if (changelogBtn) changelogBtn.textContent = "View Changelog";
-          });
-          return panel;
+           });
      }
      patchMenu = (menuTree, ctx) => {
           const audio = this.findAudio(ctx.message);
