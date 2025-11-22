@@ -157,10 +157,10 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 👥 Credits
 
-- **Pharaoh2k** - Current maintainer & developer
-- **samfundev** - Developer
-- **l0c4lh057** - Developer
-- **CarJem Generations** - Developer
+- **Pharaoh2k** - EnhancedChannelTabs maintainer & developer (GPL-3 license)
+- **samfundev** - Developer & upstream ChannelTabs maintainer (MIT license)
+- **l0c4lh057** - Developer (MIT license)
+- **CarJem Generations** - Developer (MIT license)
 
 ## 🔗 Links
 
