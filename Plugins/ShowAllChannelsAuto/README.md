@@ -81,7 +81,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 👤 Author
 
-**Pharaohk**
+**Pharaoh2k**
 - GitHub: [@Pharaoh2k](https://github.com/Pharaoh2k)
 - Discord: 874825550408089610
 
