@@ -113,8 +113,7 @@ BetterPinDMs can import configurations from the original PinDMs plugin by mwittr
 
 ## ⚠️ Known Limitations
 
-- Categories are stored per-user, not synced across devices
-- Very large numbers of pinned DMs may affect performance
+- Categories are stored per-user, not synced across devices (import/export feature is available).
 - Some Discord updates may temporarily break functionality until plugin is updated
 
 ## 🔧 Troubleshooting
