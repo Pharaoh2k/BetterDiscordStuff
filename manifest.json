@@ -17,6 +17,11 @@
       "enabled": true
     },
     {
+      "id": "Better Server Details",
+      "name": "BetterServerDetails",
+      "enabled": true
+    },
+    {
       "id": "Better Pin DMs",
       "name": "BetterPinDMs",
       "enabled": true
