@@ -98,7 +98,6 @@ Copyright © 2025 Pharaoh2k. All rights reserved.
 ## 🔗 Links
 
 - [GitHub Repository](https://github.com/Pharaoh2k/BetterDiscordStuff)
-- [Support Discord](https://discord.gg/JsqBVSCugb)
 - [Plugin Website](https://pharaoh2k.github.io/BetterDiscordStuff/)
 - [Changelog](https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/refs/heads/main/Plugins/BetterFileViewer/CHANGELOG.md)
 
