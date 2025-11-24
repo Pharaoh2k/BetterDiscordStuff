@@ -81,9 +81,9 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 👤 Author
 
-**YourName**
+**Pharaohk**
 - GitHub: [@Pharaoh2k](https://github.com/Pharaoh2k)
-- Discord: YOUR_DISCORD_TAG
+- Discord: 874825550408089610
 
 ## 📝 License
 
