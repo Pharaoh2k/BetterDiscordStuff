@@ -2,7 +2,7 @@
  * @name BetterServerDetails
  * @author Pharaoh2k
  * @description Shows Server Details (owner, creation/join date, members, etc.) in a custom tooltip on the server list.
- * @version 1.0.0
+ * @version 1.0.1
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
@@ -63,6 +63,10 @@ const TIMEOUTS = {
 	DEBOUNCE: 150
 };
 //#endregion Configuration
+//#region BdApi Destructuring & Utils
+const { React, ReactDOM, UI, DOM, Data, Webpack, Logger, Utils, Net, Plugins } = BdApi;
+const { debounce } = Utils;
+//#endregion BdApi Destructuring
 //#region Updater
 const UPDATE_DEV = false;
 const updateLog = (...a) => UPDATE_DEV && console.log("[BetterServerDetails]", ...a);
@@ -95,7 +99,7 @@ class UpdateManager {
 	}
 	async check(silent = false) {
 		try {
-			const res = await BdApi.Net.fetch(this.urls.plugin);
+			const res = await Net.fetch(this.urls.plugin);
 			if (res.status !== 200) throw new Error("Failed");
 			const text = await res.text();
 			const version = text.match(/@version\s+([\d.]+)/)?.[1];
@@ -103,11 +107,11 @@ class UpdateManager {
 			if (this.isNewer(version)) {
 				this.showUpdateNotice(version, text);
 			} else if (!silent) {
-				BdApi.UI.showToast(`[${this.name}] You're up to date.`, { type: "info" });
+				UI.showToast(`[${this.name}] You're up to date.`, { type: "info" });
 			}
 		} catch (e) {
 			updateLog("Update check failed:", e);
-			if (!silent) BdApi.UI.showToast(
+			if (!silent) UI.showToast(
 				`[${this.name}] Update check failed`,
 				{ type: "error" }
 			);
@@ -117,7 +121,7 @@ class UpdateManager {
 		if (this.notice) {
 			try { this.notice(); } catch { }
 		}
-		this.notice = BdApi.UI.showNotice(
+		this.notice = UI.showNotice(
 			`${this.name} v${version} is available`,
 			{
 				type: "info",
@@ -137,12 +141,12 @@ class UpdateManager {
 	applyUpdate(text, version) {
 		try {
 			require("fs").writeFileSync(__filename, text);
-			BdApi.UI.showToast(`Updated to v${version}. Reloading...`, { type: "success" });
+			UI.showToast(`Updated to v${version}. Reloading...`, { type: "success" });
 			setTimeout(() => {
 				try {
-					BdApi.Plugins.reload(this.name);
+					Plugins.reload(this.name);
 				} catch {
-					BdApi.UI.showToast("Please reload Discord (Ctrl+R)", { type: "info", timeout: 0 });
+					UI.showToast("Please reload Discord (Ctrl+R)", { type: "info", timeout: 0 });
 				}
 			}, 100);
 		} catch {
@@ -152,14 +156,14 @@ class UpdateManager {
 	async showChangelog() {
 		const last = BdApi.Data.load(this.name, "version");
 		if (last === this.version) return;
-		BdApi.Data.save(this.name, "version", this.version);
+		Data.save(this.name, "version", this.version);
 		if (!last) return;
 		try {
-			const res = await BdApi.Net.fetch(this.urls.changelog);
+			const res = await Net.fetch(this.urls.changelog);
 			const md = await res.text();
 			const changes = this.parseChangelog(md, last, this.version);
 			if (!changes.length) return;
-			BdApi.UI.showChangelogModal({
+			UI.showChangelogModal({
 				title: this.name,
 				subtitle: `Version ${this.version}`,
 				changes
@@ -168,16 +172,16 @@ class UpdateManager {
 	}
 	async showFullChangelog() {
 		try {
-			const res = await BdApi.Net.fetch(this.urls.changelog);
+			const res = await Net.fetch(this.urls.changelog);
 			const md = await res.text();
-			const changes = this.parseChangelog(md, "0.0.0", this.version);
-			BdApi.UI.showChangelogModal({
+			const changes = this.parseChangelog(md, "1.0.0", this.version);
+			UI.showChangelogModal({
 				title: this.name,
 				subtitle: "All Changes",
 				changes: changes.length ? changes : [{ title: "No changes found", items: [] }]
 			});
 		} catch {
-			BdApi.UI.showToast("Could not fetch changelog", { type: "error" });
+			UI.showToast("Could not fetch changelog", { type: "error" });
 		}
 	}
 	parseChangelog(md, from, to) {
@@ -240,14 +244,10 @@ class UpdateManager {
 		return versions;
 	}
 	isNewer(v1, v2 = this.version) {
-		return BdApi.Utils.semverCompare(v2, v1) === 1;
+		return Utils.semverCompare(v2, v1) === 1;
 	}
 }
 //#endregion Updater
-//#region BdApi Destructuring & Utils
-const { React, ReactDOM, UI, DOM, Data, Webpack, Logger, Utils } = BdApi;
-const { debounce } = Utils;
-//#endregion BdApi Destructuring
 //#region Discord Store Service
 class DiscordStoreService {
 	constructor() {
@@ -761,13 +761,7 @@ class ServerTooltipManager {
 		}
 	}
 	_buildTooltipHTML(guild) {
-		const escapeHtml = str =>
-			String(str)
-				.replaceAll("&", "&amp;")
-				.replaceAll("<", "&lt;")
-				.replaceAll(">", "&gt;")
-				.replaceAll('"', "&quot;")
-				.replaceAll("'", "&#039;");
+		const escapeHtml = str => Utils.escapeHTML(String(str));
 		const settings = this.plugin.settings;
 		const rows = [];
 		const name = guild.name || "Unknown Server";
