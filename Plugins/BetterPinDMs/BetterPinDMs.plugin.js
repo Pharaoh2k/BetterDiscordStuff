@@ -86,6 +86,10 @@ const TIMEOUTS = {
 	HEADER_HEALTH_INTERVAL: 1000
 };
 //#endregion Configuration
+//#region BdApi destructuring & Utils helpers
+const { React, ReactDOM, UI, DOM, Data, Patcher, Webpack, Logger, ContextMenu, ReactUtils, Utils, Net, Plugins } = BdApi;
+const { className, debounce, findInTree } = Utils;
+//#endregion BdApi destructuring
 //#region Update Manager
 const UPDATE_DEV = false;
 const updateLog = (...a) => UPDATE_DEV && console.log("[BetterPinDMs/Updater]", ...a);
@@ -115,7 +119,7 @@ class UpdateManager {
 	}
 	async check(silent = false) {
 		try {
-			const res = await BdApi.Net.fetch(this.urls.plugin);
+			const res = await Net.fetch(this.urls.plugin);
 			if (res.status !== 200) throw new Error("Failed");
 			const text = await res.text();
 			const version = text.match(/@version\s+([\d.]+)/)?.[1];
@@ -123,16 +127,16 @@ class UpdateManager {
 			if (this.isNewer(version)) {
 				this.showUpdateNotice(version, text);
 			} else if (!silent) {
-				BdApi.UI.showToast(`[${this.name}] You're up to date.`, { type: "info" });
+				UI.showToast(`[${this.name}] You're up to date.`, { type: "info" });
 			}
 		} catch (e) {
 			updateLog("Update check failed:", e);
-			if (!silent) BdApi.UI.showToast(`[${this.name}] Update check failed`, { type: "error" });
+			if (!silent) UI.showToast(`[${this.name}] Update check failed`, { type: "error" });
 		}
 	}
 	showUpdateNotice(version, text) {
 		this.notice?.();
-		this.notice = BdApi.UI.showNotice(
+		this.notice = UI.showNotice(
 			`${this.name} v${version} is available`,
 			{
 				type: "info",
@@ -155,29 +159,29 @@ class UpdateManager {
 	applyUpdate(text, version) {
 		try {
 			require("fs").writeFileSync(__filename, text);
-			BdApi.UI.showToast(`Updated to v${version}. Reloading...`, { type: "success" });
+			UI.showToast(`Updated to v${version}. Reloading...`, { type: "success" });
 			setTimeout(() => {
 				try {
-					BdApi.Plugins.reload(this.name);
+					Plugins.reload(this.name);
 				} catch {
-					BdApi.UI.showToast("Please reload Discord (Ctrl+R)", { type: "info", timeout: 0 });
+					UI.showToast("Please reload Discord (Ctrl+R)", { type: "info", timeout: 0 });
 				}
 			}, 100);
 		} catch {
-			BdApi.UI.showToast("Update failed", { type: "error" });
+			UI.showToast("Update failed", { type: "error" });
 		}
 	}
 	async showChangelog() {
-		const last = BdApi.Data.load(this.name, "version");
+		const last = Data.load(this.name, "version");
 		if (last === this.version) return;
-		BdApi.Data.save(this.name, "version", this.version);
+		Data.save(this.name, "version", this.version);
 		if (!last) return;
 		try {
-			const res = await BdApi.Net.fetch(this.urls.changelog);
+			const res = await Net.fetch(this.urls.changelog);
 			const md = await res.text();
 			const changes = this.parseChangelog(md, last, this.version);
 			if (changes.length === 0) return;
-			BdApi.UI.showChangelogModal({
+			UI.showChangelogModal({
 				title: this.name,
 				subtitle: `Version ${this.version}`,
 				changes
@@ -186,16 +190,16 @@ class UpdateManager {
 	}
 	async showFullChangelog() {
 		try {
-			const res = await BdApi.Net.fetch(this.urls.changelog);
+			const res = await Net.fetch(this.urls.changelog);
 			const md = await res.text();
 			const changes = this.parseChangelog(md, "0.0.0", this.version);
-			BdApi.UI.showChangelogModal({
+			UI.showChangelogModal({
 				title: this.name,
 				subtitle: "All Changes",
 				changes: changes.length ? changes : [{ title: "No changes found", items: [] }]
 			});
 		} catch {
-			BdApi.UI.showToast("Could not fetch changelog", { type: "error" });
+			UI.showToast("Could not fetch changelog", { type: "error" });
 		}
 	}
 	parseChangelog(md, from, to) {
@@ -258,14 +262,10 @@ class UpdateManager {
 		return versions;
 	}
 	isNewer(v1, v2 = this.version) {
-		return BdApi.Utils.semverCompare(v2, v1) === 1;
+		return Utils.semverCompare(v2, v1) === 1;
 	}
 }
 //#endregion Update Manager
-//#region BdApi destructuring & Utils helpers
-const { React, ReactDOM, UI, DOM, Data, Patcher, Webpack, Logger, ContextMenu, ReactUtils, Utils } = BdApi;
-const { className, debounce, findInTree } = Utils;
-//#endregion BdApi destructuring
 //#region Discord Store Service
 class DiscordStoreService {
 	constructor() {
