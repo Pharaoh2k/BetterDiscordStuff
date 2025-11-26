@@ -54,17 +54,10 @@ BetterFriendsSince supports the following languages:
 | Korean | 친구가 된 날짜 |
 | And 12+ more... | |
 
-## ⚠️ Known Limitations
-
-- Only displays for users you are currently friends with
-- Requires Discord's RelationshipStore to have friendship date data
-- Some older friendships may not have date information available
-
 ## 🔧 Troubleshooting
 
 ### "Friends since" not showing?
 - Ensure you are actually friends with the user
-- Some older friendships may not have date data stored by Discord
 - Reload Discord with Ctrl+R (Cmd+R on Mac)
 - Check that the plugin is enabled in settings
 
