@@ -1,0 +1,22 @@
+{
+  "name": "BetterFriendsSince",
+  "description": "Shows the date of when you and a friend became friends directly in their profile.",
+  "author": "Pharaoh2k",
+  "version": "1.0.0",
+  "status": "Active",
+  "workingStatus": "Working",
+  "lastUpdated": "2025-11-26",
+  "releaseDate": "2025-11-26",
+  "features": [
+    "Display 'Friends since' date in user profiles",
+    "Multi-language support for 24+ languages",
+    "Native Discord UI component integration",
+    "Reactive updates when friendship status changes",
+    "Localized date formatting based on user locale",
+    "Lightweight with minimal performance impact",
+    "Seamless Discord theme integration"
+  ],
+  "sourceUrl": "https://github.com/Pharaoh2k/BetterDiscordStuff/tree/main/Plugins/BetterFriendsSince",
+  "changelogUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BetterFriendsSince/CHANGELOG.md",
+  "downloadUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BetterFriendsSince/BetterFriendsSince.plugin.js"
+}
