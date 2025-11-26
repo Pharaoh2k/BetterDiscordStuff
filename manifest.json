@@ -22,6 +22,11 @@
       "enabled": true
     },
     {
+      "id": "Better Friends Since",
+      "name": "BetterFriendsSince",
+      "enabled": true
+    },
+    {
       "id": "Better Pin DMs",
       "name": "BetterPinDMs",
       "enabled": true
