@@ -1,5 +1,9 @@
 # [BetterFriendsSince](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterFriendsSince "BetterFriendsSince") Changelog
 
+### 1.1.1
+- Enhanced robustness and future-proofing measures
+- Additional heading locale translations
+
 ### 1.1.0
 - Added: Display "Friends since" date in Friends' side-bar
 
