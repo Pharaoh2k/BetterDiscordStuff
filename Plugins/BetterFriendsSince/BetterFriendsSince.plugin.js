@@ -10,21 +10,21 @@
  */
 /*@cc_on
 @if (@_jscript)
-    var shell = WScript.CreateObject('WScript.Shell');
-    var fs = new ActiveXObject('Scripting.FileSystemObject');
-    var pathPlugins = shell.ExpandEnvironmentStrings('%APPDATA%\\BetterDiscord\\plugins');
-    var pathSelf = WScript.ScriptFullName;
-    shell.Popup('It looks like you\'ve mistakenly tried to run me directly. \n(Don\'t do that!)', 0, 'I\'m a plugin for BetterDiscord', 0x30);
-    if (fs.GetParentFolderName(pathSelf) === fs.GetAbsolutePathName(pathPlugins)) {
-        shell.Popup('I\'m in the correct folder already.\nJust reload Discord with Ctrl+R.', 0, 'I\'m already installed', 0x40);
-    } else if (!fs.FolderExists(pathPlugins)) {
-        shell.Popup('I can\'t find the BetterDiscord plugins folder.\nAre you sure it\'s even installed?', 0, 'Can\'t install myself', 0x10);
-    } else if (shell.Popup('Should I copy myself to BetterDiscord\'s plugins folder for you?', 0, 'Do you need some help?', 0x34) === 6) {
-        fs.CopyFile(pathSelf, fs.BuildPath(pathPlugins, fs.GetFileName(pathSelf)), true);
-        shell.Exec('explorer ' + pathPlugins);
-        shell.Popup('I\'m installed!\nJust reload Discord with Ctrl+R.', 0, 'Successfully installed', 0x40);
-    }
-    WScript.Quit();
+	var shell = WScript.CreateObject('WScript.Shell');
+	var fs = new ActiveXObject('Scripting.FileSystemObject');
+	var pathPlugins = shell.ExpandEnvironmentStrings('%APPDATA%\\BetterDiscord\\plugins');
+	var pathSelf = WScript.ScriptFullName;
+	shell.Popup('It looks like you\'ve mistakenly tried to run me directly. \n(Don\'t do that!)', 0, 'I\'m a plugin for BetterDiscord', 0x30);
+	if (fs.GetParentFolderName(pathSelf) === fs.GetAbsolutePathName(pathPlugins)) {
+		shell.Popup('I\'m in the correct folder already.\nJust reload Discord with Ctrl+R.', 0, 'I\'m already installed', 0x40);
+	} else if (!fs.FolderExists(pathPlugins)) {
+		shell.Popup('I can\'t find the BetterDiscord plugins folder.\nAre you sure it\'s even installed?', 0, 'Can\'t install myself', 0x10);
+	} else if (shell.Popup('Should I copy myself to BetterDiscord\'s plugins folder for you?', 0, 'Do you need some help?', 0x34) === 6) {
+		fs.CopyFile(pathSelf, fs.BuildPath(pathPlugins, fs.GetFileName(pathSelf)), true);
+		shell.Exec('explorer ' + pathPlugins);
+		shell.Popup('I\'m installed!\nJust reload Discord with Ctrl+R.', 0, 'Successfully installed', 0x40);
+	}
+	WScript.Quit();
 @else@*/
 /*
 This project includes code originally licensed under the MIT License:
@@ -56,340 +56,294 @@ Contributions are welcome via GitHub pull requests. Please ensure submissions
 align with the project's guidelines and coding standards.
 */
 "use strict";
-const { Webpack, Patcher, React, Utils, UI, Logger } = BdApi;
+const { Webpack, Patcher, React, Utils, UI, Logger, Hooks } = BdApi;
 const HEADING_BY_LOCALE = Object.freeze({
-    "da": "Venner siden",
-    "de": "Freunde seit",
-    "en-GB": "Friends since",
-    "en-US": "Friends since",
-    "es-ES": "Amigos desde",
-    "es-419": "Amigos desde",
-    "fr": "Amis depuis",
-    "hr": "Prijatelji od",
-    "it": "Amici dal",
-    "lt": "Draugai nuo",
-    "hu": "Barátok amióta",
-    "nl": "Vrienden sinds",
-    "no": "Venner siden",
-    "pl": "Znajomi od",
-    "pt-BR": "Amigos desde",
-    "ro": "Prieteni din",
-    "fi": "Ystäviä alkaen",
-    "sv-SE": "Vänner sedan",
-    "vi": "Bạn bè từ",
-    "tr": "Arkadaşlar desde",
-    "cs": "Přátelé od",
-    "el": "Φίλοι από",
-    "bg": "Приятели от",
-    "ru": "Друзья с",
-    "uk": "Друзі з",
-    "hi": "दोस्त तब से",
-    "th": "เป็นเพื่อนกันตั้งแต่",
-    "zh-CN": "成为好友自",
-    "ja": "友達になった日",
-    "zh-TW": "成為好友自",
-    "ko": "친구가 된 날짜"
+	"da": "Venner siden",
+	"de": "Freunde seit",
+	"en-GB": "Friends since",
+	"en-US": "Friends since",
+	"es-ES": "Amigos desde",
+	"es-419": "Amigos desde",
+	"fr": "Amis depuis",
+	"hr": "Prijatelji od",
+	"it": "Amici dal",
+	"lt": "Draugai nuo",
+	"hu": "Barátok amióta",
+	"nl": "Vrienden sinds",
+	"no": "Venner siden",
+	"pl": "Znajomi od",
+	"pt-BR": "Amigos desde",
+	"ro": "Prieteni din",
+	"fi": "Ystäviä alkaen",
+	"sv-SE": "Vänner sedan",
+	"vi": "Bạn bè từ",
+	"tr": "Arkadaşlar desde",
+	"cs": "Přátelé od",
+	"el": "Φίλοι από",
+	"bg": "Приятели от",
+	"ru": "Друзья с",
+	"uk": "Друзі з",
+	"hi": "दोस्त तब से",
+	"th": "เป็นเพื่อนกันตั้งแต่",
+	"zh-CN": "成为好友自",
+	"ja": "友達になった日",
+	"zh-TW": "成為好友自",
+	"ko": "친구가 된 날짜"
 });
 function formatSinceDate(value, locale) {
-    if (value == null || value === "") return null;
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return null;
-    return date.toLocaleDateString(locale || "en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric"
-    });
-}
-function createUseStateFromStores() {
-    let mangled = null;
-    try {
-        if (typeof Webpack.getMangled === "function") {
-            mangled = Webpack.getMangled(
-                m => m.Store,
-                { useStateFromStores: Webpack.Filters.byStrings("useStateFromStores") },
-                { raw: true }
-            );
-        }
-    } catch {
-        mangled = null;
-    }
-    if (mangled?.useStateFromStores) return mangled.useStateFromStores;
-    const useSyncExternalStore = React.useSyncExternalStore;
-    return (stores, selector) => {
-        if (!Array.isArray(stores) || !stores.length || !useSyncExternalStore) {
-            return selector();
-        }
-        const validStores = stores.filter(
-            s => s && s.addChangeListener && s.removeChangeListener
-        );
-        if (!validStores.length) return selector();
-        const subscribe = (onStoreChange) => {
-            for (const s of validStores) {
-                try {
-                    s.addChangeListener(onStoreChange);
-                } catch {
-                }
-            }
-            return () => {
-                for (const s of validStores) {
-                    try {
-                        s.removeChangeListener(onStoreChange);
-                    } catch {
-                    }
-                }
-            };
-        };
-        const getSnapshot = () => selector();
-        return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-    };
+	if (value == null || value === "") return null;
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return null;
+	return date.toLocaleDateString(locale || "en-US", {
+		month: "short",
+		day: "numeric",
+		year: "numeric"
+	});
 }
 function findProfileBody(tree) {
-    return Utils.findInTree(
-        tree,
-        n => n && typeof n.className === "string" && n.className.includes("profileBody"),
-        { walkable: ["props", "children"] }
-    );
+	return Utils.findInTree(
+		tree,
+		n => n && typeof n.className === "string" && n.className.includes("profileBody"),
+		{ walkable: ["props", "children"] }
+	);
 }
-function createUseFriendsSince(RelationshipStore, LocaleStore, useStateFromStores) {
-    return function useFriendsSince(userId) {
-        const since = useStateFromStores(
-            [RelationshipStore],
-            () => {
-                if (!RelationshipStore?.isFriend?.(userId)) return null;
-                return RelationshipStore.getSince?.(userId) ?? null;
-            }
-        );
-        const locale = useStateFromStores(
-            [LocaleStore],
-            () => LocaleStore?.locale ?? "en-US"
-        );
-        const dateLabel = React.useMemo(
-            () => formatSinceDate(since, locale),
-            [since, locale]
-        );
-        return { since, locale, dateLabel };
-    };
+function createUseFriendsSince(RelationshipStore, LocaleStore) {
+	return function useFriendsSince(userId) {
+		const since = Hooks.useStateFromStores(
+			RelationshipStore,
+			() => {
+				if (!RelationshipStore?.isFriend?.(userId)) return null;
+				return RelationshipStore.getSince?.(userId) ?? null;
+			}
+		);
+		const locale = Hooks.useStateFromStores(
+			LocaleStore,
+			() => LocaleStore?.locale ?? "en-US"
+		);
+		const dateLabel = React.useMemo(
+			() => formatSinceDate(since, locale),
+			[since, locale]
+		);
+		return { since, locale, dateLabel };
+	};
 }
 module.exports = function FriendsSince(meta) {
-    let abortController = null;
-    let RelationshipStore = null;
-    let LocaleStore = null;
-    let Section = null;
-    let Text = null;
-    let SidebarSectionComponent = null;
-    let useStateFromStores = null;
-    let useFriendsSince = null;
-    const FriendsSinceProfileSection = React.memo(({ userId }) => {
-        if (!useStateFromStores || !RelationshipStore || !LocaleStore || !Section || !Text) {
-            return null;
-        }
-        const { since, locale, dateLabel } = useFriendsSince(userId);
-        if (!since || !dateLabel) return null;
-        const heading = HEADING_BY_LOCALE[locale] ?? HEADING_BY_LOCALE["en-US"];
-        return React.createElement(
-            Section,
-            { heading },
-            React.createElement(
-                Text,
-                { variant: "text-sm/normal" },
-                dateLabel
-            )
-        );
-    });
-    const FriendsSinceSidebarContent = React.memo(({ userId }) => {
-        if (!useStateFromStores || !RelationshipStore || !LocaleStore || !Text) {
-            return null;
-        }
-        const { since, dateLabel } = useFriendsSince(userId);
-        if (!since || !dateLabel) return null;
-        return React.createElement(
-            Text,
-            {
-                variant: "text-sm/normal",
-                color: "header-primary"
-            },
-            dateLabel
-        );
-    });
-    async function start() {
-        if (abortController) {
-            abortController.abort();
-            abortController = null;
-        }
-        abortController = new AbortController();
-        const signal = abortController.signal;
-        try {
-            RelationshipStore = Webpack.getStore("RelationshipStore");
-            LocaleStore = Webpack.getStore("LocaleStore");
-            if (!RelationshipStore || !LocaleStore) {
-                Logger.error(meta.name, "Required stores not found (RelationshipStore / LocaleStore).");
-                return;
-            }
-            useStateFromStores = createUseStateFromStores();
-            useFriendsSince = createUseFriendsSince(RelationshipStore, LocaleStore, useStateFromStores);
-            const textModule = await Webpack.waitForModule(
-                Webpack.Filters.bySource("data-text-variant"),
-                { signal }
-            );
-            if (signal.aborted) return;
-            if (textModule?.render) {
-                Text = textModule;
-            } else if (textModule && typeof textModule === "object") {
-                Text = Object.values(textModule).find(v => v && v.render) ?? null;
-            }
-            if (!Text) {
-                Logger.error(meta.name, "Text component not found.");
-                return;
-            }
-            const patchSidebar = async () => {
-                try {
-                    const sidebarSectionMod = await Webpack.waitForModule(
-                        Webpack.Filters.bySource(
-                            'headingVariant:m="text-xs/semibold"',
-                            'headingColor:g="header-secondary"'
-                        ),
-                        { signal }
-                    );
-                    if (signal.aborted) return;
-                    if (typeof sidebarSectionMod === "function") {
-                        SidebarSectionComponent = sidebarSectionMod;
-                    } else if (typeof sidebarSectionMod === "object") {
-                        const key = Object.keys(sidebarSectionMod).find(k => {
-                            try {
-                                const value = sidebarSectionMod[k];
-                                return typeof value === "function" &&
-                                    value.toString().includes('headingVariant:m="text-xs/semibold"');
-                            } catch { return false; }
-                        });
-                        if (key) SidebarSectionComponent = sidebarSectionMod[key];
-                    }
-                    if (SidebarSectionComponent && sidebarSectionMod) {
-                        let sidebarKey = null;
-                        if (typeof sidebarSectionMod === "object") {
-                            sidebarKey = Object.keys(sidebarSectionMod).find(
-                                k => sidebarSectionMod[k] === SidebarSectionComponent
-                            );
-                        }
-                        if (sidebarKey) {
-                            Patcher.after(meta.name, sidebarSectionMod, sidebarKey, (_, [props], returnValue) => {
-                                try {
-                                    if (!props || !returnValue) return;
-                                    if (props.headingColor !== "header-primary") return;
-                                    if (props.__betterFriendsSinceInjected) return;
-                                    const userId = props.children?.props?.userId ?? props.children?.props?.userID ?? null;
-                                    if (!userId) return;
-                                    const currentLocale = LocaleStore?.locale ?? "en-US";
-                                    const newHeading = HEADING_BY_LOCALE[currentLocale] ?? HEADING_BY_LOCALE["en-US"];
-                                    const friendsSinceSection = React.createElement(
-                                        SidebarSectionComponent,
-                                        {
-                                            key: `friends-since-sidebar-${userId}`,
-                                            heading: newHeading,
-                                            __betterFriendsSinceInjected: true
-                                        },
-                                        React.createElement(FriendsSinceSidebarContent, { userId })
-                                    );
-                                    return React.createElement(React.Fragment, null, returnValue, friendsSinceSection);
-                                } catch (error) {
-                                    Logger.error(meta.name, "Failed to inject FriendsSince section into sidebar.", error);
-                                }
-                            });
-                        }
-                    }
-                } catch (err) {
-                    if (err?.name === "AbortError") return;
-                    Logger.warn(meta.name, "Sidebar patching failed or timed out", err);
-                }
-            };
-            const patchProfile = async () => {
-                try {
-                    const [sectionModule, userProfileModule] = await Promise.all([
-                        Webpack.waitForModule(
-                            Webpack.Filters.byStrings(".section", "text-xs/medium", "headingColor"),
-                            { signal }
-                        ),
-                        Webpack.waitForModule(
-                            Webpack.Filters.byStrings("UserProfileModalV2", "USER_PROFILE_MODAL_V2", "MODAL_V2"),
-                            { defaultExport: false, signal }
-                        )
-                    ]);
-                    if (signal.aborted) return;
-                    Section = sectionModule;
-                    if (!Section) {
-                        Logger.warn(meta.name, "Section module not found, skipping profile patch.");
-                        return;
-                    }
-                    if (!userProfileModule?.Z || typeof userProfileModule.Z !== "function") {
-                        Logger.warn(meta.name, "UserProfileModal module not in expected shape.");
-                    } else {
-                        Patcher.after(meta.name, userProfileModule, "Z", (_, [props], returnValue) => {
-                            try {
-                                if (!props || !returnValue) return;
-                                const body = findProfileBody(returnValue);
-                                if (!body || !Array.isArray(body.children)) return;
-                                const userId = props?.user?.id;
-                                if (!userId) return;
-                                const index = body.children.findIndex(
-                                    child =>
-                                        React.isValidElement(child) &&
-                                        child.props?.heading &&
-                                        child.props?.children?.props?.userId
-                                );
-                                if (index === -1) return;
-                                const alreadyInjected = body.children.some(
-                                    child =>
-                                        React.isValidElement(child) &&
-                                        child.type === FriendsSinceProfileSection
-                                );
-                                if (alreadyInjected) return;
-                                body.children.splice(
-                                    index + 1,
-                                    0,
-                                    React.createElement(FriendsSinceProfileSection, {
-                                        key: `friends-since-profile-${userId}`,
-                                        userId
-                                    })
-                                );
-                            } catch (error) {
-                                Logger.error(meta.name, "Failed to inject FriendsSince section into profile.", error);
-                            }
-                        });
-                    }
-                } catch (err) {
-                    if (err?.name === "AbortError") return;
-                    Logger.warn(meta.name, "Profile patching failed (likely waiting for modal open)", err);
-                }
-            };
-            patchSidebar();
-            patchProfile();
-        } catch (err) {
-            if (err?.name === "AbortError") return;
-            Logger.error(meta.name, "Failed to start plugin.", err);
-            UI.showToast(
-                `${meta.name}: failed to start. See console for details.`,
-                { type: "error" }
-            );
-        }
-    }
-    function stop() {
-        try {
-            if (abortController) {
-                abortController.abort();
-                abortController = null;
-            }
-            Patcher.unpatchAll(meta.name);
-        } catch (err) {
-            Logger.error(meta.name, "Error while stopping plugin.", err);
-        } finally {
-            RelationshipStore = null;
-            LocaleStore = null;
-            Section = null;
-            Text = null;
-            SidebarSectionComponent = null;
-            useStateFromStores = null;
-            useFriendsSince = null;
-        }
-    }
-    return { start, stop };
+	let abortController = null;
+	let RelationshipStore = null;
+	let LocaleStore = null;
+	let Section = null;
+	let Text = null;
+	let SidebarSectionComponent = null;
+	let useFriendsSince = null;
+	const FriendsSinceProfileSection = React.memo(({ userId }) => {
+		if (!useFriendsSince || !RelationshipStore || !LocaleStore || !Section || !Text) {
+			return null;
+		}
+		const { since, locale, dateLabel } = useFriendsSince(userId);
+		if (!since || !dateLabel) return null;
+		const heading = HEADING_BY_LOCALE[locale] ?? HEADING_BY_LOCALE["en-US"];
+		return React.createElement(
+			Section,
+			{ heading },
+			React.createElement(
+				Text,
+				{ variant: "text-sm/normal" },
+				dateLabel
+			)
+		);
+	});
+	const FriendsSinceSidebarContent = React.memo(({ userId }) => {
+		if (!useFriendsSince || !RelationshipStore || !LocaleStore || !Text) {
+			return null;
+		}
+		const { since, dateLabel } = useFriendsSince(userId);
+		if (!since || !dateLabel) return null;
+		return React.createElement(
+			Text,
+			{
+				variant: "text-sm/normal",
+				color: "header-primary"
+			},
+			dateLabel
+		);
+	});
+	async function start() {
+		if (abortController) {
+			abortController.abort();
+			abortController = null;
+		}
+		abortController = new AbortController();
+		const signal = abortController.signal;
+		try {
+			RelationshipStore = Webpack.getStore("RelationshipStore");
+			LocaleStore = Webpack.getStore("LocaleStore");
+			if (!RelationshipStore || !LocaleStore) {
+				Logger.error(meta.name, "Required stores not found (RelationshipStore / LocaleStore).");
+				return;
+			}
+			useFriendsSince = createUseFriendsSince(RelationshipStore, LocaleStore);
+			const textModule = await Webpack.waitForModule(
+				Webpack.Filters.bySource("data-text-variant"),
+				{ signal }
+			);
+			if (signal.aborted) return;
+			if (textModule?.render) {
+				Text = textModule;
+			} else if (textModule && typeof textModule === "object") {
+				Text = Object.values(textModule).find(v => v && v.render) ?? null;
+			}
+			if (!Text) {
+				Logger.error(meta.name, "Text component not found.");
+				return;
+			}
+			const patchSidebar = async () => {
+				try {
+					const sidebarSectionMod = await Webpack.waitForModule(
+						Webpack.Filters.bySource(
+							'headingVariant:m="text-xs/semibold"',
+							'headingColor:g="header-secondary"'
+						),
+						{ signal }
+					);
+					if (signal.aborted) return;
+					if (typeof sidebarSectionMod === "function") {
+						SidebarSectionComponent = sidebarSectionMod;
+					} else if (typeof sidebarSectionMod === "object") {
+						const key = Object.keys(sidebarSectionMod).find(k => {
+							try {
+								const value = sidebarSectionMod[k];
+								return typeof value === "function" &&
+									value.toString().includes('headingVariant:m="text-xs/semibold"');
+							} catch { return false; }
+						});
+						if (key) SidebarSectionComponent = sidebarSectionMod[key];
+					}
+					if (SidebarSectionComponent && sidebarSectionMod) {
+						let sidebarKey = null;
+						if (typeof sidebarSectionMod === "object") {
+							sidebarKey = Object.keys(sidebarSectionMod).find(
+								k => sidebarSectionMod[k] === SidebarSectionComponent
+							);
+						}
+						if (sidebarKey) {
+							Patcher.after(meta.name, sidebarSectionMod, sidebarKey, (_, [props], returnValue) => {
+								try {
+									if (!props || !returnValue) return;
+									if (props.headingColor !== "header-primary") return;
+									if (props.__betterFriendsSinceInjected) return;
+									const userId = props.children?.props?.userId ?? props.children?.props?.userID ?? null;
+									if (!userId) return;
+									const currentLocale = LocaleStore?.locale ?? "en-US";
+									const newHeading = HEADING_BY_LOCALE[currentLocale] ?? HEADING_BY_LOCALE["en-US"];
+									const friendsSinceSection = React.createElement(
+										SidebarSectionComponent,
+										{
+											key: `friends-since-sidebar-${userId}`,
+											heading: newHeading,
+											__betterFriendsSinceInjected: true
+										},
+										React.createElement(FriendsSinceSidebarContent, { userId })
+									);
+									return React.createElement(React.Fragment, null, returnValue, friendsSinceSection);
+								} catch (error) {
+									Logger.error(meta.name, "Failed to inject FriendsSince section into sidebar.", error);
+								}
+							});
+						}
+					}
+				} catch (err) {
+					if (err?.name === "AbortError") return;
+					Logger.warn(meta.name, "Sidebar patching failed or timed out", err);
+				}
+			};
+			const patchProfile = async () => {
+				try {
+					const [sectionModule, userProfileModule] = await Promise.all([
+						Webpack.waitForModule(
+							Webpack.Filters.byStrings(".section", "text-xs/medium", "headingColor"),
+							{ signal }
+						),
+						Webpack.waitForModule(
+							Webpack.Filters.byStrings("UserProfileModalV2", "USER_PROFILE_MODAL_V2", "MODAL_V2"),
+							{ defaultExport: false, signal }
+						)
+					]);
+					if (signal.aborted) return;
+					Section = sectionModule;
+					if (!Section) {
+						Logger.warn(meta.name, "Section module not found, skipping profile patch.");
+						return;
+					}
+					if (!userProfileModule?.Z || typeof userProfileModule.Z !== "function") {
+						Logger.warn(meta.name, "UserProfileModal module not in expected shape.");
+					} else {
+						Patcher.after(meta.name, userProfileModule, "Z", (_, [props], returnValue) => {
+							try {
+								if (!props || !returnValue) return;
+								const body = findProfileBody(returnValue);
+								if (!body || !Array.isArray(body.children)) return;
+								const userId = props?.user?.id;
+								if (!userId) return;
+								const index = body.children.findIndex(
+									child =>
+										React.isValidElement(child) &&
+										child.props?.heading &&
+										child.props?.children?.props?.userId
+								);
+								if (index === -1) return;
+								const alreadyInjected = body.children.some(
+									child =>
+										React.isValidElement(child) &&
+										child.type === FriendsSinceProfileSection
+								);
+								if (alreadyInjected) return;
+								body.children.splice(
+									index + 1,
+									0,
+									React.createElement(FriendsSinceProfileSection, {
+										key: `friends-since-profile-${userId}`,
+										userId
+									})
+								);
+							} catch (error) {
+								Logger.error(meta.name, "Failed to inject FriendsSince section into profile.", error);
+							}
+						});
+					}
+				} catch (err) {
+					if (err?.name === "AbortError") return;
+					Logger.warn(meta.name, "Profile patching failed (likely waiting for modal open)", err);
+				}
+			};
+			patchSidebar();
+			patchProfile();
+		} catch (err) {
+			if (err?.name === "AbortError") return;
+			Logger.error(meta.name, "Failed to start plugin.", err);
+			UI.showToast(
+				`${meta.name}: failed to start. See console for details.`,
+				{ type: "error" }
+			);
+		}
+	}
+	function stop() {
+		try {
+			if (abortController) {
+				abortController.abort();
+				abortController = null;
+			}
+			Patcher.unpatchAll(meta.name);
+		} catch (err) {
+			Logger.error(meta.name, "Error while stopping plugin.", err);
+		} finally {
+			RelationshipStore = null;
+			LocaleStore = null;
+			Section = null;
+			Text = null;
+			SidebarSectionComponent = null;
+			useFriendsSince = null;
+		}
+	}
+	return { start, stop };
 };
 /*@end@*/
