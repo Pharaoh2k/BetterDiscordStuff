@@ -2,7 +2,7 @@
  * @name BetterFriendsSince
  * @author Pharaoh2k
  * @description Shows the date you and a friend became friends in the profile modal and Friends sidebar.
- * @version 1.1.0
+ * @version 1.1.1
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterFriendsSince/BetterFriendsSince.plugin.js
@@ -73,6 +73,7 @@ const HEADING_BY_LOCALE = Object.freeze({
 	"no": "Venner siden",
 	"pl": "Znajomi od",
 	"pt-BR": "Amigos desde",
+	"pt-PT": "Amigos desde",
 	"ro": "Prieteni din",
 	"fi": "Ystäviä alkaen",
 	"sv-SE": "Vänner sedan",
@@ -88,9 +89,13 @@ const HEADING_BY_LOCALE = Object.freeze({
 	"zh-CN": "成为好友自",
 	"ja": "友達になった日",
 	"zh-TW": "成為好友自",
-	"ko": "친구가 된 날짜"
+	"ko": "친구가 된 날짜",
+	"sk": "Priatelia od",
+	"he": "חברים מאז",
+	"ar": "أصدقاء منذ",
+	"id": "Berteman sejak"
 });
-function formatSinceDate(value, locale) {
+const formatSinceDate = (value, locale) => {
 	if (value == null || value === "") return null;
 	const date = new Date(value);
 	if (Number.isNaN(date.getTime())) return null;
@@ -99,26 +104,39 @@ function formatSinceDate(value, locale) {
 		day: "numeric",
 		year: "numeric"
 	});
-}
-function findProfileBody(tree) {
-	return Utils.findInTree(
+};
+const findProfileBody = tree =>
+	Utils.findInTree(
 		tree,
 		n => n && typeof n.className === "string" && n.className.includes("profileBody"),
 		{ walkable: ["props", "children"] }
 	);
-}
-function createUseFriendsSince(RelationshipStore, LocaleStore) {
-	return function useFriendsSince(userId) {
+const getCurrentLocale = LocaleStore =>
+	LocaleStore?.locale ??
+	LocaleStore?.systemLocale ??
+	"en-US";
+const getHeadingForLocale = locale => HEADING_BY_LOCALE[locale] ?? HEADING_BY_LOCALE["en-US"];
+const isAbortError = err => err?.name === "AbortError";
+const createGetFriendSince = store => {
+	const hasGetSince = typeof store?.getSince === "function";
+	const hasGetSinces = typeof store?.getSinces === "function";
+	if (!hasGetSince && !hasGetSinces) return () => null;
+	return userId => {
+		if (!store?.isFriend?.(userId)) return null;
+		if (hasGetSince) return store.getSince(userId) ?? null;
+		const sinces = store.getSinces();
+		return sinces?.[userId] ?? null;
+	};
+};
+const createUseFriendsSince = (RelationshipStore, LocaleStore, getFriendSince) =>
+	userId => {
 		const since = Hooks.useStateFromStores(
 			RelationshipStore,
-			() => {
-				if (!RelationshipStore?.isFriend?.(userId)) return null;
-				return RelationshipStore.getSince?.(userId) ?? null;
-			}
+			() => getFriendSince(userId)
 		);
 		const locale = Hooks.useStateFromStores(
 			LocaleStore,
-			() => LocaleStore?.locale ?? "en-US"
+			() => getCurrentLocale(LocaleStore)
 		);
 		const dateLabel = React.useMemo(
 			() => formatSinceDate(since, locale),
@@ -126,8 +144,7 @@ function createUseFriendsSince(RelationshipStore, LocaleStore) {
 		);
 		return { since, locale, dateLabel };
 	};
-}
-module.exports = function FriendsSince(meta) {
+const FriendsSince = meta => {
 	let abortController = null;
 	let RelationshipStore = null;
 	let LocaleStore = null;
@@ -135,39 +152,62 @@ module.exports = function FriendsSince(meta) {
 	let Text = null;
 	let SidebarSectionComponent = null;
 	let useFriendsSince = null;
-	const FriendsSinceProfileSection = React.memo(({ userId }) => {
-		if (!useFriendsSince || !RelationshipStore || !LocaleStore || !Section || !Text) {
-			return null;
+	let getFriendSince = null;
+	const extractTextComponent = module => {
+		if (!module) return null;
+		if (module.render) return module;
+		if (typeof module === "object") {
+			const candidate = Object.values(module).find(v => v && v.render);
+			if (candidate) return candidate;
 		}
-		const { since, locale, dateLabel } = useFriendsSince(userId);
-		if (!since || !dateLabel) return null;
-		const heading = HEADING_BY_LOCALE[locale] ?? HEADING_BY_LOCALE["en-US"];
-		return React.createElement(
-			Section,
-			{ heading },
+		return null;
+	};
+	const resolveTextComponent = async signal => {
+		const filters = [
+			Webpack.Filters.bySource("data-text-variant"),
+			Webpack.Filters.bySource("lineClamp", "selectable")
+		];
+		for (const filter of filters) {
+			try {
+				const textModule = await Webpack.waitForModule(filter, { signal });
+				if (signal.aborted) return null;
+				const component = extractTextComponent(textModule);
+				if (component) return component;
+			} catch (e) {
+				Logger.warn(meta.name, "Text resolution attempt failed.", e);
+			}
+		}
+		return null;
+	};
+	const createFriendsSinceComponent = (render, requiresSection) =>
+		React.memo(({ userId }) => {
+			if (!useFriendsSince || !RelationshipStore || !LocaleStore || !Text) return null;
+			if (requiresSection && !Section) return null;
+			const data = useFriendsSince(userId);
+			if (!data?.since || !data.dateLabel) return null;
+			return render(data, userId);
+		});
+	const FriendsSinceProfileSection = createFriendsSinceComponent(
+		({ locale, dateLabel }) =>
+			React.createElement(
+				Section,
+				{ heading: getHeadingForLocale(locale) },
+				React.createElement(Text, { variant: "text-sm/normal" }, dateLabel)
+			),
+		true
+	);
+	const FriendsSinceSidebarContent = createFriendsSinceComponent(
+		({ dateLabel }) =>
 			React.createElement(
 				Text,
-				{ variant: "text-sm/normal" },
+				{
+					variant: "text-sm/normal",
+					color: "header-primary"
+				},
 				dateLabel
 			)
-		);
-	});
-	const FriendsSinceSidebarContent = React.memo(({ userId }) => {
-		if (!useFriendsSince || !RelationshipStore || !LocaleStore || !Text) {
-			return null;
-		}
-		const { since, dateLabel } = useFriendsSince(userId);
-		if (!since || !dateLabel) return null;
-		return React.createElement(
-			Text,
-			{
-				variant: "text-sm/normal",
-				color: "header-primary"
-			},
-			dateLabel
-		);
-	});
-	async function start() {
+	);
+	const start = async () => {
 		if (abortController) {
 			abortController.abort();
 			abortController = null;
@@ -181,19 +221,12 @@ module.exports = function FriendsSince(meta) {
 				Logger.error(meta.name, "Required stores not found (RelationshipStore / LocaleStore).");
 				return;
 			}
-			useFriendsSince = createUseFriendsSince(RelationshipStore, LocaleStore);
-			const textModule = await Webpack.waitForModule(
-				Webpack.Filters.bySource("data-text-variant"),
-				{ signal }
-			);
+			getFriendSince = createGetFriendSince(RelationshipStore);
+			useFriendsSince = createUseFriendsSince(RelationshipStore, LocaleStore, getFriendSince);
+			Text = await resolveTextComponent(signal);
 			if (signal.aborted) return;
-			if (textModule?.render) {
-				Text = textModule;
-			} else if (textModule && typeof textModule === "object") {
-				Text = Object.values(textModule).find(v => v && v.render) ?? null;
-			}
 			if (!Text) {
-				Logger.error(meta.name, "Text component not found.");
+				Logger.error(meta.name, "Text component not found (even with fallbacks).");
 				return;
 			}
 			const patchSidebar = async () => {
@@ -206,53 +239,57 @@ module.exports = function FriendsSince(meta) {
 						{ signal }
 					);
 					if (signal.aborted) return;
+					let sidebarKey = null;
 					if (typeof sidebarSectionMod === "function") {
 						SidebarSectionComponent = sidebarSectionMod;
+						sidebarKey = "default";
 					} else if (typeof sidebarSectionMod === "object") {
 						const key = Object.keys(sidebarSectionMod).find(k => {
 							try {
 								const value = sidebarSectionMod[k];
 								return typeof value === "function" &&
 									value.toString().includes('headingVariant:m="text-xs/semibold"');
-							} catch { return false; }
+							} catch {
+								return false;
+							}
 						});
-						if (key) SidebarSectionComponent = sidebarSectionMod[key];
+						if (key) {
+							SidebarSectionComponent = sidebarSectionMod[key];
+							sidebarKey = key;
+						}
 					}
-					if (SidebarSectionComponent && sidebarSectionMod) {
-						let sidebarKey = null;
-						if (typeof sidebarSectionMod === "object") {
-							sidebarKey = Object.keys(sidebarSectionMod).find(
-								k => sidebarSectionMod[k] === SidebarSectionComponent
-							);
-						}
-						if (sidebarKey) {
-							Patcher.after(meta.name, sidebarSectionMod, sidebarKey, (_, [props], returnValue) => {
-								try {
-									if (!props || !returnValue) return;
-									if (props.headingColor !== "header-primary") return;
-									if (props.__betterFriendsSinceInjected) return;
-									const userId = props.children?.props?.userId ?? props.children?.props?.userID ?? null;
-									if (!userId) return;
-									const currentLocale = LocaleStore?.locale ?? "en-US";
-									const newHeading = HEADING_BY_LOCALE[currentLocale] ?? HEADING_BY_LOCALE["en-US"];
-									const friendsSinceSection = React.createElement(
-										SidebarSectionComponent,
-										{
-											key: `friends-since-sidebar-${userId}`,
-											heading: newHeading,
-											__betterFriendsSinceInjected: true
-										},
-										React.createElement(FriendsSinceSidebarContent, { userId })
-									);
-									return React.createElement(React.Fragment, null, returnValue, friendsSinceSection);
-								} catch (error) {
-									Logger.error(meta.name, "Failed to inject FriendsSince section into sidebar.", error);
-								}
-							});
-						}
+					if (SidebarSectionComponent && sidebarSectionMod && sidebarKey) {
+						const targetModule = typeof sidebarSectionMod === "function"
+							? { [sidebarKey]: sidebarSectionMod }
+							: sidebarSectionMod;
+						Patcher.after(meta.name, targetModule, sidebarKey, (_, [props], returnValue) => {
+							try {
+								if (!props || !returnValue) return;
+								if (props.headingColor !== "header-primary") return;
+								if (props.__betterFriendsSinceInjected) return;
+								const userId = props.children?.props?.userId ?? props.children?.props?.userID ?? null;
+								if (!userId) return;
+								const BaseSection =
+									SidebarSectionComponent ||
+									(React.isValidElement(returnValue) ? returnValue.type : null);
+								if (!BaseSection) return;
+								const friendsSinceSection = React.createElement(
+									BaseSection,
+									{
+										key: `friends-since-sidebar-${userId}`,
+										heading: getHeadingForLocale(getCurrentLocale(LocaleStore)),
+										__betterFriendsSinceInjected: true
+									},
+									React.createElement(FriendsSinceSidebarContent, { userId })
+								);
+								return React.createElement(React.Fragment, null, returnValue, friendsSinceSection);
+							} catch (error) {
+								Logger.error(meta.name, "Failed to inject FriendsSince section into sidebar.", error);
+							}
+						});
 					}
 				} catch (err) {
-					if (err?.name === "AbortError") return;
+					if (isAbortError(err)) return;
 					Logger.warn(meta.name, "Sidebar patching failed or timed out", err);
 				}
 			};
@@ -271,8 +308,7 @@ module.exports = function FriendsSince(meta) {
 					if (signal.aborted) return;
 					Section = sectionModule;
 					if (!Section) {
-						Logger.warn(meta.name, "Section module not found, skipping profile patch.");
-						return;
+						Logger.warn(meta.name, "Section module not found, profile patch will rely on tree fallback.");
 					}
 					if (!userProfileModule?.Z || typeof userProfileModule.Z !== "function") {
 						Logger.warn(meta.name, "UserProfileModal module not in expected shape.");
@@ -284,6 +320,21 @@ module.exports = function FriendsSince(meta) {
 								if (!body || !Array.isArray(body.children)) return;
 								const userId = props?.user?.id;
 								if (!userId) return;
+								if (!Section) {
+									const firstSection = body.children.find(
+										child =>
+											React.isValidElement(child) &&
+											child.props?.heading &&
+											child.props?.children
+									);
+									if (firstSection) {
+										Section = firstSection.type;
+									}
+								}
+								if (!Section) {
+									Logger.warn(meta.name, "Section component not resolved; skipping profile injection.");
+									return;
+								}
 								const index = body.children.findIndex(
 									child =>
 										React.isValidElement(child) &&
@@ -311,22 +362,22 @@ module.exports = function FriendsSince(meta) {
 						});
 					}
 				} catch (err) {
-					if (err?.name === "AbortError") return;
+					if (isAbortError(err)) return;
 					Logger.warn(meta.name, "Profile patching failed (likely waiting for modal open)", err);
 				}
 			};
 			patchSidebar();
 			patchProfile();
 		} catch (err) {
-			if (err?.name === "AbortError") return;
+			if (isAbortError(err)) return;
 			Logger.error(meta.name, "Failed to start plugin.", err);
 			UI.showToast(
 				`${meta.name}: failed to start. See console for details.`,
 				{ type: "error" }
 			);
 		}
-	}
-	function stop() {
+	};
+	const stop = () => {
 		try {
 			if (abortController) {
 				abortController.abort();
@@ -342,8 +393,10 @@ module.exports = function FriendsSince(meta) {
 			Text = null;
 			SidebarSectionComponent = null;
 			useFriendsSince = null;
+			getFriendSince = null;
 		}
-	}
+	};
 	return { start, stop };
 };
+module.exports = FriendsSince;
 /*@end@*/
