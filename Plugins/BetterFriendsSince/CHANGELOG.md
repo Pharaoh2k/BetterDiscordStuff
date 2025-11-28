@@ -1,5 +1,8 @@
 # [BetterFriendsSince](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterFriendsSince "BetterFriendsSince") Changelog
 
+### 1.1.0
+- Added: Display "Friends since" date in Friends' side-bar
+
 ### 1.0.0
 - Initial public release
 - Display "Friends since" date in user profile modals
