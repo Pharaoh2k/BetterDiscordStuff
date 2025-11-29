@@ -113,8 +113,7 @@ const findProfileBody = tree =>
 	);
 const getCurrentLocale = LocaleStore =>
 	LocaleStore?.locale ??
-	LocaleStore?.systemLocale ??
-	"en-US";
+	LocaleStore?.systemLocale ?? "en-US";
 const getHeadingForLocale = locale => HEADING_BY_LOCALE[locale] ?? HEADING_BY_LOCALE["en-US"];
 const isAbortError = err => err?.name === "AbortError";
 const createGetFriendSince = store => {
@@ -131,11 +130,11 @@ const createGetFriendSince = store => {
 const createUseFriendsSince = (RelationshipStore, LocaleStore, getFriendSince) =>
 	userId => {
 		const since = Hooks.useStateFromStores(
-			RelationshipStore,
+			[RelationshipStore],
 			() => getFriendSince(userId)
 		);
 		const locale = Hooks.useStateFromStores(
-			LocaleStore,
+			[LocaleStore],
 			() => getCurrentLocale(LocaleStore)
 		);
 		const dateLabel = React.useMemo(
