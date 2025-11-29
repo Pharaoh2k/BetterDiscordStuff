@@ -1,7 +1,7 @@
 /**
  * @name BetterFriendsSince
  * @author Pharaoh2k
- * @description Shows the date you and a friend became friends in the profile modal and Friends sidebar.
+ * @description Shows the date you and a friend became friends in the profile modal and friends/DM sidebar.
  * @version 1.1.1
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
