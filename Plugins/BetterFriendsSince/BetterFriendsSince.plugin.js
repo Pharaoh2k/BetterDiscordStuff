@@ -58,6 +58,7 @@ align with the project's guidelines and coding standards.
 "use strict";
 const { Webpack, Patcher, React, Utils, UI, Logger, Hooks } = BdApi;
 const HEADING_BY_LOCALE = Object.freeze({
+	"ar": "أصدقاء منذ",
 	"da": "Venner siden",
 	"de": "Freunde seit",
 	"en-GB": "Friends since",
@@ -65,7 +66,9 @@ const HEADING_BY_LOCALE = Object.freeze({
 	"es-ES": "Amigos desde",
 	"es-419": "Amigos desde",
 	"fr": "Amis depuis",
+	"he": "חברים מאז",
 	"hr": "Prijatelji od",
+	"id": "Berteman sejak",
 	"it": "Amici dal",
 	"lt": "Draugai nuo",
 	"hu": "Barátok amióta",
@@ -90,10 +93,7 @@ const HEADING_BY_LOCALE = Object.freeze({
 	"ja": "友達になった日",
 	"zh-TW": "成為好友自",
 	"ko": "친구가 된 날짜",
-	"sk": "Priatelia od",
-	"he": "חברים מאז",
-	"ar": "أصدقاء منذ",
-	"id": "Berteman sejak"
+	"sk": "Priatelia od"	
 });
 const formatSinceDate = (value, locale) => {
 	if (value == null || value === "") return null;
@@ -111,9 +111,7 @@ const findProfileBody = tree =>
 		n => n && typeof n.className === "string" && n.className.includes("profileBody"),
 		{ walkable: ["props", "children"] }
 	);
-const getCurrentLocale = LocaleStore =>
-	LocaleStore?.locale ??
-	LocaleStore?.systemLocale ?? "en-US";
+const getCurrentLocale = LocaleStore => LocaleStore?.locale ?? LocaleStore?.systemLocale ?? "en-US";	
 const getHeadingForLocale = locale => HEADING_BY_LOCALE[locale] ?? HEADING_BY_LOCALE["en-US"];
 const isAbortError = err => err?.name === "AbortError";
 const createGetFriendSince = store => {
