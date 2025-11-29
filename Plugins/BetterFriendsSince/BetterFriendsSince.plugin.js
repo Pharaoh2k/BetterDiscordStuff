@@ -346,8 +346,7 @@ const FriendsSince = meta => {
 								);
 								if (alreadyInjected) return;
 								body.children.splice(
-									index + 1,
-									0,
+									index + 1,0,
 									React.createElement(FriendsSinceProfileSection, {
 										key: `friends-since-profile-${userId}`,
 										userId
