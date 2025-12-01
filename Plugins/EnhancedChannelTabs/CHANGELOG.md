@@ -1,5 +1,8 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+## 3.1.3
+- A minor adjustment
+
 ## 3.1.2
 - Fixed plugin compatibility with latest Discord update (add a robust TitleBar detection)
 
