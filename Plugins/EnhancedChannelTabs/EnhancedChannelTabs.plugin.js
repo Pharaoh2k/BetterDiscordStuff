@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 3.1.2
+ * @version 3.1.3
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
  */
@@ -396,28 +396,28 @@ class StyleManager {
 
 	// Inline Style Objects
 	static inlineStyles = {
-	tabListMenuItem: { display: "flex", alignItems: "center", width: "100%", minHeight: "26px", cursor: "pointer", position: "relative", zIndex: 1000 },
-	tabListMenuIcon: { width: "18px", height: "18px", marginRight: "10px", borderRadius: "50%", flexShrink: 0 },
-	tabListMenuName: { flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "14px", paddingRight: "8px" },
-	tabListBadgeContainer: { display: "flex", gap: "4px", flexShrink: 0, marginRight: "4px" },
-	mentionBadge: { backgroundColor: "hsl(359, calc(var(--saturation-factor, 1) * 82.6%), 59.4%)", color: "white", borderRadius: "8px", padding: "0 5px", fontSize: "12px", fontWeight: "600", lineHeight: "16px", display: "inline-block" },
-	unreadBadge: { backgroundColor: "hsl(235, calc(var(--saturation-factor, 1) * 86%), 65%)", color: "white", borderRadius: "8px", padding: "0 5px", fontSize: "12px", fontWeight: "600", lineHeight: "16px", display: "inline-block" },
-	shortcutLabelKeys: { color: "var(--text-muted)", padding: "8px", fontSize: "12px", whiteSpace: "pre-wrap" },
-	minimumTabWidthLabel: { pointerEvents: "none" },
-	smallIconCenter: { width: "16px", textAlign: "center" },
-	closedTabsContainer: { maxHeight: "400px", overflowY: "auto", padding: "10px" },
-	closedTabsEmpty: { textAlign: "center", color: "var(--text-muted)", padding: "20px" },
-	closedTabItem: { padding: "10px", borderBottom: "1px solid var(--background-accent)", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", borderRadius: "4px" },
-	closedTabIcon: { width: "20px", height: "20px", borderRadius: "50%" },
-	closedTabInfo: { flex: 1 },
-	closedTabName: { fontWeight: "500" },
-	closedTabMeta: { fontSize: "12px", color: "var(--text-muted)" },
-	closedTabButton: { padding: "4px 12px", borderRadius: "3px", border: "none", background: "var(--button-filled-brand-background)", color: "white", cursor: "pointer", fontSize: "13px" },
-	dropdownMenu: { zIndex: "9999", pointerEvents: "auto", position: "fixed" },
-	menuSeparator: { margin: "2px 0", height: "1px" },
-	menuItem: { pointerEvents: "auto", position: "relative", zIndex: "1" },
-	typingBadgeAlignment: { opacity: 0.7 }
-};
+		tabListMenuItem: { display: "flex", alignItems: "center", width: "100%", minHeight: "26px", cursor: "pointer", position: "relative", zIndex: 1000 },
+		tabListMenuIcon: { width: "18px", height: "18px", marginRight: "10px", borderRadius: "50%", flexShrink: 0 },
+		tabListMenuName: { flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "14px", paddingRight: "8px" },
+		tabListBadgeContainer: { display: "flex", gap: "4px", flexShrink: 0, marginRight: "4px" },
+		mentionBadge: { backgroundColor: "hsl(359, calc(var(--saturation-factor, 1) * 82.6%), 59.4%)", color: "white", borderRadius: "8px", padding: "0 5px", fontSize: "12px", fontWeight: "600", lineHeight: "16px", display: "inline-block" },
+		unreadBadge: { backgroundColor: "hsl(235, calc(var(--saturation-factor, 1) * 86%), 65%)", color: "white", borderRadius: "8px", padding: "0 5px", fontSize: "12px", fontWeight: "600", lineHeight: "16px", display: "inline-block" },
+		shortcutLabelKeys: { color: "var(--text-muted)", padding: "8px", fontSize: "12px", whiteSpace: "pre-wrap" },
+		minimumTabWidthLabel: { pointerEvents: "none" },
+		smallIconCenter: { width: "16px", textAlign: "center" },
+		closedTabsContainer: { maxHeight: "400px", overflowY: "auto", padding: "10px" },
+		closedTabsEmpty: { textAlign: "center", color: "var(--text-muted)", padding: "20px" },
+		closedTabItem: { padding: "10px", borderBottom: "1px solid var(--background-accent)", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", borderRadius: "4px" },
+		closedTabIcon: { width: "20px", height: "20px", borderRadius: "50%" },
+		closedTabInfo: { flex: 1 },
+		closedTabName: { fontWeight: "500" },
+		closedTabMeta: { fontSize: "12px", color: "var(--text-muted)" },
+		closedTabButton: { padding: "4px 12px", borderRadius: "3px", border: "none", background: "var(--button-filled-brand-background)", color: "white", cursor: "pointer", fontSize: "13px" },
+		dropdownMenu: { zIndex: "9999", pointerEvents: "auto", position: "fixed" },
+		menuSeparator: { margin: "2px 0", height: "1px" },
+		menuItem: { pointerEvents: "auto", position: "relative", zIndex: "1" },
+		typingBadgeAlignment: { opacity: 0.7 }
+	};
 
 	// Dynamic CSS for tab list menu
 	static getTabListMenuStyle() {
@@ -549,12 +549,12 @@ const DiscordConstants = {
 };
 const Textbox = (props) =>
 	/* @__PURE__ */ React.createElement(
-		"div",
-		{ className: "channelTabs-input" },
+	"div",
+	{ className: "channelTabs-input" },
 		/* @__PURE__ */ React.createElement(BdApi.Components.TextInput, {
-			...props,
-		}),
-	);
+		...props,
+	}),
+);
 const UnreadStateStore =
 	getModule((m) => m.isEstimated, {
 		feature: "Unread/Mention Indicators",
@@ -578,7 +578,7 @@ const Slider = getModule(
 	{ searchExports: true },
 );
 const NavShortcuts = getModule(byKeys("NAVIGATE_BACK", "NAVIGATE_FORWARD"));
-const [TitleBar, TitleBarKey] = 
+const [TitleBar, TitleBarKey] =
 	Webpack.getWithKey(byStrings("PlatformTypes", "leading", "trailing")) ||
 	Webpack.getWithKey(byStrings("getPlatform", "leading", "trailing")) ||
 	Webpack.getWithKey(byStrings("leading", "trailing", "windowKey")) ||
@@ -603,100 +603,100 @@ const systemBarClasses = getModule(byKeys("systemBar"));
 const Icons = {
 	XSmallIcon: () =>
 		/* @__PURE__ */ React.createElement(
-			"svg",
-			{
-				"aria-hidden": "true",
-				role: "img",
-				xmlns: "http://www.w3.org/2000/svg",
-				width: "24",
-				height: "24",
-				fill: "none",
-				viewBox: "0 0 24 24",
-			},
+		"svg",
+		{
+			"aria-hidden": "true",
+			role: "img",
+			xmlns: "http://www.w3.org/2000/svg",
+			width: "24",
+			height: "24",
+			fill: "none",
+			viewBox: "0 0 24 24",
+		},
 			/* @__PURE__ */ React.createElement("path", {
-				fill: "var(--interactive-normal)",
-				d: "M17.3 18.7a1 1 0 0 0 1.4-1.4L13.42 12l5.3-5.3a1 1 0 0 0-1.42-1.4L12 10.58l-5.3-5.3a1 1 0 0 0-1.4 1.42L10.58 12l-5.3 5.3a1 1 0 1 0 1.42 1.4L12 13.42l5.3 5.3Z",
-				class: "",
-			}),
-		),
+			fill: "var(--interactive-normal)",
+			d: "M17.3 18.7a1 1 0 0 0 1.4-1.4L13.42 12l5.3-5.3a1 1 0 0 0-1.42-1.4L12 10.58l-5.3-5.3a1 1 0 0 0-1.4 1.42L10.58 12l-5.3 5.3a1 1 0 1 0 1.42 1.4L12 13.42l5.3 5.3Z",
+			class: "",
+		}),
+	),
 	PlusSmallIcon: () =>
 		/* @__PURE__ */ React.createElement(
-			"svg",
-			{
-				"aria-hidden": "true",
-				role: "img",
-				xmlns: "http://www.w3.org/2000/svg",
-				width: "20",
-				height: "20",
-				fill: "none",
-				viewBox: "0 0 24 24",
-			},
+		"svg",
+		{
+			"aria-hidden": "true",
+			role: "img",
+			xmlns: "http://www.w3.org/2000/svg",
+			width: "20",
+			height: "20",
+			fill: "none",
+			viewBox: "0 0 24 24",
+		},
 			/* @__PURE__ */ React.createElement("path", {
-				fill: "var(--interactive-normal)",
-				d: "M13 6a1 1 0 1 0-2 0v5H6a1 1 0 1 0 0 2h5v5a1 1 0 1 0 2 0v-5h5a1 1 0 1 0 0-2h-5V6Z",
-				class: "",
-			}),
-		),
+			fill: "var(--interactive-normal)",
+			d: "M13 6a1 1 0 1 0-2 0v5H6a1 1 0 1 0 0 2h5v5a1 1 0 1 0 2 0v-5h5a1 1 0 1 0 0-2h-5V6Z",
+			class: "",
+		}),
+	),
 	ChevronLargeLeftIcon: () =>
 		/* @__PURE__ */ React.createElement(
-			"svg",
-			{
-				"aria-hidden": "true",
-				role: "img",
-				xmlns: "http://www.w3.org/2000/svg",
-				width: "24",
-				height: "24",
-				fill: "none",
-				viewBox: "0 0 24 24",
-			},
+		"svg",
+		{
+			"aria-hidden": "true",
+			role: "img",
+			xmlns: "http://www.w3.org/2000/svg",
+			width: "24",
+			height: "24",
+			fill: "none",
+			viewBox: "0 0 24 24",
+		},
 			/* @__PURE__ */ React.createElement("path", {
-				fill: "var(--interactive-normal)",
-				d: "M15.7 3.3a1 1 0 0 1 0 1.4L8.42 12l7.3 7.3a1 1 0 0 1-1.42 1.4l-8-8a1 1 0 0 1 0-1.4l8-8a1 1 0 0 1 1.42 0Z",
-			}),
-		),
+			fill: "var(--interactive-normal)",
+			d: "M15.7 3.3a1 1 0 0 1 0 1.4L8.42 12l7.3 7.3a1 1 0 0 1-1.42 1.4l-8-8a1 1 0 0 1 0-1.4l8-8a1 1 0 0 1 1.42 0Z",
+		}),
+	),
 	ChevronLargeRightIcon: () =>
 		/* @__PURE__ */ React.createElement(
-			"svg",
-			{
-				"aria-hidden": "true",
-				role: "img",
-				xmlns: "http://www.w3.org/2000/svg",
-				width: "24",
-				height: "24",
-				fill: "none",
-				viewBox: "0 0 24 24",
-			},
+		"svg",
+		{
+			"aria-hidden": "true",
+			role: "img",
+			xmlns: "http://www.w3.org/2000/svg",
+			width: "24",
+			height: "24",
+			fill: "none",
+			viewBox: "0 0 24 24",
+		},
 			/* @__PURE__ */ React.createElement("path", {
-				fill: "var(--interactive-normal)",
-				d: "M8.3 3.3a1 1 0 0 0 0 1.4l7.29 7.3-7.3 7.3a1 1 0 1 0 1.42 1.4l8-8a1 1 0 0 0 0-1.4l-8-8a1 1 0 0 0-1.42 0Z",
-			}),
-		),
+			fill: "var(--interactive-normal)",
+			d: "M8.3 3.3a1 1 0 0 0 0 1.4l7.29 7.3-7.3 7.3a1 1 0 1 0 1.42 1.4l8-8a1 1 0 0 0 0-1.4l-8-8a1 1 0 0 0-1.42 0Z",
+		}),
+	),
 	ChevronDownIcon: () =>
 		/* @__PURE__ */ React.createElement(
-			"svg",
-			{
-				"aria-hidden": "true",
-				role: "img",
-				xmlns: "http://www.w3.org/2000/svg",
-				width: "24",
-				height: "24",
-				fill: "none",
-				viewBox: "0 0 24 24",
-			},
+		"svg",
+		{
+			"aria-hidden": "true",
+			role: "img",
+			xmlns: "http://www.w3.org/2000/svg",
+			width: "24",
+			height: "24",
+			fill: "none",
+			viewBox: "0 0 24 24",
+		},
 			/* @__PURE__ */ React.createElement("path", {
-				fill: "currentColor",
-				d: "M5.3 9.3a1 1 0 0 1 1.4 0l5.3 5.29 5.3-5.3a1 1 0 1 1 1.4 1.42l-6 6a1 1 0 0 1-1.4 0l-6-6a1 1 0 0 1 0-1.42Z",
-			}),
-		),
+			fill: "currentColor",
+			d: "M5.3 9.3a1 1 0 0 1 1.4 0l5.3 5.29 5.3-5.3a1 1 0 1 1 1.4 1.42l-6 6a1 1 0 0 1-1.4 0l-6-6a1 1 0 0 1 0-1.42Z",
+		}),
+	),
 };
 const Close =
 	Icons?.XSmallIcon ??
 	(() =>
 		/* @__PURE__ */ React.createElement(
-			"div",
-			{ style: StyleManager.inlineStyles.smallIconCenter },
-			"\u2A2F",
-		));
+		"div",
+		{ style: StyleManager.inlineStyles.smallIconCenter },
+		"\u2A2F",
+	));
 const PlusAlt =
 	Icons?.PlusSmallIcon ??
 	(() => /* @__PURE__ */ React.createElement("b", null, "\uFF0B"));
@@ -2212,12 +2212,12 @@ function formatTimeAgo(timestamp) {
 }
 function showClosedTabsModal() {
 	const closedTabs = TopBarRef.current?.state?.closedTabs || [];
-	
+
 	BdApi.UI.showConfirmationModal(
 		"Closed Tabs History",
 		React.createElement("div", { style: StyleManager.inlineStyles.closedTabsContainer },
 			closedTabs.length === 0
-				? React.createElement("div", { style: StyleManager.inlineStyles.closedTabsEmpty }, 
+				? React.createElement("div", { style: StyleManager.inlineStyles.closedTabsEmpty },
 					"No closed tabs in history")
 				: closedTabs.map(tab =>
 					React.createElement("div", {
@@ -2238,9 +2238,9 @@ function showClosedTabsModal() {
 							style: StyleManager.inlineStyles.closedTabIcon
 						}),
 						React.createElement("div", { style: StyleManager.inlineStyles.closedTabInfo },
-							React.createElement("div", { style: StyleManager.inlineStyles.closedTabName }, 
+							React.createElement("div", { style: StyleManager.inlineStyles.closedTabName },
 								tab.name),
-							React.createElement("div", { style: StyleManager.inlineStyles.closedTabMeta }, 
+							React.createElement("div", { style: StyleManager.inlineStyles.closedTabMeta },
 								formatTimeAgo(tab.closedAt) +
 								(tab.history && tab.history.length > 1
 									? ` • ${tab.history.length} pages in history`
@@ -2295,7 +2295,7 @@ const getGuildChannels = (...guildIds) => {
 	} else {
 		channels = [];
 	}
-	
+
 	return channels.filter(
 		(c) =>
 			guildIds.includes(c.guild_id) &&
@@ -2309,14 +2309,14 @@ const updateFavEntry = (fav) => {
 			guildChannelCache.clear();
 			lastCacheClean = Date.now();
 		}
-		
+
 		// Cache raw channels, keep permission/mute checks live
 		let channels = guildChannelCache.get(fav.guildId);
 		if (!channels) {
 			channels = getGuildChannels(fav.guildId);
 			guildChannelCache.set(fav.guildId, channels);
 		}
-		
+
 		const channelIds = channels
 			.filter(
 				(channel) =>
@@ -2387,9 +2387,9 @@ const getCurrentUserStatus = (pathname = location.pathname) => {
 const getChannelTypingTooltipText = (userIds) => {
 	if (userIds) {
 		const usernames = userIds
-		.map((userId) => UserStore.getUser(userId))
-		.filter(Boolean)
-		.map((user) => user.tag);
+			.map((userId) => UserStore.getUser(userId))
+			.filter(Boolean)
+			.map((user) => user.tag);
 		const remainingUserCount = userIds.length - usernames.length;
 		const text = (() => {
 			if (usernames.length === 0) {
@@ -2479,6 +2479,9 @@ const getCurrentIconUrl = (pathname = location.pathname) => {
 		if (gId) {
 			if (cId && gId.startsWith("@")) {
 				const channel = ChannelStore.getChannel(cId);
+				if (!channel) {
+					return DefaultUserIconGrey;
+				}
 				if (channel.isDM()) {
 					const user = UserStore.getUser(channel.getRecipientId());
 					return user ? user.getAvatarURL() : DefaultUserIconGrey;
@@ -2628,9 +2631,9 @@ const CozyTab = (props) => {
 					const showTypingBadge = props.selected
 						? props.showActiveTabTypingBadge
 						: props.showTabTypingBadge;
-					
+
 					if (!showTypingBadge) return null;
-					
+
 					return /* @__PURE__ */ React.createElement(TabTypingBadge, {
 						viewMode: "classic",
 						isTyping: props.hasUsersTyping,
@@ -2645,19 +2648,19 @@ const CozyTab = (props) => {
 					const showBadges = props.selected
 						? props.showActiveTabUnreadBadges
 						: props.showTabUnreadBadges;
-					
+
 					if (!showBadges) return null;
-					
+
 					if (!props.channelId || (ChannelStore.getChannel(props.channelId)?.isPrivate() ?? true)) {
 						return null;
 					}
-					
+
 					const showEmpty = props.selected
 						? props.showEmptyActiveTabBadges
 						: props.showEmptyTabBadges;
-					
+
 					if (!showEmpty && !props.hasUnread) return null;
-					
+
 					return /* @__PURE__ */ React.createElement(TabUnreadBadge, {
 						viewMode: "alt",
 						unreadCount: props.unreadCount,
@@ -2674,15 +2677,15 @@ const CozyTab = (props) => {
 					const showMentionBadges = props.selected
 						? props.showActiveTabMentionBadges
 						: props.showTabMentionBadges;
-					
+
 					if (!showMentionBadges) return null;
-					
+
 					const showEmpty = props.selected
 						? props.showEmptyActiveTabBadges
 						: props.showEmptyTabBadges;
-					
+
 					if (!showEmpty && props.mentionCount === 0) return null;
-					
+
 					return /* @__PURE__ */ React.createElement(TabMentionBadge, {
 						viewMode: "alt",
 						mentionCount: props.mentionCount,
@@ -2723,9 +2726,9 @@ const CompactTab = (props) => {
 			const showTypingBadge = props.selected
 				? props.showActiveTabTypingBadge
 				: props.showTabTypingBadge;
-			
+
 			if (!showTypingBadge) return null;
-			
+
 			return /* @__PURE__ */ React.createElement(
 				React.Fragment,
 				null,
@@ -2740,19 +2743,19 @@ const CompactTab = (props) => {
 			const showUnreadBadges = props.selected
 				? props.showActiveTabUnreadBadges
 				: props.showTabUnreadBadges;
-			
+
 			if (!showUnreadBadges) return null;
-			
+
 			if (!props.channelId || (ChannelStore.getChannel(props.channelId)?.isPrivate() ?? true)) {
 				return null;
 			}
-			
+
 			const showEmpty = props.selected
 				? props.showEmptyActiveTabBadges
 				: props.showEmptyTabBadges;
-			
+
 			if (!showEmpty && !props.hasUnread) return null;
-			
+
 			return /* @__PURE__ */ React.createElement(TabUnreadBadge, {
 				viewMode: "classic",
 				unreadCount: props.unreadCount,
@@ -2765,15 +2768,15 @@ const CompactTab = (props) => {
 			const showMentionBadges = props.selected
 				? props.showActiveTabMentionBadges
 				: props.showTabMentionBadges;
-			
+
 			if (!showMentionBadges) return null;
-			
+
 			const showEmpty = props.selected
 				? props.showEmptyActiveTabBadges
 				: props.showEmptyTabBadges;
-			
+
 			if (!showEmpty && props.mentionCount === 0) return null;
-			
+
 			return /* @__PURE__ */ React.createElement(TabMentionBadge, {
 				viewMode: "classic",
 				mentionCount: props.mentionCount,
@@ -3071,7 +3074,7 @@ const Fav = (props) =>
 			}),
 	),
 		/* @__PURE__ */ React.createElement(FavName, { name: props.name }),
-		(props.showFavUnreadBadges && (props.channelId || props.guildId))
+	(props.showFavUnreadBadges && (props.channelId || props.guildId))
 		? /* @__PURE__ */ React.createElement(
 			React.Fragment,
 			null,
@@ -3079,15 +3082,15 @@ const Fav = (props) =>
 				if (!props.showFavUnreadBadges || (!props.channelId && !props.guildId)) {
 					return null;
 				}
-				
+
 				if (isChannelDM(props.channelId)) {
 					return null;
 				}
-				
+
 				if (!props.showEmptyFavBadges && props.unreadCount === 0) {
 					return null;
 				}
-				
+
 				return /* @__PURE__ */ React.createElement(FavUnreadBadge, {
 					unreadCount: props.unreadCount,
 					unreadEstimated: props.unreadEstimated,
@@ -3096,32 +3099,32 @@ const Fav = (props) =>
 			})(),
 		)
 		: null,
-		(() => {
-			if (!props.showFavMentionBadges || (!props.channelId && !props.guildId)) {
-				return null;
-			}
-			
-			if (!props.showEmptyFavBadges && props.mentionCount === 0) {
-				return null;
-			}
-			
-			return /* @__PURE__ */ React.createElement(FavMentionBadge, {
-				mentionCount: props.mentionCount,
-			});
-		})(),
-		(() => {
-			if (!props.showFavMentionBadges || (!props.channelId && !props.guildId)) {
-				return null;
-			}
-			
-			if (!props.showEmptyFavBadges && props.mentionCount === 0) {
-				return null;
-			}
-			
-			return /* @__PURE__ */ React.createElement(FavMentionBadge, {
-				mentionCount: props.mentionCount,
-			});
-		})(),
+	(() => {
+		if (!props.showFavMentionBadges || (!props.channelId && !props.guildId)) {
+			return null;
+		}
+
+		if (!props.showEmptyFavBadges && props.mentionCount === 0) {
+			return null;
+		}
+
+		return /* @__PURE__ */ React.createElement(FavMentionBadge, {
+			mentionCount: props.mentionCount,
+		});
+	})(),
+	(() => {
+		if (!props.showFavMentionBadges || (!props.channelId && !props.guildId)) {
+			return null;
+		}
+
+		if (!props.showEmptyFavBadges && props.mentionCount === 0) {
+			return null;
+		}
+
+		return /* @__PURE__ */ React.createElement(FavMentionBadge, {
+			mentionCount: props.mentionCount,
+		});
+	})(),
 );
 const NewTab = (props) =>
 	/* @__PURE__ */ React.createElement(
@@ -3156,7 +3159,7 @@ const NoFavItemsPlaceholder = (props) =>
 const FavItems = (props) => {
 	const isDefault = props.group === null;
 	return props.favs
-	.filter(Boolean)
+		.filter(Boolean)
 		.map((fav, favIndex) => {
 			const canCreate = isDefault
 				? fav.groupId === -1
@@ -3321,7 +3324,7 @@ const FavFolders = (props) => {
 					let mentionCount = 0;
 					let isTyping = false;
 					props.favs
-					.filter(Boolean)
+						.filter(Boolean)
 					for (const fav of props.favs) {
 						if (fav && fav.groupId === favGroup.groupId) {
 							const hasUnreads = isChannelDM(fav.channelId);
@@ -3399,7 +3402,7 @@ function HorizontalScroll(props) {
 	const targetRef = React.useRef(0);
 	const lastRef = React.useRef(performance.now());
 	const resetLastRef = React.useRef(false);
-	
+
 	function update() {
 		if (!container.current) return;
 		const now = performance.now();
@@ -3992,15 +3995,15 @@ const TopBar = class TopBar2 extends React.Component {
 		const currentTab = this.state.tabs[this.state.selectedTabIndex];
 		const newHistoryIndex = currentTab.historyIndex - 1;
 		const targetUrl = currentTab.history[newHistoryIndex];
-		
+
 		this.isHistoryNavigation = true;
 		switching = true;
 		NavigationUtils.transitionTo(targetUrl);
 		setTimeout(() => {
 			if (!TopBarRef.current) return;
-			
+
 			const channelId = SelectedChannelStore.getChannelId();
-			
+
 			this.setState({
 				tabs: this.state.tabs.map((tab, index) => {
 					if (index === this.state.selectedTabIndex) {
@@ -4019,7 +4022,7 @@ const TopBar = class TopBar2 extends React.Component {
 				this.isHistoryNavigation = false;
 				this.props.plugin.saveSettings();
 			});
-			
+
 			switching = false;
 		}, 0);
 	}
@@ -4028,15 +4031,15 @@ const TopBar = class TopBar2 extends React.Component {
 		const currentTab = this.state.tabs[this.state.selectedTabIndex];
 		const newHistoryIndex = currentTab.historyIndex + 1;
 		const targetUrl = currentTab.history[newHistoryIndex];
-		
+
 		this.isHistoryNavigation = true;
 		switching = true;
 		NavigationUtils.transitionTo(targetUrl);
 		setTimeout(() => {
 			if (!TopBarRef.current) return;
-			
+
 			const channelId = SelectedChannelStore.getChannelId();
-			
+
 			this.setState({
 				tabs: this.state.tabs.map((tab, index) => {
 					if (index === this.state.selectedTabIndex) {
@@ -4055,7 +4058,7 @@ const TopBar = class TopBar2 extends React.Component {
 				this.isHistoryNavigation = false;
 				this.props.plugin.saveSettings();
 			});
-			
+
 			switching = false;
 		}, 0);
 	}
@@ -4319,7 +4322,8 @@ const TopBar = class TopBar2 extends React.Component {
 	openTabInNewTab(tab) {
 		this.setState(
 			{
-				tabs: [...this.state.tabs, { ...tab,
+				tabs: [...this.state.tabs, {
+					...tab,
 					selected: false,
 					history: tab.history ? [...tab.history] : [tab.url],
 					historyIndex: tab.historyIndex || 0
@@ -4810,8 +4814,8 @@ module.exports = class ChannelTabs {
 								channelId,
 								minimized:
 									this.settings.tabs[
-									this.settings.tabs.findIndex((tab2) => tab2.selected)
-								].minimized,
+										this.settings.tabs.findIndex((tab2) => tab2.selected)
+									].minimized,
 								history: newHistory,
 								historyIndex: newHistoryIndex
 							};
@@ -4839,10 +4843,10 @@ module.exports = class ChannelTabs {
 				selected: true,
 				currentStatus: getCurrentUserStatus(location.pathname),
 				channelId,
-					minimized:
-						this.settings.tabs[
-					this.settings.tabs.findIndex((tab) => tab.selected)
-				].minimized,
+				minimized:
+					this.settings.tabs[
+						this.settings.tabs.findIndex((tab) => tab.selected)
+					].minimized,
 			};
 		}
 	}
