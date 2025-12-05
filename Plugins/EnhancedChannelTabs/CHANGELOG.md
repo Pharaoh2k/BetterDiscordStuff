@@ -1,5 +1,33 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+## 4.0.0
+- Architecture & Persistence
+  - Rebuilt around `TabStateStore` + `TabActions` (hook-driven `HookedTopBar`/`useStateFromStores`) instead of `TopBarRef`/Flux.
+  - Tabs/favs/groups now get stable IDs (`generateTabId`/`ensureTabId`) and enforced history indices; sync helpers (`syncStoreFromSettings`/`syncSettingsFromStore`) keep store/config aligned.
+  - Settings writes are debounced; legacy WScript self-installer removed.
+- Drag & Drop / Organization
+  - Added React-DnD for tabs/favs/groups with before/after/inside drop targets, hover detection, and drag opacity states.
+  - Nested favorite groups: move favs between groups, reorder groups, reparent with cycle protection (`isDescendantGroup`).
+  - New tab→fav flows (`addTabAsFavAt`, `addTabAsFavInGroup`) to drop tabs directly into bar or groups.
+- Visuals & UX
+  - New “Folder Drop Feedback” setting (`folderDropStyle`) with Accent Glow, Underline Sweep, Slot Highlight, Icon Pulse, Gradient Edge and matching CSS/drop indicators (`channelTabs-drop-before/after/inside`, `channelTabs-dragging`).
+  - Tab list dropdown rebuilt with real tab items (live badges, minimize, middle-click close) and full tab context menus.
+  - Badges now come from hooks (`useTabIndicators`, `useFavIndicators`, `useFavGroupIndicators`) using unread/mention/typing/presence stores; added closed-tab list styling, app-region no-drag fixes, system bar height support, improved badge alignment.
+- Context Menus & Controls
+  - All tab/fav/group/tab-list menus route through `TabActions` (switch/move/minimize/open-in-new-tab/move-to-group, etc.).
+  - Navigation buttons, quick settings, layout toggles now operate via the store to keep selection/history consistent.
+- Closed Tabs & History
+  - Closed tabs get unique IDs/timestamps; reopen honors “always focus new tabs”.
+  - History navigation uses stored `historyIndex` with clamping and `TabActions.isHistoryNavigation` guards to avoid duplicate pushes.
+- Settings Changes
+  - New `folderDropStyle` setting; favorite group empty-badge toggle normalized to `showEmptyFavGroupBadges` (replaces `showEmptyGroupFavBadges`).
+  - All switches/sliders are synced via `STORE_SETTING_KEYS` into `TabStateStore` to keep UI and persisted settings aligned.
+- Update Flow
+  - Updater now prefers `BdApi.UI.showNotification` (with actions) and falls back to `showNotice`; stop closes notifications cleanly.
+- Safety & Fallbacks
+  - `warnModule` lookups for NavigationUtils, PermissionUtils, IconUtilities, UserStatusStore, UserTypingStore, Spinner, DragSource/DropTarget to avoid hard crashes on Discord changes.
+  - `ensureGroupParent` normalizes parent IDs to prevent orphan/cyclic favorite groups.
+
 ## 3.1.3
 - A minor adjustment
 
