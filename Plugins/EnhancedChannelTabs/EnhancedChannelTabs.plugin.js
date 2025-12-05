@@ -5436,8 +5436,8 @@ module.exports = class ChannelTabs {
 							note: "Choose how tabs are displayed. Use Ctrl+Mouse Wheel on tabs to toggle quickly.",
 							value: this.settings.tabLayoutMode || "single",
 							options: [
-								{ label: "Single row (horizontal scroll)", value: "single" },
-								{ label: "Multi-row (unlimited rows)", value: "multi" }
+								{ label: "Single row (horizontal scroll)", name: "Single row (horizontal scroll)", value: "single" },
+								{ label: "Multi-row (unlimited rows)", name: "Multi-row (unlimited rows)", value: "multi" }
 							],
 							onChange: (value) => {
 								this.updateSettings(
