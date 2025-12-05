@@ -61,7 +61,7 @@ class UpdateManager {
 	}
 	async start(autoUpdate = true) {
 		if (autoUpdate) {
-			this.check(true);
+			setTimeout(() => this.check(true), 15000);
 			this.timer = setInterval(() => this.check(true), 24 * 60 * 60 * 1000);
 		}
 		this.showChangelog();
@@ -95,7 +95,7 @@ class UpdateManager {
 			title: `${this.name}`,
 			content: `v${version} is available`,
 			type: "info",
-			duration: 0,
+			duration: 60000,
 			actions: [
 				{
 					label: "Update",
