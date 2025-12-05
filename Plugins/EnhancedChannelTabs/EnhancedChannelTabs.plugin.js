@@ -3560,6 +3560,10 @@ const BaseTab = (props) => {
 			},
 			onContextMenu: (e) => {
 				CreateTabContextMenu(props, e);
+			},
+			onDoubleClick: (e) => {
+				e.preventDefault();
+				e.stopPropagation();
 			}
 		},
 		props.compactStyle ? CompactTab(props) : CozyTab(props),
@@ -3845,6 +3849,10 @@ const BaseFav = (props) => {
 			},
 			onContextMenu: (e) => {
 				CreateFavContextMenu(props, e);
+			},
+			onDoubleClick: (e) => {
+				e.preventDefault();
+				e.stopPropagation();
 			}
 		},
 		/* @__PURE__ */ React.createElement(
@@ -4196,6 +4204,10 @@ function BaseFavFolder(props) {
 				(isOver && canDrop && !draggedIsMe && localDropPosition === 'inside' ? " channelTabs-drop-inside" : ""),
 			onContextMenu: (e) => {
 				CreateFavGroupContextMenu(props, e);
+			},
+			onDoubleClick: (e) => {
+				e.preventDefault();
+				e.stopPropagation();
 			}
 		},
 		/* @__PURE__ */ React.createElement(
@@ -4209,6 +4221,10 @@ function BaseFavFolder(props) {
 					if (!isRootGroup) {
 						context.openGroup?.(props.favGroup.groupId);
 					}
+				},
+				onDoubleClick: (e) => {
+					e.preventDefault();
+					e.stopPropagation();
 				},
 			},
 		/* @__PURE__ */ React.createElement(
@@ -4571,6 +4587,10 @@ const TabBar = React.forwardRef((props, ref) => {
 			className: "channelTabs-tabContainer",
 			"data-tab-count": props.tabs.length,
 			"data-multiline": isMultiRow,
+			onDoubleClick: (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+			},
 		},
 		props.leading,
 		/* @__PURE__ */ React.createElement(
@@ -4596,6 +4616,10 @@ const TabBar = React.forwardRef((props, ref) => {
 							? props.previousTab()
 							: NavShortcuts.NAVIGATE_BACK.action();
 					},
+					onDoubleClick: (e) => {
+						e.preventDefault();
+						e.stopPropagation();
+					},
 				},
 				/* @__PURE__ */ React.createElement(LeftCaret, null),
 			),
@@ -4618,6 +4642,10 @@ const TabBar = React.forwardRef((props, ref) => {
 						props.useStandardNav
 							? props.nextTab()
 							: NavShortcuts.NAVIGATE_FORWARD.action();
+					},
+					onDoubleClick: (e) => {
+						e.preventDefault();
+						e.stopPropagation();
 					},
 				},
 				/* @__PURE__ */ React.createElement(RightCaret, null),
@@ -4672,6 +4700,10 @@ const FavBar = (props) =>
 			onContextMenu: (e) => {
 				CreateFavBarContextMenu(props, e);
 			},
+			onDoubleClick: (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+			},
 		},
 		props.leading,
 			/* @__PURE__ */ React.createElement(FavFolders, { ...props }),
@@ -4680,7 +4712,14 @@ const FavBar = (props) =>
 			: /* @__PURE__ */ React.createElement(NoFavItemsPlaceholder, null),
 			/* @__PURE__ */ React.createElement(
 				"div",
-				{ className: "channelTabs-newTab", onClick: () => props.addFavGroup() },
+				{
+					className: "channelTabs-newTab",
+					onClick: () => props.addFavGroup(),
+					onDoubleClick: (e) => {
+						e.preventDefault();
+						e.stopPropagation();
+					},
+				},
 				/* @__PURE__ */ React.createElement(PlusAlt, null),
 			),
 		props.trailing,
