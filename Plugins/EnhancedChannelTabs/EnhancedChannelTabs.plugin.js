@@ -7,38 +7,30 @@
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
  */
 // SPDX-License-Identifier: GPL-3.0-only AND MIT
-
 /*
   Copyright (C) 2025 Pharaoh2k
   This file is part of EnhancedChannelTabs and is licensed under the
   GNU General Public License version 3 only.
-
   This program is free software: you can redistribute it and/or modify it
   under the terms of the GNU General Public License as published by the
   Free Software Foundation, version 3.
-
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
-
   You should have received a copy of the GNU General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-
 /* ---- Upstream MIT notice ----
 Copyright (c) 2023-2025 samfundev, 2023 l0c4lh057, 2020-2023 CarJem Generations
-
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
-
 The above copyright notice and this permission notice shall be included in
 all copies or substantial portions of the Software.
-
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -233,27 +225,22 @@ class UpdateManager {
 		return false;
 	}
 }
-
 class StyleManager {
-
 	static getCompactVariables() {
 		return `
 			:root { --channelTabs-tabHeight: 22px; --channelTabs-favHeight: 22px; --channelTabs-tabNameFontSize: 12px; --channelTabs-openTabSize: 18px; }
 		`;
 	}
-
 	static getCozyVariables() {
 		return `
 			:root { --channelTabs-tabHeight: 32px; --channelTabs-favHeight: 28px; --channelTabs-tabNameFontSize: 13px; --channelTabs-openTabSize: 24px; }
 		`;
 	}
-
 	static getConstantVariables(tabWidthMin) {
 		return `
 			:root { --channelTabs-tabWidth: 220px; --channelTabs-tabWidthMin: ${tabWidthMin}px; }
 		`;
 	}
-
 	static getPrivacyStyle() {
 		return `
 			#app-mount .channelTabs-favGroupBtn { color: transparent !important; }
@@ -262,7 +249,6 @@ class StyleManager {
 			#app-mount .channelTabs-favName { color: transparent; background-color: var(--interactive-normal); opacity: 0.5; }
 		`;
 	}
-
 	static getRadialStatusStyle() {
 		return `
 			.channelTabs-tabIconWrapper,
@@ -277,7 +263,6 @@ class StyleManager {
 			.channelTabs-offlineIcon { stroke: hsl(214, calc(var(--saturation-factor, 1) * 9.9%), 50.4%); }
 		`;
 	}
-
 	static getTabNavStyle() {
 		return `
 			.channelTabs-tabContainer .channelTabs-tabNav { display:flex; margin: 0 6px 3px 0; }
@@ -290,7 +275,6 @@ class StyleManager {
 			.channelTabs-tabNav>div { display: flex; align-items: center; justify-content: center; height: var(--channelTabs-tabHeight); width: 32px; border-radius: 4px; margin-right: 3px; color: var(--interactive-normal); }
 		`;
 	}
-
 	static getBaseStyle(noDragClasses, systemBarClasses) {
 		return `
 			.channelTabs-input .bd-text-input { border: 1px solid var(--input-border); width: 100%; }
@@ -315,15 +299,7 @@ class StyleManager {
 			.channelTabs-tab.channelTabs-mention:not(.channelTabs-selected):hover { color: var(--interactive-active); }
 			.channelTabs-dragging { opacity: 0.5; }
 			.channelTabs-drop-before::before,
-			.channelTabs-drop-after::before {
-				content: "";
-				position: absolute;
-				top: 0;
-				bottom: 0;
-				width: 2px;
-				background-color: #3ba55c;
-				z-index: 10;
-			}
+			.channelTabs-drop-after::before { content: ""; position: absolute; top: 0; bottom: 0; width: 2px; background-color: #3ba55c; z-index: 10; }
 			.channelTabs-drop-before::before { left: 0; }
 			.channelTabs-drop-after::before { right: 0; }
 			html:not(.platform-win) #channelTabs-settingsMenu { margin-right: 0; }
@@ -410,7 +386,6 @@ class StyleManager {
 			.channelTabs-closedTabItem:hover { background-color: var(--background-modifier-hover); }
 		`;
 	}
-
 	static getMultiRowStyles() {
 		return `
 			.channelTabs-tabContainer[data-multiline="true"] .channelTabs-tabWrap { display: flex !important; flex-wrap: wrap !important; align-content: flex-start; row-gap: var(--channelTabs-rowGap, 3px); column-gap: 0; overflow: visible !important; transition: all 0.3s ease; contain: layout paint; }
@@ -421,7 +396,6 @@ class StyleManager {
 			.channelTabs-tabContainer { transition: all 0.3s ease; }
 		`;
 	}
-
 	static inlineStyles = {
 		tabListMenuItem: { display: "flex", alignItems: "center", width: "100%", minHeight: "26px", cursor: "pointer", position: "relative", zIndex: 1000 },
 		tabListMenuIcon: { width: "18px", height: "18px", marginRight: "10px", borderRadius: "50%", flexShrink: 0 },
@@ -445,7 +419,6 @@ class StyleManager {
 		menuItem: { pointerEvents: "auto", position: "relative", zIndex: "1" },
 		typingBadgeAlignment: { opacity: 0.7 }
 	};
-
 	static getTabListMenuStyle() {
 		return `
 			[id^="popout_"] [role="menu"] { min-width: 300px !important; max-width: 420px !important; }
@@ -454,14 +427,12 @@ class StyleManager {
 			.channelTabs-tabListMenuItem:hover { background-color: var(--background-modifier-hover); border-radius: 3px; }
 		`;
 	}
-
 	static getTabListMenuNameStyle(isSelected) {
 		return {
 			...this.inlineStyles.tabListMenuName,
 			fontWeight: isSelected ? "700" : "normal"
 		};
 	}
-
 	static getDropdownMenuPosition(buttonRect) {
 		return {
 			...this.inlineStyles.dropdownMenu,
@@ -471,7 +442,6 @@ class StyleManager {
 		};
 	}
 }
-
 let pluginMeta;
 const { ContextMenu, Patcher, Webpack, React, DOM, ReactUtils, UI, Hooks, Utils } = new BdApi(
 	"ChannelTabs",
@@ -786,14 +756,12 @@ const TabActions = (() => {
 		const currentTab = state.tabs[state.selectedTabIndex];
 		const newHistoryIndex = currentTab.historyIndex - 1;
 		const targetUrl = currentTab.history[newHistoryIndex];
-
 		historyNavigation = true;
 		switching = true;
 		NavigationUtils.transitionTo(targetUrl);
 		setTimeout(() => {
 			const channelId = SelectedChannelStore.getChannelId();
 			const latest = TabStateStore.getState();
-
 			updateTabs((tabs) => ({
 				tabs: tabs.map((tab, index) => {
 					if (index === latest.selectedTabIndex) {
@@ -810,7 +778,6 @@ const TabActions = (() => {
 					return tab;
 				}),
 			}));
-
 			historyNavigation = false;
 			persistState();
 			switching = false;
@@ -822,14 +789,12 @@ const TabActions = (() => {
 		const currentTab = state.tabs[state.selectedTabIndex];
 		const newHistoryIndex = currentTab.historyIndex + 1;
 		const targetUrl = currentTab.history[newHistoryIndex];
-
 		historyNavigation = true;
 		switching = true;
 		NavigationUtils.transitionTo(targetUrl);
 		setTimeout(() => {
 			const channelId = SelectedChannelStore.getChannelId();
 			const latest = TabStateStore.getState();
-
 			updateTabs((tabs) => ({
 				tabs: tabs.map((tab, index) => {
 					if (index === latest.selectedTabIndex) {
@@ -846,7 +811,6 @@ const TabActions = (() => {
 					return tab;
 				}),
 			}));
-
 			historyNavigation = false;
 			persistState();
 			switching = false;
@@ -899,7 +863,6 @@ const TabActions = (() => {
 		if (existingFav) {
 			return;
 		}
-
 		const groupId = -1;
 		updateFavs((favsState) => [...favsState, { name, url, channelId, guildId, groupId }]);
 		persistState();
@@ -918,19 +881,16 @@ const TabActions = (() => {
 		debugLog("addTabAsFavAt", { tab, toIndex });
 		const urlParts = tab.url.split("/");
 		const guildId = urlParts.length > 2 ? urlParts[2] : null;
-
 		let tabBaseUrl = tab.url;
 		if (guildId && tab.url.endsWith(`/${guildId}`)) {
 			tabBaseUrl = tab.url.slice(0, -(guildId.length + 1));
 		}
-
 		const existingFav = TabStateStore.getState().favs.find((fav) => {
 			return fav && fav.url === tabBaseUrl;
 		});
 		if (existingFav) {
 			return;
 		}
-
 		const newFav = {
 			name: tab.name,
 			url: tabBaseUrl,
@@ -938,7 +898,6 @@ const TabActions = (() => {
 			guildId: guildId,
 			groupId: -1,
 		};
-
 		updateFavs((favsState) => {
 			const favsNext = [...favsState];
 			favsNext.splice(toIndex, 0, newFav);
@@ -1182,7 +1141,6 @@ const TabActions = (() => {
 	};
 	const openFavAsTabAt = (fav, toIndex) => {
 		const url = fav.url + (fav.guildId ? `/${fav.guildId}` : "");
-
 		const newTab = {
 			id: generateTabId(),
 			url,
@@ -1193,7 +1151,6 @@ const TabActions = (() => {
 			history: [url],
 			historyIndex: 0
 		};
-
 		updateTabs((tabs) => {
 			const tabsNext = [...tabs];
 			tabsNext.splice(toIndex, 0, newTab);
@@ -1426,8 +1383,26 @@ const DiscordConstants = {
 		"DiscordConstants.ChannelTypes",
 	),
 };
-const DragSource = getModule(m => typeof m === "function" && m.toString().includes("react-dnd.github.io/react-dnd/docs/api/drag-source"), { searchExports: true }) ?? getModule(m => typeof m === "function" && m.toString().includes("type, spec, collect[, options]"), { searchExports: true }) ?? getModule(Filters.byStrings("DecoratedComponent", "createHandler", "registerHandler"), { searchExports: true }) ?? getModule(m => typeof m === "function" && m.toString().includes("DragSource") && m.toString().includes("containerDisplayName"), { searchExports: true });
-const DropTarget = getModule(m => typeof m === "function" && m.toString().includes("react-dnd.github.io/react-dnd/docs/api/drop-target"), { searchExports: true }) ?? getModule(m => typeof m === "function" && m.toString().includes("an array of strings, or a function that returns either"), { searchExports: true }) ?? getModule(m => typeof m === "function" && m.toString().includes("DropTarget") && m.toString().includes("containerDisplayName"), { searchExports: true }) ?? getModule(m => typeof m === "function" && m.toString().includes("type, spec, collect[, options]") && m.toString().includes("DropTarget"), { searchExports: true }) ?? getModule(Filters.byStrings("createMonitor", "createConnector", "DropTarget"), { searchExports: true });
+const DragSource = getModule(m => typeof m === "function" && m.toString().includes("react-dnd.github.io/react-dnd/docs/api/drag-source"), {
+    searchExports: true
+}) ?? getModule(m => typeof m === "function" && m.toString().includes("type, spec, collect[, options]"), {
+    searchExports: true
+}) ?? getModule(Filters.byStrings("DecoratedComponent", "createHandler", "registerHandler"), {
+    searchExports: true
+}) ?? getModule(m => typeof m === "function" && m.toString().includes("DragSource") && m.toString().includes("containerDisplayName"), {
+    searchExports: true
+});
+const DropTarget = getModule(m => typeof m === "function" && m.toString().includes("react-dnd.github.io/react-dnd/docs/api/drop-target"), {
+    searchExports: true
+}) ?? getModule(m => typeof m === "function" && m.toString().includes("an array of strings, or a function that returns either"), {
+    searchExports: true
+}) ?? getModule(m => typeof m === "function" && m.toString().includes("DropTarget") && m.toString().includes("containerDisplayName"), {
+    searchExports: true
+}) ?? getModule(m => typeof m === "function" && m.toString().includes("type, spec, collect[, options]") && m.toString().includes("DropTarget"), {
+    searchExports: true
+}) ?? getModule(Filters.byStrings("createMonitor", "createConnector", "DropTarget"), {
+    searchExports: true
+});
 if (!DragSource) console.error("[ChannelTabs] DragSource module not found! Drag and drop will not work.");
 if (!DropTarget) console.error("[ChannelTabs] DropTarget module not found! Drag and drop will not work.");
 const Textbox = (props) =>
@@ -1475,9 +1450,7 @@ const [TitleBar, TitleBarKey] =
 	Webpack.getWithKey(byStrings("leading", "trailing", "windowKey")) ||
 	Webpack.getWithKey(byStrings("windowKey", "onDoubleClick", "leading")) ||
 	[null, null];
-
 if (!TitleBar) missingModule({ name: "TitleBar", fatal: true });
-
 const IconUtilities = warnModule(
 	bulkModules.IconUtilities,
 	"IconUtilities",
@@ -1693,25 +1666,21 @@ function collect(connect, monitor, props) {
 		dropRef: connect.dropTarget()
 	};
 }
-
 function makeDraggable(type) {
 	return DragSource(type, { beginDrag: (a) => a }, (connect, monitor) => ({
 		isDragging: !!monitor.isDragging(),
 		dragRef: connect.dragSource()
 	}));
 }
-
 function makeDroppable(types, drop, hover) {
 	return DropTarget(types, { drop, hover }, collect);
 }
-
 const DragContext = React.createContext({
 	openPath: [],
 	toggleGroup: () => { },
 	openGroup: () => { },
 	closeAll: () => { }
 });
-
 const buildGroupPath = (favGroups, groupId) => {
 	if (!Array.isArray(favGroups)) return [];
 	const byId = new Map(favGroups.map((g) => [g.groupId, ensureGroupParent(g)]));
@@ -1727,14 +1696,11 @@ const buildGroupPath = (favGroups, groupId) => {
 	}
 	return path;
 };
-
 function DragProvider({ children }) {
 	const [openPath, setOpenPath] = React.useState([]);
-
 	const closeAll = React.useCallback(() => {
 		setOpenPath([]);
 	}, []);
-
 	const toggleGroup = React.useCallback((groupId) => {
 		setOpenPath((prev) => {
 			const groups = (TabStateStore.getState().favGroups || []).map(ensureGroupParent);
@@ -1747,30 +1713,25 @@ function DragProvider({ children }) {
 			return path;
 		});
 	}, []);
-
 	const openGroup = React.useCallback((groupId) => {
 		const groups = (TabStateStore.getState().favGroups || []).map(ensureGroupParent);
 		const path = buildGroupPath(groups, groupId);
 		if (path.length) setOpenPath(path);
 	}, []);
-
 	React.useEffect(() => {
 		closeAllDropdownsRef = closeAll;
 		return () => {
 			closeAllDropdownsRef = null;
 		};
 	}, [closeAll]);
-
 	const value = React.useMemo(() => ({
 		openPath,
 		toggleGroup,
 		openGroup,
 		closeAll
 	}), [openPath, toggleGroup, openGroup, closeAll]);
-
 	return React.createElement(DragContext.Provider, { value }, children);
 }
-
 function CreateGuildContextMenuChildren(instance, props, channel) {
 	return ContextMenu.buildMenuChildren([
 		{
@@ -2299,31 +2260,31 @@ function CreateTabListContextMenu(props, e) {
 			id: `tab-${index}`,
 			render: () =>
 				/* @__PURE__ */ React.createElement(TabListMenuItem, {
-					...tab,
-					tabIndex: index,
-					tabCount,
-					switchToTab: props.switchToTab,
-					scrollToTab: props.scrollToTab,
-					closeTab: props.closeTab,
-					moveLeft: () =>
-						props.move(index, (index + tabCount - 1) % tabCount),
-					moveRight: () => props.move(index, (index + 1) % tabCount),
-					moveTab: props.move,
-					addToFavs: props.addToFavs,
-					minimizeTab: props.minimizeTab,
-					openInNewTab: () => props.openInNewTab(tab),
-					openFavAsTabAt: props.openFavAsTabAt,
-					showTabUnreadBadges: props.showTabUnreadBadges,
-					showTabMentionBadges: props.showTabMentionBadges,
-					showTabTypingBadge: props.showTabTypingBadge,
-					showEmptyTabBadges: props.showEmptyTabBadges,
-					showActiveTabUnreadBadges: props.showActiveTabUnreadBadges,
-					showActiveTabMentionBadges: props.showActiveTabMentionBadges,
-					showActiveTabTypingBadge: props.showActiveTabTypingBadge,
-					showEmptyActiveTabBadges: props.showEmptyActiveTabBadges,
-					compactStyle: props.compactStyle,
-					closeMenu,
-				}),
+				...tab,
+				tabIndex: index,
+				tabCount,
+				switchToTab: props.switchToTab,
+				scrollToTab: props.scrollToTab,
+				closeTab: props.closeTab,
+				moveLeft: () =>
+					props.move(index, (index + tabCount - 1) % tabCount),
+				moveRight: () => props.move(index, (index + 1) % tabCount),
+				moveTab: props.move,
+				addToFavs: props.addToFavs,
+				minimizeTab: props.minimizeTab,
+				openInNewTab: () => props.openInNewTab(tab),
+				openFavAsTabAt: props.openFavAsTabAt,
+				showTabUnreadBadges: props.showTabUnreadBadges,
+				showTabMentionBadges: props.showTabMentionBadges,
+				showTabTypingBadge: props.showTabTypingBadge,
+				showEmptyTabBadges: props.showEmptyTabBadges,
+				showActiveTabUnreadBadges: props.showActiveTabUnreadBadges,
+				showActiveTabMentionBadges: props.showActiveTabMentionBadges,
+				showActiveTabTypingBadge: props.showActiveTabTypingBadge,
+				showEmptyActiveTabBadges: props.showEmptyActiveTabBadges,
+				compactStyle: props.compactStyle,
+				closeMenu,
+			}),
 		};
 	});
 	const buttonRect = e.currentTarget.getBoundingClientRect();
@@ -2367,14 +2328,12 @@ function CreateTabListContextMenu(props, e) {
 		}
 	);
 	requestAnimationFrame(() => {
-
 		const menu = document.querySelector('[role="menu"]');
 		if (menu && menu.style) {
 			Object.assign(menu.style, StyleManager.getDropdownMenuPosition(buttonRect));
 		}
 	});
 }
-
 function CreateSettingsContextMenu(instance, e) {
 	ContextMenu.open(
 		e,
@@ -2893,7 +2852,6 @@ function formatTimeAgo(timestamp) {
 }
 function showClosedTabsModal() {
 	const closedTabs = TabStateStore.getState().closedTabs || [];
-
 	BdApi.UI.showConfirmationModal(
 		"Closed Tabs History",
 		React.createElement("div", { style: StyleManager.inlineStyles.closedTabsContainer },
@@ -2943,9 +2901,7 @@ function showClosedTabsModal() {
 		}
 	);
 }
-
 let closeAllDropdownsRef = null;
-
 const closeAllDropdowns = () => {
 	if (closeAllDropdownsRef) {
 		closeAllDropdownsRef();
@@ -2955,7 +2911,6 @@ const useDragOverPosition = (getNode, deps, setLocalDropPosition) =>
 	React.useEffect(() => {
 		const node = getNode();
 		if (!node) return;
-
 		const handleDragOver = (e) => {
 			e.preventDefault();
 			const rect = node.getBoundingClientRect();
@@ -2967,7 +2922,6 @@ const useDragOverPosition = (getNode, deps, setLocalDropPosition) =>
 			else if (ratio > 0.75) newPosition = "after";
 			setLocalDropPosition(newPosition);
 		};
-
 		node.addEventListener("dragover", handleDragOver);
 		return () => node.removeEventListener("dragover", handleDragOver);
 	}, deps);
@@ -2985,7 +2939,6 @@ const getGuildChannels = (...guildIds) => {
 	} else {
 		channels = [];
 	}
-
 	return channels.filter(
 		(c) =>
 			guildIds.includes(c.guild_id) &&
@@ -2999,14 +2952,11 @@ const updateFavEntry = (fav) => {
 			guildChannelCache.clear();
 			lastCacheClean = Date.now();
 		}
-
-
 		let channels = guildChannelCache.get(fav.guildId);
 		if (!channels) {
 			channels = getGuildChannels(fav.guildId);
 			guildChannelCache.set(fav.guildId, channels);
 		}
-
 		const channelIds = channels
 			.filter(
 				(channel) =>
@@ -3282,7 +3232,6 @@ const GetTabStyles = (viewMode, item) => {
 	}
 	return "";
 };
-
 const TabIcon = (props) =>
 	/* @__PURE__ */ React.createElement("img", {
 	className: "channelTabs-tabIcon",
@@ -3489,22 +3438,14 @@ const CompactTab = (props) => {
 		renderTabMentionBadge(props, "classic"),
 	);
 };
-
 const BaseTab = (props) => {
-
 	const { isDragging, dragRef, isOver, canDrop, dropRef, draggedIsMe } = props;
-
-
 	const [localDropPosition, setLocalDropPosition] = React.useState(null);
-
-
 	useDragOverPosition(
 		() => tabNodeRefs.get(props.url),
 		[props.url],
 		setLocalDropPosition,
 	);
-
-
 	const combinedRef = React.useCallback((node) => {
 		dragRef(node);
 		dropRef(node);
@@ -3514,7 +3455,6 @@ const BaseTab = (props) => {
 			tabNodeRefs.delete(props.url);
 		}
 	}, [dragRef, dropRef, props.url]);
-
 	return /* @__PURE__ */ React.createElement(
 		"div",
 		{
@@ -3573,63 +3513,42 @@ const BaseTab = (props) => {
 		}),
 	);
 };
-
-
 const DroppableTab = makeDroppable(
 	[DNDTypes.TAB, DNDTypes.FAVORITE],
-
 	(props, monitor) => {
 		const dropped = monitor.getItem();
 		const itemType = monitor.getItemType();
-
 		if (props.url === dropped.url) {
 			return;
 		}
-
-
 		const hoverBoundingRect = monitor.getClientOffset();
 		const targetNode = tabNodeRefs.get(props.url);
 		const componentRect = targetNode ? targetNode.getBoundingClientRect() : null;
-
-
 		let insertBefore = false;
 		if (hoverBoundingRect && componentRect) {
 			const hoverMiddleX = (componentRect.right - componentRect.left) / 2;
 			const hoverClientX = hoverBoundingRect.x - componentRect.left;
 			insertBefore = hoverClientX < hoverMiddleX;
 		}
-
 		let toIndex = insertBefore ? props.tabIndex : props.tabIndex + 1;
-
-
 		if (itemType === DNDTypes.TAB) {
-
 			if (!hoverBoundingRect || !componentRect) {
-
 				toIndex = props.tabIndex + 1;
 				if (dropped.tabIndex < toIndex) toIndex -= 1;
 				props.moveTab(dropped.tabIndex, toIndex);
 				return;
 			}
-
-
 			if (dropped.tabIndex < toIndex) {
 				toIndex -= 1;
 			}
-
 			props.moveTab(dropped.tabIndex, toIndex);
 		} else if (itemType === DNDTypes.FAVORITE) {
-
 			props.openFavAsTabAt(dropped, toIndex);
 		}
 	},
-
 	() => { }
 )(BaseTab);
-
 const DraggableDroppableTab = makeDraggable(DNDTypes.TAB)(DroppableTab);
-
-
 const Tab = (props) =>
 	/* @__PURE__ */ React.createElement(DraggableDroppableTab, {
 	...props,
@@ -3662,7 +3581,6 @@ const TabItem = React.memo((props) => {
 		}),
 	);
 });
-
 const FavMoveToGroupList = (props) => {
 	const groups = props.favGroups.map((group, index) => {
 		const entry = {
@@ -3714,6 +3632,12 @@ const FavUnreadBadge = (props) =>
 		className:
 			"channelTabs-unreadBadge" +
 			(props.hasUnread ? "" : " channelTabs-noUnread"),
+		onClick: props.onClick
+			? (e) => {
+				e.stopPropagation();
+				props.onClick(e);
+			}
+			: void 0,
 	},
 	props.unreadCount + (props.unreadEstimated ? "+" : ""),
 );
@@ -3774,20 +3698,13 @@ function renderFavTypingBadge(props) {
 	});
 }
 const BaseFav = (props) => {
-
 	const { isDragging, dragRef, isOver, canDrop, dropRef, draggedIsMe } = props;
-
-
 	const [localDropPosition, setLocalDropPosition] = React.useState(null);
-
-
 	useDragOverPosition(
 		() => favNodeRefs.get(props.url),
 		[props.url],
 		setLocalDropPosition,
 	);
-
-
 	const combinedRef = React.useCallback((node) => {
 		dragRef(node);
 		dropRef(node);
@@ -3797,7 +3714,6 @@ const BaseFav = (props) => {
 			favNodeRefs.delete(props.url);
 		}
 	}, [dragRef, dropRef, props.url]);
-
 	return /* @__PURE__ */ React.createElement(
 		"div",
 		{
@@ -3880,61 +3796,40 @@ const BaseFav = (props) => {
 		renderFavTypingBadge(props),
 	);
 };
-
-
 const DroppableFav = makeDroppable(
 	[DNDTypes.FAVORITE, DNDTypes.TAB],
-
 	(props, monitor) => {
 		const dropped = monitor.getItem();
 		const itemType = monitor.getItemType();
-
 		if (props.url === dropped.url) return;
-
-
 		const hoverBoundingRect = monitor.getClientOffset();
 		const targetNode = favNodeRefs.get(props.url);
 		const componentRect = targetNode ? targetNode.getBoundingClientRect() : null;
-
-
 		let insertBefore = false;
 		if (hoverBoundingRect && componentRect) {
 			const hoverMiddleX = (componentRect.right - componentRect.left) / 2;
 			const hoverClientX = hoverBoundingRect.x - componentRect.left;
 			insertBefore = hoverClientX < hoverMiddleX;
 		}
-
 		let toIndex = insertBefore ? props.favIndex : props.favIndex + 1;
-
-
 		if (itemType === DNDTypes.FAVORITE) {
-
 			if (!hoverBoundingRect || !componentRect) {
-
 				toIndex = props.favIndex + 1;
 				if (dropped.favIndex < toIndex) toIndex -= 1;
 				props.moveFav(dropped.favIndex, toIndex);
 				return;
 			}
-
-
 			if (dropped.favIndex < toIndex) {
 				toIndex -= 1;
 			}
-
 			props.moveFav(dropped.favIndex, toIndex);
 		} else if (itemType === DNDTypes.TAB) {
-
 			props.addTabAsFavAt(dropped, toIndex);
 		}
 	},
-
 	() => { }
 )(BaseFav);
-
 const DraggableDroppableFav = makeDraggable(DNDTypes.FAVORITE)(DroppableFav);
-
-
 const Fav = (props) =>
 	/* @__PURE__ */ React.createElement(DraggableDroppableFav, {
 	...props,
@@ -4004,6 +3899,7 @@ function renderFavGroupUnreadBadge(props) {
 		unreadCount: props.unreadCountGroup,
 		unreadEstimated: props.unreadEstimatedGroup,
 		hasUnread: props.hasUnreadGroup,
+		onClick: props.onGroupBadgeClick,
 	});
 }
 function renderFavGroupMentionBadge(props) {
@@ -4020,7 +3916,6 @@ function renderFavGroupTypingBadge(props) {
 		userIds: null,
 	});
 }
-
 const NewTab = (props) =>
 	/* @__PURE__ */ React.createElement(
 	"div",
@@ -4161,27 +4056,21 @@ const FavItems = (props) => {
 				: null;
 		});
 };
-
 function BaseFavFolder(props) {
 	const context = React.useContext(DragContext);
-
 	const { isDragging, dragRef, isOver, canDrop, dropRef, draggedIsMe } = props;
-
 	const isOpen = context.openPath?.includes(props.favGroup.groupId);
 	const isRootGroup = (props.favGroup.parentId ?? -1) === -1;
 	const menuStyle = isRootGroup ? { left: 0, top: "calc(100% + 6px)" } : undefined;
-
-
 	const [localDropPosition, setLocalDropPosition] = React.useState(null);
-
-
 	useDragOverPosition(
 		() => groupNodeRefs.get(props.groupId),
 		[props.groupId],
 		setLocalDropPosition,
 	);
-
-
+	const handleToggleGroup = React.useCallback(() => {
+		context.toggleGroup?.(props.favGroup.groupId);
+	}, [context, props.favGroup.groupId]);
 	const combinedRef = React.useCallback((node) => {
 		dragRef(node);
 		dropRef(node);
@@ -4191,7 +4080,6 @@ function BaseFavFolder(props) {
 			groupNodeRefs.delete(props.groupId);
 		}
 	}, [dragRef, dropRef, props.groupId]);
-
 	return /* @__PURE__ */ React.createElement(
 		"div",
 		{
@@ -4214,9 +4102,7 @@ function BaseFavFolder(props) {
 			"div",
 			{
 				className: "channelTabs-favGroupBtn",
-				onClick: () => {
-					context.toggleGroup?.(props.favGroup.groupId);
-				},
+				onClick: handleToggleGroup,
 				onMouseEnter: () => {
 					if (!isRootGroup) {
 						context.openGroup?.(props.favGroup.groupId);
@@ -4235,7 +4121,10 @@ function BaseFavFolder(props) {
 			),
 			props.favGroup.name,
 			renderFavGroupMentionBadge(props),
-			renderFavGroupUnreadBadge(props),
+			renderFavGroupUnreadBadge({
+				...props,
+				onGroupBadgeClick: handleToggleGroup,
+			}),
 			renderFavGroupTypingBadge(props),
 		),
 		/* @__PURE__ */ React.createElement(
@@ -4262,16 +4151,11 @@ function BaseFavFolder(props) {
 		),
 	);
 };
-
-
 const DroppableGroup = makeDroppable(
 	[DNDTypes.GROUP, DNDTypes.FAVORITE, DNDTypes.TAB],
-
 	(props, monitor) => {
 		const dropped = monitor.getItem();
-
 		if (props.groupId === dropped.groupId) return;
-
 		if (monitor.getItemType() === DNDTypes.FAVORITE) {
 			if (typeof dropped.favIndex === "number") {
 				const favKey = dropped.url || dropped.id;
@@ -4286,24 +4170,16 @@ const DroppableGroup = makeDroppable(
 			props.addTabAsFavInGroup(dropped, props.groupId);
 			return { handledBy: "group" };
 		}
-
-
 		const hoverBoundingRect = monitor.getClientOffset();
 		const targetNode = groupNodeRefs.get(props.groupId);
 		const componentRect = targetNode ? targetNode.getBoundingClientRect() : null;
-
 		if (!hoverBoundingRect || !componentRect) {
-
 			let toIndex = props.groupIndex + 1;
 			if (dropped.groupIndex < toIndex) toIndex -= 1;
 			props.moveFavGroup(dropped.groupIndex, toIndex);
 			return;
 		}
-
-
 		const hoverClientX = hoverBoundingRect.x - componentRect.left;
-
-
 		const ratio = hoverClientX / (componentRect.right - componentRect.left);
 		const insertBefore = ratio < 0.25;
 		const insertAfter = ratio > 0.75;
@@ -4311,12 +4187,9 @@ const DroppableGroup = makeDroppable(
 		if (insertBefore) dropPosition = "before";
 		else if (insertAfter) dropPosition = "after";
 		let toIndex = insertBefore ? props.groupIndex : props.groupIndex + 1;
-
-
 		if (dropped.groupIndex < toIndex) {
 			toIndex -= 1;
 		}
-
 		if (dropPosition === "inside") {
 			debugLog("drop@group (group->inside)", { targetGroup: props.groupId, droppedGroup: dropped.groupId });
 			props.reparentFavGroup(dropped.groupId, props.groupId);
@@ -4332,13 +4205,9 @@ const DroppableGroup = makeDroppable(
 		}
 		return { handledBy: "group" };
 	},
-
 	() => { }
 )(BaseFavFolder);
-
 const DraggableDroppableGroup = makeDraggable(DNDTypes.GROUP)(DroppableGroup);
-
-
 const FavFolder = (props) =>
 	/* @__PURE__ */ React.createElement(DraggableDroppableGroup, {
 	...props,
@@ -4346,7 +4215,6 @@ const FavFolder = (props) =>
 	groupId: props.favGroup.groupId,
 	groupIndex: props.groupIndex
 });
-
 const buildGroupTree = (groups, parentId = -1) =>
 	groups
 		.filter((group) => (group.parentId ?? -1) === parentId)
@@ -4413,7 +4281,6 @@ function HorizontalScroll(props) {
 	const targetRef = React.useRef(0);
 	const lastRef = React.useRef(performance.now());
 	const resetLastRef = React.useRef(false);
-
 	function update() {
 		if (!container.current) return;
 		const now = performance.now();
@@ -4509,7 +4376,6 @@ const TabBar = React.forwardRef((props, ref) => {
 			scrollRef.current.scrollToElement(element);
 		}
 	}, [props.tabs, isMultiRow]);
-
 	const focusTab = React.useCallback((index) => {
 		const tab = props.tabs[index];
 		if (!tab) return;
@@ -4517,7 +4383,6 @@ const TabBar = React.forwardRef((props, ref) => {
 		const element = tabRefs.current.get(key);
 		element?.focus();
 	}, [props.tabs]);
-
 	React.useImperativeHandle(ref, () => ({
 		scrollToTab,
 		focusTab
@@ -4724,12 +4589,9 @@ const FavBar = (props) =>
 			),
 		props.trailing,
 	));
-
-
 const TopBar = (props) => {
 	const tabBarRef = React.useRef();
 	const containerRef = React.useRef();
-
 	const storeState = Hooks.useStateFromStores([TabStateStore], () => TabStateStore.getState());
 	const {
 		tabs = props.tabs,
@@ -4763,11 +4625,9 @@ const TopBar = (props) => {
 		showQuickSettings = props.showQuickSettings,
 		useStandardNav = props.useStandardNav,
 	} = storeState;
-
 	const toggleTabLayoutMode = React.useCallback(() => {
 		TabActions.toggleTabLayoutMode({ tabBarRef: tabBarRef.current });
 	}, []);
-
 	const trailing = /* @__PURE__ */ React.createElement(
 		"div",
 		{ className: "channelTabs-trailing" },
@@ -4787,7 +4647,6 @@ const TopBar = (props) => {
 		),
 		props.trailing,
 	);
-
 	React.useEffect(() => {
 		const container = containerRef.current;
 		if (!container) return;
@@ -4805,12 +4664,10 @@ const TopBar = (props) => {
 			document.body.style.removeProperty("--custom-app-top-bar-height");
 		};
 	}, []);
-
 	const safeSwitchToTab = React.useCallback((index) => {
 		if (!tabs.length) return;
 		TabActions.switchToTab(index);
 	}, [tabs.length]);
-
 	return /* @__PURE__ */ React.createElement(
 		"div",
 		{ id: "channelTabs-container", ref: containerRef },
@@ -4949,7 +4806,6 @@ module.exports = class ChannelTabs {
 		guildChannelCache.clear();
 	}
 	//#endregion
-
 	applyStyle(styleId = null) {
 		if (!styleId || styleId === "channelTabs-style-compact") {
 			if (this.settings.compactStyle === true)
