@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 4.0.0
+ * @version 4.0.1
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
  */
@@ -1445,15 +1445,25 @@ const Slider =
 	);
 const NavShortcuts = warnModule(bulkModules.NavShortcuts, "NavShortcuts");
 const [TitleBar, TitleBarKey] =
-	Webpack.getWithKey(byStrings("PlatformTypes", "leading", "trailing")) ||
-	Webpack.getWithKey(byStrings("getPlatform", "leading", "trailing")) ||
-	Webpack.getWithKey(byStrings("leading", "trailing", "windowKey")) ||
-	Webpack.getWithKey(byStrings("windowKey", "onDoubleClick", "leading")) ||
-	[null, null];
+    Webpack.getWithKey(byStrings("PlatformTypes", "leading", "trailing")) ||
+    Webpack.getWithKey(byStrings("getPlatform", "leading", "trailing")) ||
+    Webpack.getWithKey(byStrings("leading", "trailing", "windowKey")) ||
+    Webpack.getWithKey(byStrings("windowKey", "onDoubleClick", "leading")) ||
+    [null, null];
 if (!TitleBar) missingModule({ name: "TitleBar", fatal: true });
+const TitleBarStyles =
+    Webpack.getModule(byKeys("sidebarResizeHandle", "panels")) ??
+    Webpack.getModule(byKeys("sidebarList", "channelListHidden")) ??
+    Webpack.getModule(byKeys("guilds", "sidebar", "base")) ??
+    Webpack.getModule(byKeys("base", "activityPanel")) ??
+    Webpack.getModule(byKeys("draggingMax", "draggingMin")) ??
+    Webpack.getModule((m) => m?.sidebarResizeHandle && m?.activityPanel && m?.guilds);
+if (!TitleBarStyles) console.warn("TitleBarStyles module not found - Discord may have updated");
+const TitleBarComponent = TitleBar?.[TitleBarKey];
+if (TitleBarComponent?.compare) TitleBarComponent.compare = () => false;
 const IconUtilities = warnModule(
-	bulkModules.IconUtilities,
-	"IconUtilities",
+    bulkModules.IconUtilities,
+    "IconUtilities",
 );
 const standardSidebarView =
 	BdApi.Webpack.getByKeys("standardSidebarView")?.standardSidebarView ?? "";
@@ -4890,72 +4900,82 @@ module.exports = class ChannelTabs {
 		if (promiseState.cancelled) return;
 		Patcher.after(TitleBar, TitleBarKey, (thisObject, [props], returnValue) => {
 			if (props.windowKey !== void 0) return;
-			returnValue.props.style = { paddingLeft: 0 };
-			const trailing = React.Children.toArray(returnValue.props.children).find(
-				child => child?.props?.className?.includes('winButton') ||
-					child?.props?.className?.includes('trailing')
+			const trailing = React.Children.toArray(returnValue?.props?.children).find(
+				child =>
+					child?.props?.className?.includes("winButton") ||
+					child?.props?.className?.includes("trailing")
 			);
-			returnValue.props.children = /* @__PURE__ */
-				React.createElement(DragProvider, null,
-					React.createElement(HookedTopBar, {
-						leading: null,
-						trailing: trailing,
-						reopenLastChannel: this.settings.reopenLastChannel,
-						showTabBar: this.settings.showTabBar,
-						showFavBar: this.settings.showFavBar,
-						tabLayoutMode: this.settings.tabLayoutMode || "single",
-						showFavUnreadBadges: this.settings.showFavUnreadBadges,
-						showFavMentionBadges: this.settings.showFavMentionBadges,
-						showFavTypingBadge: this.settings.showFavTypingBadge,
-						showEmptyFavBadges: this.settings.showEmptyFavBadges,
-						showTabUnreadBadges: this.settings.showTabUnreadBadges,
-						showTabMentionBadges: this.settings.showTabMentionBadges,
-						showTabTypingBadge: this.settings.showTabTypingBadge,
-						showEmptyTabBadges: this.settings.showEmptyTabBadges,
-						showActiveTabUnreadBadges: this.settings.showActiveTabUnreadBadges,
-						showActiveTabMentionBadges: this.settings.showActiveTabMentionBadges,
-						showActiveTabTypingBadge: this.settings.showActiveTabTypingBadge,
-						showEmptyActiveTabBadges: this.settings.showEmptyActiveTabBadges,
-						showFavGroupUnreadBadges: this.settings.showFavGroupUnreadBadges,
-						showFavGroupMentionBadges: this.settings.showFavGroupMentionBadges,
-						showFavGroupTypingBadge: this.settings.showFavGroupTypingBadge,
-						showEmptyFavGroupBadges: this.settings.showEmptyFavGroupBadges,
-						compactStyle: this.settings.compactStyle,
-						privacyMode: this.settings.privacyMode,
-						radialStatusMode: this.settings.radialStatusMode,
-						tabWidthMin: this.settings.tabWidthMin,
-						showQuickSettings: this.settings.showQuickSettings,
-						showNavButtons: this.settings.showNavButtons,
-						alwaysFocusNewTabs: this.settings.alwaysFocusNewTabs,
-						useStandardNav: this.settings.useStandardNav,
-						closedTabs: this.settings.closedTabs || [],
-						tabs: this.settings.tabs,
-						favs: this.settings.favs,
-						favGroups: this.settings.favGroups,
-						plugin: this,
-					})
-				);
+			const injected = React.createElement(
+				DragProvider,
+				null,
+				React.createElement(HookedTopBar, {
+					leading: null,
+					trailing: trailing,
+					reopenLastChannel: this.settings.reopenLastChannel,
+					showTabBar: this.settings.showTabBar,
+					showFavBar: this.settings.showFavBar,
+					tabLayoutMode: this.settings.tabLayoutMode || "single",
+					showFavUnreadBadges: this.settings.showFavUnreadBadges,
+					showFavMentionBadges: this.settings.showFavMentionBadges,
+					showFavTypingBadge: this.settings.showFavTypingBadge,
+					showEmptyFavBadges: this.settings.showEmptyFavBadges,
+					showTabUnreadBadges: this.settings.showTabUnreadBadges,
+					showTabMentionBadges: this.settings.showTabMentionBadges,
+					showTabTypingBadge: this.settings.showTabTypingBadge,
+					showEmptyTabBadges: this.settings.showEmptyTabBadges,
+					showActiveTabUnreadBadges: this.settings.showActiveTabUnreadBadges,
+					showActiveTabMentionBadges: this.settings.showActiveTabMentionBadges,
+					showActiveTabTypingBadge: this.settings.showActiveTabTypingBadge,
+					showEmptyActiveTabBadges: this.settings.showEmptyActiveTabBadges,
+					showFavGroupUnreadBadges: this.settings.showFavGroupUnreadBadges,
+					showFavGroupMentionBadges: this.settings.showFavGroupMentionBadges,
+					showFavGroupTypingBadge: this.settings.showFavGroupTypingBadge,
+					showEmptyFavGroupBadges: this.settings.showEmptyFavGroupBadges,
+					compactStyle: this.settings.compactStyle,
+					privacyMode: this.settings.privacyMode,
+					radialStatusMode: this.settings.radialStatusMode,
+					tabWidthMin: this.settings.tabWidthMin,
+					showQuickSettings: this.settings.showQuickSettings,
+					showNavButtons: this.settings.showNavButtons,
+					alwaysFocusNewTabs: this.settings.alwaysFocusNewTabs,
+					useStandardNav: this.settings.useStandardNav,
+					closedTabs: this.settings.closedTabs || [],
+					tabs: [...this.settings.tabs],
+					favs: [...this.settings.favs],
+					favGroups: [...this.settings.favGroups],
+					plugin: this,
+				})
+			);
+			return returnValue
+				? React.cloneElement(returnValue, returnValue.props, injected)
+				: injected;
 		});
-		const forceUpdate = () => {
-			const rootElement = document.getElementById("app-mount");
-			const containerKey = Object.keys(rootElement).find((k) =>
-				k.startsWith("__reactContainer$"),
-			);
-			const target = BdApi.Utils.findInTree(
-				rootElement[containerKey],
-				(c) => c.stateNode?.isReactComponent,
-				{ walkable: ["child"] },
-			);
-			const { render } = target.stateNode;
-			if (render.toString().includes("null")) return;
-			target.stateNode.render = () => null;
-			target.stateNode.forceUpdate(() => {
-				target.stateNode.render = render;
-				target.stateNode.forceUpdate();
-			});
+		const rerenderTitleBar = (phase = "start") => {
+			const log = (...args) => console.log("[ECT TitleBarRefresh]", phase, ...args);
+			const selector = TitleBarStyles?.base ? `.${TitleBarStyles.base}` : "[class*='titleBar']";
+			const targetEl =
+				document.querySelector(selector)?.parentElement ?? document.querySelector(selector);
+			log("selector", selector, "found", !!targetEl);
+			if (!targetEl) return;
+			const instance = ReactUtils.getOwnerInstance?.(targetEl);
+			if (!instance || typeof instance.forceUpdate !== "function") {
+				log("ownerNotFound");
+				return;
+			}
+			const unpatch = Patcher.instead(instance, "render", () => unpatch());
+			try {
+				log("forceUpdate ownerInstance");
+				instance.forceUpdate(() => instance.forceUpdate());
+			} catch (e) {
+				console.warn("[ECT TitleBarRefresh] forceUpdate failed", e);
+			}
 		};
-		forceUpdate();
-		patches.push(() => forceUpdate());
+		rerenderTitleBar("start");
+		setTimeout(() => rerenderTitleBar("start-late"), 50);
+		patches.push(() => {
+			rerenderTitleBar("stop");
+			setTimeout(() => rerenderTitleBar("stop-late"), 50);
+		});
 	}
 	patchContextMenus() {
 		patches.push(
