@@ -1,7 +1,7 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
 ## 4.0.1
--Title bar now refreshes without reloading Discord
+- Title bar now refreshes without reloading Discord
 
 ## 4.0.0
 - Completely rebuilt how tabs are saved and managed for better stability
