@@ -1,5 +1,14 @@
 # [BetterTypingIndicator](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterTypingIndicator "BetterTypingIndicator") Changelog
 
+### 2.9.0
+- Made plugin version single-source: added PLUGIN_NAME/META_VERSION and wired CONFIG.info.version to BdApi meta.
+- Migrated helper functions to arrow style and split parseChangelog into smaller helpers for lower complexity.
+- Converted manual visualKeys array checks to a Set and replaced .forEach loops with for…of for lint compliance.
+- Added BetterDiscord Hooks (useStateFromStores, useData) for channel typing indicators and settings merge, plus a wrapper component to consume them.
+- Introduced unified settings merge (mergeSettings/useMergedSettings/SettingsPanelContainer) using defaults + stored values.
+- Refactored typing flow to reduce custom state: replaced states map with streamlined typingState helpers (hasTyping, getTypingUsersFor) and integrated TypingStore directly for channels.
+- Cleaned up redundant logic (duplicate wrapper, unused empty objects) and kept dispatcher-driven updates for performance.
+
 ### 2.8.2
 - Replaced update system with streamlined UpdateManager class
 - Updates now fetch changelog directly from GitHub
