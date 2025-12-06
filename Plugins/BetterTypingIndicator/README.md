@@ -1,7 +1,7 @@
 # BetterTypingIndicator
 A BetterDiscord plugin that enhances Discord's typing indicators with visual indicators in channel lists, server icons, folders, and DMs.
 
-![Version](https://img.shields.io/badge/version-2.8.2-blue.svg)
+![Version](https://img.shields.io/badge/version-2.9.0-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Discord](https://img.shields.io/badge/discord-BetterDiscord-7289DA.svg)
 
