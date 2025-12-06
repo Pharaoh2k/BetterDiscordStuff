@@ -1,53 +1,39 @@
 /**
  * @name BetterTypingIndicator
- * @version 2.8.2
+ * @version 2.9.0
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/edit/main/Plugins/BetterTypingIndicator/BetterTypingIndicator.plugin.js
  * @authorId 874825550408089610
  * @description Shows an indicator in the channel list (w/tooltip) plus server/folder icons and home icon for DMs when someone is typing there.
  * @author Pharaoh2k
  */
-/*@cc_on
-@if (@_jscript)
-    var shell = WScript.CreateObject('WScript.Shell');
-    var fs = new ActiveXObject('Scripting.FileSystemObject');
-    var pathPlugins = shell.ExpandEnvironmentStrings('%APPDATA%\\BetterDiscord\\plugins');
-    var pathSelf = WScript.ScriptFullName;
-    shell.Popup('It looks like you\'ve mistakenly tried to run me directly. \n(Don\'t do that!)', 0, 'I\'m a plugin for BetterDiscord', 0x30);
-    if (fs.GetParentFolderName(pathSelf) === fs.GetAbsolutePathName(pathPlugins)) {
-        shell.Popup('I\'m in the correct folder already.\nJust reload Discord with Ctrl+R.', 0, 'I\'m already installed', 0x40);
-    } else if (!fs.FolderExists(pathPlugins)) {
-        shell.Popup('I can\'t find the BetterDiscord plugins folder.\nAre you sure it\'s even installed?', 0, 'Can\'t install myself', 0x10);
-    } else if (shell.Popup('Should I copy myself to BetterDiscord\'s plugins folder for you?', 0, 'Do you need some help?', 0x34) === 6) {
-        fs.CopyFile(pathSelf, fs.BuildPath(pathPlugins, fs.GetFileName(pathSelf)), true);
-        shell.Exec('explorer ' + pathPlugins);
-        shell.Popup('I\'m installed!\nJust reload Discord with Ctrl+R.', 0, 'Successfully installed', 0x40);
-    }
-    WScript.Quit();
-@else@*/
 /*
 Copyright © 2024–2025 Pharaoh2k. All rights reserved.
 Unauthorized copying, modification, or redistribution of this code is prohibited without prior written consent from the author.
 Contributions are welcome via GitHub pull requests. Please ensure submissions align with the project's guidelines and coding standards.
 */
-const { Data, DOM, React, ReactDOM, UI, Webpack, Utils } = BdApi;
+const PLUGIN_NAME = "BetterTypingIndicator";
+const META_VERSION =
+  BdApi?.Plugins?.getMeta?.(PLUGIN_NAME)?.version ||
+  (require("fs").readFileSync(__filename, "utf8").match(/@version\s+([\d.]+)/)?.[1] ?? "0.0.0");
+const { Data, DOM, React, ReactDOM, UI, Webpack, Utils, Hooks } = BdApi;
 const TYPES = { CHANNEL: 'channel', GUILD: 'guild', FOLDER: 'folder', HOME: 'home' };
 const TYPING_EVENTS = ['TYPING_START', 'TYPING_STOP', 'MESSAGE_CREATE'];
 const CONFIG = {
     info: {
-        name: "BetterTypingIndicator",
+        name: PLUGIN_NAME,
         authors: [{
             name: "Pharaoh2k",
             github_username: "Pharaoh2k",
             twitter_username: "_Pharaoh2k",
             discord_id: "874825550408089610"
         }],
-        version: "2.8.2",
+        version: META_VERSION,
         description: "Shows an indicator in the channel list (w/tooltip) plus server/folder icons and home icon for DMs when someone is typing there."
     },
     defaultConfig: [{
         type: "switch",
-        id: "channelTypingIndicator",
+        id: "channelBetterTypingIndicator",
         name: "Channel Typing Indicator",
         note: "Show typing indicator on channels",
         value: true
@@ -111,7 +97,7 @@ const CONFIG = {
         note: "Adjust animation speed (seconds)",
         value: 1.4,
         min: 0.5,
-        max: 3.0,
+        max: 3,
         step: 0.1
     },
     {
@@ -140,21 +126,21 @@ const CONFIG = {
     },
     {
         type: "switch",
-        id: "guildTypingIndicator",
+        id: "guildBetterTypingIndicator",
         name: "Guild Typing Indicator",
         note: "Show typing indicator on guild icons",
         value: true
     },
     {
         type: "switch",
-        id: "folderTypingIndicator",
+        id: "folderBetterTypingIndicator",
         name: "Folder Typing Indicator",
         note: "Show typing indicator on folders",
         value: true
     },
     {
         type: "switch",
-        id: "homeTypingIndicator",
+        id: "homeBetterTypingIndicator",
         name: "Home/DMs Typing Indicator",
         note: "Show typing indicator on Home icon when someone types a DM",
         value: true
@@ -213,48 +199,77 @@ const CONFIG = {
     }
     ]
 };
+const DEFAULT_SETTINGS_MAP = CONFIG.defaultConfig.reduce((acc, cfg) => ({
+    ...acc,
+    [cfg.id]: cfg.value
+}), {});
+const mergeSettings = (...sources) => Object.assign({}, DEFAULT_SETTINGS_MAP, ...sources.filter(Boolean));
 class UpdateManager {
-    constructor(pluginName, version, github = "Pharaoh2k/BetterDiscordStuff") {
-        this.name = pluginName;
-        this.version = version;
-        const [user, repo] = github.split('/');
-        this.urls = {
-            plugin: `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main/Plugins/${pluginName}/${pluginName}.plugin.js`,
-            changelog: `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main/Plugins/${pluginName}/CHANGELOG.md`
-        };
-        this.timer = null;
-        this.notice = null;
-    }
-    async start(autoUpdate = true) {
-        if (autoUpdate) {
-            this.check(true);
-            this.timer = setInterval(() => this.check(true), 24 * 60 * 60 * 1000);
-        }
-        this.showChangelog();
-    }
-    stop() {
-        clearInterval(this.timer);
-        this.notice?.();
-    }
-    async check(silent = false) {
-        try {
-            const res = await BdApi.Net.fetch(this.urls.plugin);
-            if (res.status !== 200) throw new Error("Failed");
-            const text = await res.text();
-            const version = text.match(/@version\s+([\d.]+)/)?.[1];
-            if (!version) throw new Error("No version");
-            if (this.isNewer(version)) {
-                this.showUpdateNotice(version, text);
-            } else if (!silent) {
-                BdApi.UI.showToast(`[${this.name}] You're up to date.`, { type: 'info' });
-            }
-        } catch (e) {
-            if (!silent) BdApi.UI.showToast(`[${this.name}] Update check failed`, { type: 'error' });
-        }
-    }
-    showUpdateNotice(version, text) {
-		this.notice?.();
-		this.notice = BdApi.UI.showNotice(
+	constructor(pluginName, version, github = "Pharaoh2k/BetterDiscordStuff") {
+		this.name = pluginName;
+		this.version = version;
+		const [user, repo] = github.split('/');
+		this.urls = {
+			plugin: `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main/Plugins/${pluginName}/${pluginName}.plugin.js`,
+			changelog: `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main/Plugins/${pluginName}/CHANGELOG.md`
+		};
+		this.timer = null;
+		this.notification = null;
+	}
+	async start(autoUpdate = true) {
+		if (autoUpdate) {
+			setTimeout(() => this.check(true), 15000);
+			this.timer = setInterval(() => this.check(true), 24 * 60 * 60 * 1000);
+		}
+		this.showChangelog();
+	}
+	stop() {
+		clearInterval(this.timer);
+		if (typeof this.notification === "function") this.notification();
+		else this.notification?.close?.();
+		this.notification = null;
+	}
+	async check(silent = false) {
+		try {
+			const res = await BdApi.Net.fetch(this.urls.plugin);
+			if (res.status !== 200) throw new Error("Failed");
+			const text = await res.text();
+			const version = text.match(/@version\s+([\d.]+)/)?.[1];
+			if (!version) throw new Error("No version");
+			if (this.isNewer(version)) {
+				this.showUpdateNotice(version, text);
+			} else if (!silent) {
+				BdApi.UI.showToast(`[${this.name}] You're up to date.`, { type: 'info' });
+			}
+		} catch (e) {
+			console.error(`[${this.name}] Update check failed:`, e);
+			if (!silent) BdApi.UI.showToast(`[${this.name}] Update check failed`, { type: 'error' });
+		}
+	}
+	showUpdateNotice(version, text) {
+		this.notification?.close?.();
+		const handle = BdApi.UI.showNotification?.({
+			title: `${this.name}`,
+			content: `v${version} is available`,
+			type: "info",
+			duration: 60000,
+			actions: [
+				{
+					label: "Update",
+					onClick: () => {
+						handle?.close?.();
+						this.applyUpdate(text, version);
+					},
+				},
+				{
+					label: "Dismiss",
+					onClick: () => handle?.close?.(),
+				},
+			],
+			onClose: () => {
+				if (this.notification === handle) this.notification = null;
+			},
+		}) ?? BdApi.UI.showNotice(
 			`${this.name} v${version} is available`,
 			{
 				type: 'info',
@@ -263,8 +278,8 @@ class UpdateManager {
 					onClick: (closeOrEvent) => {
 						if (typeof closeOrEvent === 'function') {
 							closeOrEvent();
-						} else if (this.notice && typeof this.notice === 'function') {
-							this.notice();
+						} else if (this.notification && typeof this.notification === 'function') {
+							this.notification();
 						}
 						this.applyUpdate(text, version);
 					}
@@ -273,112 +288,121 @@ class UpdateManager {
 					onClick: (closeOrEvent) => {
 						if (typeof closeOrEvent === 'function') {
 							closeOrEvent();
-						} else if (this.notice && typeof this.notice === 'function') {
-							this.notice();
+						} else if (this.notification && typeof this.notification === 'function') {
+							this.notification();
 						}
 					}
 				}]
 			}
 		);
+		this.notification = handle;
 	}
-    applyUpdate(text, version) {
-        try {
-            require('fs').writeFileSync(__filename, text);
-            BdApi.UI.showToast(`Updated to v${version}. Reloading...`, { type: 'success' });
-            setTimeout(() => {
-                try {
-                    BdApi.Plugins.reload(this.name);
-                } catch {
-                    BdApi.UI.showToast('Please reload Discord (Ctrl+R)', { type: 'info', timeout: 0 });
-                }
-            }, 100);
-        } catch {
-            BdApi.UI.showToast('Update failed', { type: 'error' });
-        }
-    }
-    async showChangelog() {
-        const last = BdApi.Data.load(this.name, 'version');
-        if (last === this.version) return;
-        BdApi.Data.save(this.name, 'version', this.version);
-        if (!last) return;
-        try {
-            const res = await BdApi.Net.fetch(this.urls.changelog);
-            const md = await res.text();
-            const changes = this.parseChangelog(md, last, this.version);
-            if (changes.length === 0) return;
-            BdApi.UI.showChangelogModal({
-                title: this.name,
-                subtitle: `Version ${this.version}`,
-                changes
-            });
-        } catch {}
-    }
-    async showFullChangelog() {
-        try {
-            const res = await BdApi.Net.fetch(this.urls.changelog);
-            const md = await res.text();
-            const changes = this.parseChangelog(md, "0.0.0", this.version);
-            BdApi.UI.showChangelogModal({
-                title: this.name,
-                subtitle: `All Changes`,
-                changes: changes.length ? changes : [{ title: "No changes found", items: [] }]
-            });
-        } catch {
-            BdApi.UI.showToast("Could not fetch changelog", { type: "error" });
-        }
-    }
-    parseChangelog(md, from, to) {
-        const lines = md.split('\n');
-        const versions = [];
-        let current = null;
-        let items = [];
-        for (const line of lines) {
-            const ver = line.match(/^###?\s+([\d.]+)/)?.[1];
-            if (ver) {
-                if (current) versions.push({ version: current, items });
-                current = ver;
-                items = [];
-            } else if (line.trim().startsWith('-') && current) {
-                const item = line.trim().substring(1).trim();
-                if (item) items.push(item);
-            }
-        }
-        if (current) versions.push({ version: current, items });
-        const relevant = versions.filter(v => 
-            this.isNewer(v.version, from) && !this.isNewer(v.version, to)
-        );
-        const grouped = { added: [], improved: [], fixed: [], other: [] };
-        for (const v of relevant) {
-            for (const item of v.items) {
-                const lower = item.toLowerCase();
-                if (lower.includes('fix')) grouped.fixed.push(item);
-                else if (lower.includes('add') || lower.includes('new')) grouped.added.push(item);
-                else if (lower.includes('improv') || lower.includes('updat')) grouped.improved.push(item);
-                else grouped.other.push(item);
-            }
-        }
-        const result = [];
-        if (grouped.added.length) result.push({ title: "New Features", type: "added", items: grouped.added });
-        if (grouped.improved.length) result.push({ title: "Improvements", type: "improved", items: grouped.improved });
-        if (grouped.fixed.length) result.push({ title: "Bug Fixes", type: "fixed", items: grouped.fixed });
-        if (grouped.other.length) result.push({ title: "Other Changes", type: "progress", items: grouped.other });
-        return result;
-    }
-    isNewer(v1, v2 = this.version) {
-        const [a, b] = [v1, v2].map(v => v.split('.').map(Number));
-        for (let i = 0; i < Math.max(a.length, b.length); i++) {
-            if ((a[i] || 0) > (b[i] || 0)) return true;
-            if ((a[i] || 0) < (b[i] || 0)) return false;
-        }
-        return false;
-    }
+	applyUpdate(text, version) {
+		try {
+			require('fs').writeFileSync(__filename, text);
+			BdApi.UI.showToast(`Updated to v${version}. Reloading...`, { type: 'success' });
+			setTimeout(() => {
+				try {
+					BdApi.Plugins.reload(this.name);
+				} catch {
+					BdApi.UI.showToast('Please reload Discord (Ctrl+R)', { type: 'info', timeout: 0 });
+				}
+			}, 100);
+		} catch {
+			BdApi.UI.showToast('Update failed', { type: 'error' });
+		}
+	}
+	async showChangelog() {
+		const last = BdApi.Data.load(this.name, 'version');
+		if (last === this.version) return;
+		BdApi.Data.save(this.name, 'version', this.version);
+		if (!last) return;
+		try {
+			const res = await BdApi.Net.fetch(this.urls.changelog);
+			const md = await res.text();
+			const changes = this.parseChangelog(md, last, this.version);
+			if (changes.length === 0) return;
+			BdApi.UI.showChangelogModal({
+				title: this.name,
+				subtitle: `Version ${this.version}`,
+				changes
+			});
+		} catch { }
+	}
+	async showFullChangelog() {
+		try {
+			const res = await BdApi.Net.fetch(this.urls.changelog);
+			const md = await res.text();
+			const changes = this.parseChangelog(md, "0.0.0", this.version);
+			BdApi.UI.showChangelogModal({
+				title: this.name,
+				subtitle: `All Changes`,
+				changes: changes.length ? changes : [{ title: "No changes found", items: [] }]
+			});
+		} catch {
+			BdApi.UI.showToast("Could not fetch changelog", { type: "error" });
+		}
+	}
+	parseChangelog(md, from, to) {
+		const versions = this.extractChangelogVersions(md);
+		return this.groupChangelogChanges(versions, from, to);
+	}
+	extractChangelogVersions(md) {
+		const lines = md.split('\n');
+		const versions = [];
+		let current = null;
+		let items = [];
+		for (const line of lines) {
+			const ver = line.match(/^###\s+([\d.]+)/)?.[1];
+			if (ver) {
+				if (current) versions.push({ version: current, items });
+				current = ver;
+				items = [];
+			} else if (line.trim().startsWith('-') && current) {
+				const item = line.trim().substring(1).trim();
+				if (item) items.push(item);
+			}
+		}
+		if (current) versions.push({ version: current, items });
+		return versions;
+	}
+	groupChangelogChanges(versions, from, to) {
+		const relevant = versions.filter(v =>
+			this.isNewer(v.version, from) && !this.isNewer(v.version, to)
+		);
+		const grouped = { added: [], improved: [], fixed: [], other: [] };
+		for (const v of relevant) {
+			for (const item of v.items) {
+				const lower = item.toLowerCase();
+				const tagged = `${item} (v${v.version})`;
+				if (lower.includes('fix')) grouped.fixed.push(tagged);
+				else if (lower.includes('add') || lower.includes('initial')) grouped.added.push(tagged);
+				else if (lower.includes('improv') || lower.includes('updat')) grouped.improved.push(tagged);
+				else grouped.other.push(tagged);
+			}
+		}
+		const result = [];
+		if (grouped.added.length) result.push({ title: "New Features", type: "added", items: grouped.added });
+		if (grouped.improved.length) result.push({ title: "Improvements", type: "improved", items: grouped.improved });
+		if (grouped.fixed.length) result.push({ title: "Bug Fixes", type: "fixed", items: grouped.fixed });
+		if (grouped.other.length) result.push({ title: "Other Changes", type: "progress", items: grouped.other });
+		return result;
+	}
+	isNewer(v1, v2 = this.version) {
+		const [a, b] = [v1, v2].map(v => v.split('.').map(Number));
+		for (let i = 0; i < Math.max(a.length, b.length); i++) {
+			if ((a[i] || 0) > (b[i] || 0)) return true;
+			if ((a[i] || 0) < (b[i] || 0)) return false;
+		}
+		return false;
+	}
 }
-function getConfigWithCurrentValues(current, defaults = CONFIG.defaultConfig) {
+const getConfigWithCurrentValues = (current, defaults = CONFIG.defaultConfig) => {
     return defaults.map(opt => ({
         ...opt,
         value: current[opt.id] ?? opt.value
     }));
-}
+};
 const Modules = {
     Dispatcher: Webpack.getByKeys("actionLogger"),
     TypingStore: Webpack.getStore("TypingStore"),
@@ -392,170 +416,40 @@ const Modules = {
     GuildChannelStore: Webpack.getStore("GuildChannelStore"),
 };
 const STYLES = `
-.typing-indicator-dots, .guild-typing-dots, .folder-typing-dots, .home-typing-dots,
-.channel-typing-dots { transform: scale(0.8); }
+.typing-indicator-dots, .guild-typing-dots, .folder-typing-dots, .home-typing-dots, .channel-typing-dots { transform: scale(0.8); }
 .typing-indicator-svg, .guild-typing-svg, .folder-typing-svg, .home-typing-svg { opacity: 1; }
-.typing-indicator-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-left: 4px;
-    position: relative !important;
-    z-index: 100 !important;
-}
+.typing-indicator-container { display: flex; align-items: center; justify-content: center; margin-left: 4px; position: relative !important; z-index: 100 !important; }
 /* Keep pointers off the icons so clicks pass through; tooltips are reserved for channel indicators */
-.guild-typing-container, .folder-typing-container, .home-typing-container {
-    position: absolute !important;
-    bottom: 1px !important;
-    right: 2px !important;
-    z-index: 9999999 !important;
-    pointer-events: none !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    background: var(--indicator-background, #18191c) !important;
-    border-radius: 10px !important;
-    padding: 1px 1px !important;
-    transform: scale(0.9) !important;
-    min-width: 32px !important;
-    min-height: 7px !important;
-    width: auto !important;
-}
-@keyframes typingBounce {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-4px); }
-}
-@keyframes typingPulse {
-    0%, 100% { transform: scale(1); opacity: 0.3; }
-    50% { transform: scale(1.2); opacity: 1; }
-}
-@keyframes typingWave {
-    0%, 100% { transform: translateY(0); }
-    25% { transform: translateY(-3px); }
-    75% { transform: translateY(3px); }
-}
+.guild-typing-container, .folder-typing-container, .home-typing-container { position: absolute !important; bottom: 1px !important; right: 2px !important; z-index: 9999999 !important; pointer-events: none !important; display: flex !important; align-items: center !important; justify-content: center !important; background: var(--indicator-background, #18191c) !important; border-radius: 10px !important; padding: 1px 1px !important; transform: scale(0.9) !important; min-width: 32px !important; min-height: 7px !important; width: auto !important; }
+@keyframes typingBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes typingPulse { 0%, 100% { transform: scale(1); opacity: 0.3; } 50% { transform: scale(1.2); opacity: 1; } }
+@keyframes typingWave { 0%, 100% { transform: translateY(0); } 25% { transform: translateY(-3px); } 75% { transform: translateY(3px); } }
 [data-animation="bounce"] { animation: typingBounce var(--animation-duration, 1.4s) infinite ease-in-out; }
 [data-animation="pulse"] { animation: typingPulse var(--animation-duration, 1.4s) infinite ease-in-out; }
 [data-animation="wave"] { animation: typingWave var(--animation-duration, 1.4s) infinite ease-in-out; }
-.typing-count-badge {
-    background-color: var(--brand-experiment);
-    color: white;
-    border-radius: 50%;
-    width: 18px;
-    height: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: bold;
-}
+.typing-count-badge { background-color: var(--brand-experiment); color: white; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; }
 .bti-settings-panel { padding: 16px; }
 .bti-settings-panel > * { margin-bottom: 20px; }
 .bti-slider-container { display: flex; align-items: center; gap: 8px; }
 .bti-slider-container span { color: white; }
-.bti-select {
-    background-color: var(--background-secondary);
-    border: none;
-    color: var(--text-normal);
-    padding: 8px;
-    border-radius: 4px;
-    outline: none;
-}
-.bti-color-picker input[type="color"] {
-    -webkit-appearance: none;
-    width: 50px;
-    height: 30px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    border-radius: 4px;
-}
-.bti-tooltip-container {
-    display: flex;
-    flex-direction: column;
-}
-.bti-tooltip-container.avatars-only {
-    flex-direction: row;
-    align-items: center;
-    gap: 2px;
-}
-.bti-user-row {
-    display: flex;
-    align-items: center;
-    margin-bottom: 4px;
-    font-size: 12px;
-}
-.bti-user-avatar {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    margin-right: 8px;
-}
-.bti-typing-text {
-    margin-top: 4px;
-    height: 20px;
-    line-height: 10px;
-}
-.bti-custom-tooltip {
-    position: absolute;
-    background-color: var(--tooltip-background, #2f3136) !important;
-    color: var(--text-normal, #dcddde) !important;
-    white-space: nowrap;
-    z-index: 1000;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.2s ease-in-out;
-    max-width: 300px;
-    word-wrap: break-word;
-    transform: translateX(-50%) translateY(-100%);
-    margin-bottom: 10px;
-    line-height: 1.4;
-    padding: 6px 8px;
-    border-radius: 4px;
-}
-.bti-custom-tooltip * {
-    color: var(--text-normal);
-    font-family: var(--font-display);
-    font-weight: 500;
-    font-size: 15px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    pointer-events: none;
-    user-select: none !important;
-}
-.bti-custom-tooltip::after {
-    content: '';
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    border-width: 5px;
-    border-style: solid;
-    border-color: var(--tooltip-background, #2f3136) transparent transparent transparent;
-}
-.bti-custom-tooltip.visible { 
-    opacity: 1; 
-}
-.typing-avatar-container {
-    transition: transform 0.2s ease;
-}
-.typing-avatar-container:hover {
-    transform: scale(1.1);
-    z-index: 1;
-}
-.typing-avatar-container + .typing-avatar-container {
-    margin-left: -4px;
-}
-.typing-status-dot {
-    box-shadow: 0 0 0 2px var(--background-primary);
-}
-.bti-tooltip-container img {
-    border-radius: inherit !important;
-    clip-path: inherit !important;
-}
+.bti-select { background-color: var(--background-secondary); border: none; color: var(--text-normal); padding: 8px; border-radius: 4px; outline: none; }
+.bti-color-picker input[type="color"] { -webkit-appearance: none; width: 50px; height: 30px; background: none; border: none; cursor: pointer; border-radius: 4px; }
+.bti-tooltip-container { display: flex; flex-direction: column; }
+.bti-tooltip-container.avatars-only { flex-direction: row; align-items: center; gap: 2px; }
+.bti-user-row { display: flex; align-items: center; margin-bottom: 4px; font-size: 12px; }
+.bti-user-avatar { width: 24px; height: 24px; border-radius: 50%; margin-right: 8px; }
+.bti-typing-text { margin-top: 4px; height: 20px; line-height: 10px; }
+.bti-custom-tooltip { position: absolute; background-color: var(--tooltip-background, #2f3136) !important; color: var(--text-normal, #dcddde) !important; white-space: nowrap; z-index: 1000; pointer-events: none; opacity: 0; transition: opacity 0.2s ease-in-out; max-width: 300px; word-wrap: break-word; transform: translateX(-50%) translateY(-100%); margin-bottom: 10px; line-height: 1.4; padding: 6px 8px; border-radius: 4px; }
+.bti-custom-tooltip * { color: var(--text-normal); font-family: var(--font-display); font-weight: 500; font-size: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); pointer-events: none; user-select: none !important; }
+.bti-custom-tooltip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border-width: 5px; border-style: solid; border-color: var(--tooltip-background, #2f3136) transparent transparent transparent; }
+.bti-custom-tooltip.visible { opacity: 1; }
+.typing-avatar-container { transition: transform 0.2s ease; }
+.typing-avatar-container:hover { transform: scale(1.1); z-index: 1; }
+.typing-avatar-container + .typing-avatar-container { margin-left: -4px; }
+.typing-status-dot { box-shadow: 0 0 0 2px var(--background-primary); }
+.bti-tooltip-container img { border-radius: inherit !important; clip-path: inherit !important; }
 /* Respect motion-sensitive users */
-@media (prefers-reduced-motion: reduce) {
-  [data-animation] { animation: none !important; }
-}
+@media (prefers-reduced-motion: reduce) { [data-animation] { animation: none !important; } }
 `;
 class ErrorBoundary extends React.Component {
     constructor(props) {
@@ -583,7 +477,7 @@ const Tooltip = ({
     React.useEffect(() => {
         const el = tooltipRef.current;
         return () => {
-            el?.parentNode?.removeChild(el);
+            el?.remove();
         };
     }, []);
     React.useEffect(() => {
@@ -604,20 +498,20 @@ const Tooltip = ({
         document.body
     );
 };
-function getDefaultAvatarIndex(user) {
+const getDefaultAvatarIndex = (user) => {
     if (!user.discriminator || user.discriminator === "0") {
         return Number(BigInt(user.id) >> 22n) % 6;
     }
     return Number(user.discriminator) % 5;
-}
-function getAvatarURL(user, size = 32) {
+};
+const getAvatarURL = (user, size = 32) => {
     if (user?.avatar) {
         const ext = user.avatar.startsWith("a_") ? "gif" : "webp";
         return `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.${ext}?size=${size}`;
     }
     return `https://cdn.discordapp.com/embed/avatars/${getDefaultAvatarIndex(user)}.png?size=${size}`;
-}
-const TypingIndicatorComponent = React.memo(function TypingIndicator(props) {
+};
+const BetterTypingIndicatorComponent = React.memo((props) => {
     const {
         type,
         users,
@@ -812,7 +706,7 @@ const TypingIndicatorComponent = React.memo(function TypingIndicator(props) {
         };
     }, []);
     const containerStyle = {
-        backgroundColor: type !== TYPES.CHANNEL ? settings.indicatorBackground : 'transparent',
+        backgroundColor: type === TYPES.CHANNEL ? 'transparent' : settings.indicatorBackground,
         color: settings.dotColor,
         position: 'relative',
         cursor: 'pointer'
@@ -834,7 +728,40 @@ const TypingIndicatorComponent = React.memo(function TypingIndicator(props) {
             null
     );
 });
-function getTooltipContent(users, settings) {
+const useMergedSettings = (baseSettings) => {
+    const storedSettings = Hooks?.useData ? Hooks.useData(PLUGIN_NAME, "settings") : null;
+    return React.useMemo(() => mergeSettings(baseSettings, storedSettings), [baseSettings, storedSettings]);
+};
+const BetterTypingIndicatorWrapper = ({
+    type,
+    targetId,
+    settings,
+    users,
+    tooltipId
+}) => {
+    const mergedSettings = useMergedSettings(settings);
+    const channelUsers = (type === TYPES.CHANNEL && Hooks?.useStateFromStores)
+        ? Hooks.useStateFromStores(
+            [Modules.TypingStore, Modules.UserStore, Modules.RelationshipStore],
+            () => {
+                const current = Modules.TypingStore.getTypingUsers(targetId);
+                return filterTypingUsers(current, mergedSettings, Modules);
+            },
+            [targetId, mergedSettings.includeBlocked]
+        )
+        : null;
+    const effectiveUsers = type === TYPES.CHANNEL
+        ? (channelUsers ?? users)
+        : users;
+    if (!effectiveUsers) return null;
+    return React.createElement(BetterTypingIndicatorComponent, {
+        type,
+        users: effectiveUsers,
+        settings: mergedSettings,
+        tooltipId
+    });
+};
+const getTooltipContent = (users, settings) => {
     if (!users || !Object.keys(users).length) {
         return React.createElement('div', null, 'Someone is typing...');
     }
@@ -935,12 +862,12 @@ function getTooltipContent(users, settings) {
             }, ' are typing...') :
             null
     );
-}
-const SettingsPanel = React.memo(function SettingsPanel({
+};
+const SettingsPanel = React.memo(({
     settings,
     onChange,
     modules
-}) {
+}) => {
     const {
         FormItem,
         FormSwitch,
@@ -994,7 +921,7 @@ const SettingsPanel = React.memo(function SettingsPanel({
                 title: name,
                 note: note,
                 children: React.createElement(ColorPicker, {
-                    color: parseInt(colorValue.replace('#', ''), 16),
+                    color: Number.parseInt(colorValue.replace('#', ''), 16),
                     onChange: color => {
                         const hex = '#' + color.toString(16).padStart(6, '0');
                         setColorValue(hex);
@@ -1058,7 +985,7 @@ const SettingsPanel = React.memo(function SettingsPanel({
                             step: 0.1,
                             value: sliderValue,
                             onChange: e => {
-                                const newValue = parseFloat(e.target.value);
+                                const newValue = Number.parseFloat(e.target.value);
                                 setSliderValue(newValue);
                                 onChange({
                                     [id]: newValue
@@ -1083,15 +1010,31 @@ const SettingsPanel = React.memo(function SettingsPanel({
         )
     );
 });
-function getTooltipText(users) {
+const SettingsPanelContainer = ({
+    plugin,
+    modules
+}) => {
+    const settingsFromData = Hooks?.useData ? Hooks.useData(PLUGIN_NAME, "settings") : null;
+    const mergedSettings = React.useMemo(
+        () => mergeSettings(plugin?.settings, settingsFromData),
+        [plugin, settingsFromData]
+    );
+    const handleChange = React.useCallback(patch => plugin.saveSettings(patch), [plugin]);
+    return React.createElement(SettingsPanel, {
+        settings: mergedSettings,
+        onChange: handleChange,
+        modules
+    });
+};
+const getTooltipText = (users) => {
     if (!users || !Object.keys(users).length) return 'Someone is typing...';
     const names = Object.values(users).map(u => u.globalName || u.username).filter(Boolean);
     if (names.length === 1) return `${names[0]} is typing...`;
     if (names.length === 2) return `${names.join(' and ')} are typing...`;
     if (names.length === 3) return `${names[0]}, ${names[1]}, and ${names[2]} are typing...`;
     return `${names.length} people are typing...`;
-}
-function filterTypingUsers(users, settings, modules) {
+};
+const filterTypingUsers = (users, settings, modules) => {
     try {
         const currentUser = modules.UserStore.getCurrentUser();
         return Object.entries(users || {})
@@ -1110,8 +1053,8 @@ function filterTypingUsers(users, settings, modules) {
         console.error('Error filtering typing users:', error);
         return {};
     }
-}
-function isChannelMuted(guildId, channelId) {
+};
+const isChannelMuted = (guildId, channelId) => {
     const M = Modules.MutedStore;
     try {
         if (typeof M?.isChannelMuted === 'function') {
@@ -1121,10 +1064,10 @@ function isChannelMuted(guildId, channelId) {
         }
     } catch { }
     return false;
-}
-class TypingIndicator {
+};
+class BetterTypingIndicator {
     constructor() {
-        this.states = new Map();
+        this.typingState = new Map();
         this._roots = new Map();
         this.settings = this.getSettings();
         this.handleTyping = this.handleTyping.bind(this);
@@ -1167,7 +1110,7 @@ class TypingIndicator {
             if (!el) {
                 const nodes = document.querySelectorAll('[data-list-item-id]');
                 for (const node of nodes) {
-                    const id = node.getAttribute('data-list-item-id') || '';
+                    const id = node.dataset.listItemId || '';
                     if (id === `channels___${targetId}` ||
                         id === `guildsnav___${targetId}` ||
                         id === String(targetId)) {
@@ -1195,11 +1138,11 @@ class TypingIndicator {
     }
     gcElementCache() {
         if (!this._elCache) return;
-        this._elCache.forEach((el, key) => {
+        for (const [key, el] of this._elCache) {
             if (!el || !document.contains(el)) {
                 this._elCache.delete(key);
             }
-        });
+        }
     }
     validateModulesOnce() {
         if (this._didValidateModules) return;
@@ -1218,10 +1161,7 @@ class TypingIndicator {
     }
     getSettings() {
         return {
-            ...CONFIG.defaultConfig.reduce((acc, cfg) => ({
-                ...acc,
-                [cfg.id]: cfg.value
-            }), {}),
+            ...DEFAULT_SETTINGS_MAP,
             ...Data.load(CONFIG.info.name, "settings")
         };
     }
@@ -1238,12 +1178,12 @@ class TypingIndicator {
                 this.updateManager.stop();
             }
         }
-        const visualKeys = [
+        const visualKeys = new Set([
             'dotColor', 'indicatorBackground', 'animationStyle', 'animationSpeed',
             'showAvatarsInIndicator', 'avatarStyle', 'avatarSize', 'showAvatarStatus',
             'showCount', 'tooltipStyle'
-        ];
-        const visualSettingsChanged = Object.keys(newSettings).some(key => visualKeys.includes(key));
+        ]);
+        const visualSettingsChanged = Object.keys(newSettings).some(key => visualKeys.has(key));
         if (visualSettingsChanged) {
             this._debouncedReload();
         }
@@ -1263,8 +1203,9 @@ class TypingIndicator {
         this.validateModulesOnce();
         this._roots = this._roots || new Map();
         await this.updateManager.start(this.settings.autoUpdate);
-        this.states = this.states || new Map();
-        TYPING_EVENTS.forEach(e => Modules.Dispatcher.subscribe(e, this.handleTyping));
+        for (const e of TYPING_EVENTS) {
+            Modules.Dispatcher.subscribe(e, this.handleTyping);
+        }
     }
     stop() {
         DOM.removeStyle('typing-indicator-css');
@@ -1299,47 +1240,35 @@ class TypingIndicator {
             if (!event?.channelId || !event?.userId) return;
             const channel = Modules.ChannelStore.getChannel(event.channelId);
             if (!channel) return;
-            if (channel.parent_id) {
-                const parentChannel = Modules.ChannelStore.getChannel(channel.parent_id);
-                if (parentChannel?.type === 15) {
-                    if (
-                        !this.settings.includeMuted && (
-                            Modules.MutedStore.isMuted(channel.guild_id) ||
-                            isChannelMuted(channel.guild_id, channel.id)
-                        )
-                    ) return;
-                    Object.values(TYPES).forEach(type => {
-                        const parentTargetId = this.getTargetId(type, parentChannel);
-                        if (!parentTargetId || !this.settings[`${type}TypingIndicator`]) return;
-                        if (event.type === 'TYPING_START') {
-                            this.addTyping(type, parentTargetId, event.userId);
-                        } else {
-                            this.removeTyping(type, parentTargetId, event.userId);
-                        }
-                        requestAnimationFrame(() => this.updateIndicator(type, parentTargetId));
-                    });
-                }
-            }
-            if (
-                !this.settings.includeMuted &&
+            const isMutedChannel = !this.settings.includeMuted &&
                 (
                     Modules.MutedStore.isMuted(channel.guild_id) ||
                     isChannelMuted(channel.guild_id, channel.id)
-                )
-            ) return;
-            Object.values(TYPES).forEach(type => {
-                if (!this.settings[`${type}TypingIndicator`]) return;
-                const targetId = this.getTargetId(type, channel);
-                if (!targetId) return;
-                if (event.type === 'TYPING_START') {
-                    this.addTyping(type, targetId, event.userId);
-                } else {
-                    this.removeTyping(type, targetId, event.userId);
+                );
+            if (channel.parent_id) {
+                const parentChannel = Modules.ChannelStore.getChannel(channel.parent_id);
+                if (parentChannel?.type === 15) {
+                    if (isMutedChannel) return;
+                    this.applyTypingForTypes(parentChannel, event);
                 }
-                requestAnimationFrame(() => this.updateIndicator(type, targetId));
-            });
+            }
+            if (isMutedChannel) return;
+            this.applyTypingForTypes(channel, event);
         } catch (error) {
             console.error('Error processing typing event:', error);
+        }
+    }
+    applyTypingForTypes(channel, event) {
+        for (const type of Object.values(TYPES)) {
+            if (!this.settings[`${type}BetterTypingIndicator`]) continue;
+            const targetId = this.getTargetId(type, channel);
+            if (!targetId) continue;
+            if (event.type === 'TYPING_START') {
+                this.addTyping(type, targetId, event.userId);
+            } else {
+                this.removeTyping(type, targetId, event.userId);
+            }
+            requestAnimationFrame(() => this.updateIndicator(type, targetId));
         }
     }
     getTargetId(type, channel) {
@@ -1361,17 +1290,19 @@ class TypingIndicator {
         }
     }
     addTyping(type, targetId, userId) {
-        if (!this.states.has(type)) {
-            this.states.set(type, new Map());
+        if (type === TYPES.CHANNEL) return;
+        if (!this.typingState.has(type)) {
+            this.typingState.set(type, new Map());
         }
-        const typeState = this.states.get(type);
+        const typeState = this.typingState.get(type);
         if (!typeState.has(targetId)) {
             typeState.set(targetId, new Set());
         }
         typeState.get(targetId).add(userId);
     }
     removeTyping(type, targetId, userId) {
-        const typeState = this.states.get(type);
+        if (type === TYPES.CHANNEL) return;
+        const typeState = this.typingState.get(type);
         if (!typeState) return;
         const targetSet = typeState.get(targetId);
         if (!targetSet) return;
@@ -1380,18 +1311,38 @@ class TypingIndicator {
             typeState.delete(targetId);
         }
     }
+    hasTyping(type, targetId) {
+        if (type === TYPES.CHANNEL) {
+            const users = Modules.TypingStore.getTypingUsers(targetId);
+            return !!users && Object.keys(users).length > 0;
+        }
+        return (this.typingState.get(type)?.get(targetId)?.size || 0) > 0;
+    }
+    getTypingUsersFor(type, targetId) {
+        if (type === TYPES.CHANNEL) {
+            return Modules.TypingStore.getTypingUsers(targetId);
+        }
+        const ids = this.typingState.get(type)?.get(targetId);
+        if (!ids || ids.size === 0) return {};
+        const result = {};
+        for (const id of ids) {
+            const user = Modules.UserStore.getUser(id);
+            if (user) result[id] = user;
+        }
+        return result;
+    }
     renderOrCleanupIndicator(type, targetId, containerEl) {
         const rootKey = `${type}:${targetId}`;
-        const hasTyping = this.states.get(type)?.get(targetId)?.size > 0;
+        const hasTyping = this.hasTyping(type, targetId);
         if (!hasTyping) {
             const root = this._roots.get(rootKey);
             if (root) {
                 root.unmount();
                 this._roots.delete(rootKey);
             }
-            containerEl
-                .querySelectorAll(`.${type}-typing-container`)
-                .forEach(el => el.remove());
+            for (const el of containerEl.querySelectorAll(`.${type}-typing-container`)) {
+                el.remove();
+            }
             return;
         }
         let indicator = containerEl.querySelector(`.${type}-typing-container`);
@@ -1409,12 +1360,13 @@ class TypingIndicator {
             root = ReactDOM.createRoot(indicator);
             this._roots.set(rootKey, root);
         }
-        const users = Modules.TypingStore.getTypingUsers(targetId);
+        const users = this.getTypingUsersFor(type, targetId);
         const filteredUsers = filterTypingUsers(users, this.settings, Modules);
         root.render(
             React.createElement(ErrorBoundary, null,
-                React.createElement(TypingIndicatorComponent, {
+                React.createElement(BetterTypingIndicatorWrapper, {
                     type,
+                    targetId,
                     users: filteredUsers,
                     settings: this.settings,
                     tooltipId: rootKey
@@ -1441,7 +1393,7 @@ class TypingIndicator {
         }
     }
     observer(arg) {
-        if (!this.states || !this._roots) return;
+        if (!this._roots) return;
         const mutations = Array.isArray(arg) ? arg : [arg];
         for (const m of mutations) {
             const addedNodes = m?.addedNodes || [];
@@ -1455,23 +1407,25 @@ class TypingIndicator {
         const channelAttr = node.getAttribute?.('data-list-item-id');
         const isSelfChannel = channelAttr?.startsWith('channels___');
         const channelItems = isSelfChannel ? [node] : (node.querySelectorAll?.('[data-list-item-id^="channels___"]') || []);
-        channelItems.forEach(item => {
-            const channelId = item.getAttribute('data-list-item-id').replace('channels___', '');
+        for (const item of channelItems) {
+            const channelId = item.dataset.listItemId.replace('channels___', '');
             if (channelId) this.updateIndicator(TYPES.CHANNEL, channelId);
-        });
+        }
         const isSelfGuild = channelAttr?.startsWith('guildsnav___');
         const guildItems = isSelfGuild ? [node] : (node.querySelectorAll?.('[data-list-item-id^="guildsnav___"]') || []);
-        guildItems.forEach(item => {
-            const guildId = item.getAttribute('data-list-item-id').replace('guildsnav___', '');
+        for (const item of guildItems) {
+            const guildId = item.dataset.listItemId.replace('guildsnav___', '');
             if (guildId) {
                 this.updateIndicator(TYPES.GUILD, guildId);
                 this.updateIndicator(TYPES.FOLDER, guildId);
             }
-        });
+        }
     }
     cleanup() {
-        TYPING_EVENTS.forEach(e => Modules.Dispatcher.unsubscribe(e, this.handleTyping));
-        this.states.clear();
+        for (const e of TYPING_EVENTS) {
+            Modules.Dispatcher.unsubscribe(e, this.handleTyping);
+        }
+        this.typingState.clear();
         if (this._roots) {
             for (const root of this._roots.values()) {
                 try {
@@ -1482,27 +1436,28 @@ class TypingIndicator {
             }
             this._roots.clear();
         }
-        ['typing-indicator-container', 'bti-custom-tooltip'].forEach(className => {
-            document.querySelectorAll(`.${className}`).forEach(el => {
-                el?.parentNode?.removeChild(el);
-            });
-        });
+        for (const className of ['typing-indicator-container', 'bti-custom-tooltip']) {
+            for (const el of document.querySelectorAll(`.${className}`)) {
+                el.remove();
+            }
+        }
     }
     getSettingsPanel() {
         if (typeof UI.buildSettingsPanel === "function") {
             return UI.buildSettingsPanel({
-                settings: getConfigWithCurrentValues(this.settings),
+                settings: getConfigWithCurrentValues({
+                    ...DEFAULT_SETTINGS_MAP,
+                    ...this.settings
+                }),
                 onChange: (_, id, value) => this.saveSettings({
                     [id]: value
                 })
             });
         }
-        return React.createElement(SettingsPanel, {
-            settings: this.settings,
-            onChange: patch => this.saveSettings(patch),
+        return React.createElement(SettingsPanelContainer, {
+            plugin: this,
             modules: this.cachedModules
         });
     }
 }
-module.exports = TypingIndicator;
-/*@end@*/
+module.exports = BetterTypingIndicator;
