@@ -1,8 +1,8 @@
 /**
  * @name BetterFriendsSince
  * @author Pharaoh2k
- * @description Shows the date you and a friend became friends in the profile modal and friends/DM sidebar.
- * @version 1.1.1
+ * @description Shows the date you and a friend became friends in the profile modal and Friends sidebar.
+ * @version 1.1.2
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterFriendsSince/BetterFriendsSince.plugin.js
@@ -211,13 +211,23 @@ const FriendsSince = meta => {
 			const patchSidebar = async () => {
 				try {
 					const sidebarSectionMod = await Webpack.waitForModule(
-						Webpack.Filters.bySource(
-							'headingVariant:m="text-xs/semibold"',
-							'headingColor:g="header-secondary"'
-						),
+						m => {
+							try {
+								return Object.values(m).some(v => {
+									const str = v?.toString?.() || '';
+									return str.includes('headingVariant:') && 
+										   str.includes('headingIcon:') && 
+										   str.includes('scrollIntoView:');
+								});
+							} catch { return false; }
+						},
 						{ signal }
 					);
 					if (signal.aborted) return;
+					if (!sidebarSectionMod) {
+						Logger.warn(meta.name, "sidebarSectionMod not found by filter");
+						return;
+					}
 					let sidebarKey = null;
 					if (typeof sidebarSectionMod === "function") {
 						SidebarSectionComponent = sidebarSectionMod;
@@ -227,7 +237,7 @@ const FriendsSince = meta => {
 							try {
 								const value = sidebarSectionMod[k];
 								return typeof value === "function" &&
-									value.toString().includes('headingVariant:m="text-xs/semibold"');
+								value.toString().includes('headingVariant:') && value.toString().includes('scrollIntoView:');
 							} catch {
 								return false;
 							}
@@ -236,6 +246,10 @@ const FriendsSince = meta => {
 							SidebarSectionComponent = sidebarSectionMod[key];
 							sidebarKey = key;
 						}
+					}
+					if (!sidebarKey || !SidebarSectionComponent) {
+						Logger.warn(meta.name, "sidebarKey not found. Module type:", typeof sidebarSectionMod, "Keys:", Object.keys(sidebarSectionMod || {}));
+						return;
 					}
 					if (SidebarSectionComponent && sidebarSectionMod && sidebarKey) {
 						const targetModule = typeof sidebarSectionMod === "function"
@@ -328,7 +342,7 @@ const FriendsSince = meta => {
 								);
 								if (alreadyInjected) return;
 								body.children.splice(
-									index + 1,0,
+									index + 1, 0,
 									React.createElement(FriendsSinceProfileSection, {
 										key: `friends-since-profile-${userId}`,
 										userId
