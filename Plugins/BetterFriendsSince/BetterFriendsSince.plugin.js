@@ -2,7 +2,7 @@
  * @name BetterFriendsSince
  * @author Pharaoh2k
  * @description Shows the date you and a friend became friends in the profile modal and Friends sidebar.
- * @version 1.1.3
+ * @version 1.1.4
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterFriendsSince/BetterFriendsSince.plugin.js
@@ -137,7 +137,7 @@ const createGetFriendSince = store => {
 		return sinces?.[userId] ?? null;
 	};
 };
-const createUseFriendsSince = (RelationshipStore, LocaleStore, getFriendSince) =>
+const createUseBetterFriendsSince = (RelationshipStore, LocaleStore, getFriendSince) =>
 	userId => {
 		const since = Hooks.useStateFromStores(
 			[RelationshipStore],
@@ -153,14 +153,14 @@ const createUseFriendsSince = (RelationshipStore, LocaleStore, getFriendSince) =
 		);
 		return { since, locale, dateLabel };
 	};
-const FriendsSince = meta => {
+const BetterFriendsSince = meta => {
 	let abortController = null;
 	let RelationshipStore = null;
 	let LocaleStore = null;
 	let Section = null;
 	let Text = null;
 	let SidebarSectionComponent = null;
-	let useFriendsSince = null;
+	let useBetterFriendsSince = null;
 	let getFriendSince = null;
 	const extractTextComponent = module => {
 		if (!module) return null;
@@ -188,15 +188,15 @@ const FriendsSince = meta => {
 		}
 		return null;
 	};
-	const createFriendsSinceComponent = (render, requiresSection) =>
+	const createBetterFriendsSinceComponent = (render, requiresSection) =>
 		React.memo(({ userId }) => {
-			if (!useFriendsSince || !RelationshipStore || !LocaleStore || !Text) return null;
+			if (!useBetterFriendsSince || !RelationshipStore || !LocaleStore || !Text) return null;
 			if (requiresSection && !Section) return null;
-			const data = useFriendsSince(userId);
+			const data = useBetterFriendsSince(userId);
 			if (!data?.since || !data.dateLabel) return null;
 			return render(data, userId);
 		});
-	const FriendsSinceProfileSection = createFriendsSinceComponent(
+	const BetterFriendsSinceProfileSection = createBetterFriendsSinceComponent(
 		({ locale, dateLabel }) =>
 			React.createElement(
 				Section,
@@ -205,7 +205,7 @@ const FriendsSince = meta => {
 			),
 		true
 	);
-	const FriendsSinceSidebarContent = createFriendsSinceComponent(
+	const BetterFriendsSinceSidebarContent = createBetterFriendsSinceComponent(
 		({ dateLabel }) =>
 			React.createElement(
 				Text,
@@ -219,23 +219,23 @@ const FriendsSince = meta => {
 	const handleSidebarPatch = (_, [props], returnValue) => {
 		if (!props || !returnValue) return;
 		if (props.headingColor !== "header-primary") return;
-		if (props.__betterFriendsSinceInjected) return;
+		if (props.__BetterFriendsSinceInjected) return;
 		const userId = props.children?.props?.userId ?? props.children?.props?.userID ?? null;
 		if (!userId) return;
 		const BaseSection =
 			SidebarSectionComponent ||
 			(React.isValidElement(returnValue) ? returnValue.type : null);
 		if (!BaseSection) return;
-		const friendsSinceSection = React.createElement(
+		const BetterFriendsSinceSection = React.createElement(
 			BaseSection,
 			{
 				key: `friends-since-sidebar-${userId}`,
 				heading: getHeadingForLocale(getCurrentLocale(LocaleStore)),
-				__betterFriendsSinceInjected: true
+				__BetterFriendsSinceInjected: true
 			},
-			React.createElement(FriendsSinceSidebarContent, { userId })
+			React.createElement(BetterFriendsSinceSidebarContent, { userId })
 		);
-		return React.createElement(React.Fragment, null, returnValue, friendsSinceSection);
+		return React.createElement(React.Fragment, null, returnValue, BetterFriendsSinceSection);
 	};
 	const handleProfilePatch = (_, [props], returnValue) => {
 		if (!props || !returnValue) return;
@@ -268,12 +268,12 @@ const FriendsSince = meta => {
 		const alreadyInjected = body.children.some(
 			child =>
 				React.isValidElement(child) &&
-				child.type === FriendsSinceProfileSection
+				child.type === BetterFriendsSinceProfileSection
 		);
 		if (alreadyInjected) return;
 		body.children.splice(
 			index + 1, 0,
-			React.createElement(FriendsSinceProfileSection, {
+			React.createElement(BetterFriendsSinceProfileSection, {
 				key: `friends-since-profile-${userId}`,
 				userId
 			})
@@ -360,7 +360,7 @@ const FriendsSince = meta => {
 				return;
 			}
 			getFriendSince = createGetFriendSince(RelationshipStore);
-			useFriendsSince = createUseFriendsSince(RelationshipStore, LocaleStore, getFriendSince);
+			useBetterFriendsSince = createUseBetterFriendsSince(RelationshipStore, LocaleStore, getFriendSince);
 			Text = await resolveTextComponent(signal);
 			if (signal.aborted) return;
 			if (!Text) {
@@ -393,10 +393,10 @@ const FriendsSince = meta => {
 			Section = null;
 			Text = null;
 			SidebarSectionComponent = null;
-			useFriendsSince = null;
+			useBetterFriendsSince = null;
 			getFriendSince = null;
 		}
 	};
 	return { start, stop };
 };
-module.exports = FriendsSince;
+module.exports = BetterFriendsSince;
