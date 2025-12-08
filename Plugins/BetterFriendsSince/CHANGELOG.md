@@ -1,5 +1,8 @@
 # [BetterFriendsSince](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterFriendsSince "BetterFriendsSince") Changelog
 
+### 1.1.4
+- Refactor naming conventions
+
 ### 1.1.3
 - Improved reliability & future-proofing against Discord updates
 
