@@ -1,5 +1,8 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+## 4.1.1
+- Fixed/Restored missing FolderIcon
+
 ## 4.1.0
 - Implemented multiple UI/UX improvements and fixes
 
