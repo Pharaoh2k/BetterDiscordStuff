@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 4.1.0
+ * @version 4.1.1
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
  */
@@ -1725,9 +1725,18 @@ const Icons = {
 			fill: "currentColor",
 			d: "M4 6a2 2 0 0 1 2-2h2a1 1 0 0 1 0 2H6v12h12v-2a1 1 0 1 1 2 0v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6Z",
 		})),
+	FolderIcon: () =>
+		/* @__PURE__ */ React.createElement(
+		"svg",
+		{ width: "24", height: "24", viewBox: "0 0 24 24" },
+			/* @__PURE__ */ React.createElement("path", {
+			fill: "currentColor",
+			d: "M10 4c.6 0 1.2.26 1.6.7L13.3 6H20c1.1 0 2 .9 2 2v9c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V5c0-.55.45-1 1-1h7zM4 7v10h16V9h-7.7c-.6 0-1.2-.26-1.6-.7L9.3 7H4z",
+		})),
 };
 const Close = Icons.Close;
 const PlusAlt = Icons.PlusAlt;
+const FolderIcon = Icons.FolderIcon;
 const FilledFolderIcon = (props) =>
 	/* @__PURE__ */ React.createElement(
 	"svg",
