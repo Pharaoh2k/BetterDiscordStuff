@@ -387,7 +387,7 @@ class StyleManager {
 			@media (prefers-reduced-motion: no-preference) {
 				@keyframes channelTabs-pulse { from { filter: drop-shadow(0 0 0 rgba(88,101,242,0)); opacity: 0.9; } to { filter: drop-shadow(0 0 6px rgba(88,101,242,0.45)); opacity: 1; } }
 			}
-			.channelTabs-sliderContainer { display: flex; justify-content: center; padding: 4px 8px; margin: 2px 6px 12px 6px; background: var(--button-secondary-background); border-radius: var(--radius-sm); }
+			.channelTabs-sliderContainer { display: flex; justify-content: center; padding: 4px 8px; margin: 2px 6px 12px 6px; border-radius: var(--radius-sm); }
 			.channelTabs-slider { position: relative; top: -14px; }
 			.channelTabs-minimized { --channelTabs-tabWidth: fit-content; --channelTabs-tabWidthMin: fit-content; }
 			.channelTabs-tab.channelTabs-minimized>div>:first-child~*,
