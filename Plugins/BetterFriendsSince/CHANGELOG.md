@@ -2,7 +2,7 @@
 
 ### 1.1.2
 - Fixed due to Discord changes
-- 
+
 ### 1.1.1
 - Enhanced robustness and future-proofing measures
 - Additional heading locale translations
