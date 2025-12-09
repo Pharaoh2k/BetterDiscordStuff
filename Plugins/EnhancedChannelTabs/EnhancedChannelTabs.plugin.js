@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 4.1.1
+ * @version 4.1.2
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
  */
@@ -1731,7 +1731,7 @@ const Icons = {
 		{ width: "24", height: "24", viewBox: "0 0 24 24" },
 			/* @__PURE__ */ React.createElement("path", {
 			fill: "currentColor",
-			d: "M10 4c.6 0 1.2.26 1.6.7L13.3 6H20c1.1 0 2 .9 2 2v9c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V5c0-.55.45-1 1-1h7zM4 7v10h16V9h-7.7c-.6 0-1.2-.26-1.6-.7L9.3 7H4z",
+			d: "M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z",
 		})),
 };
 const Close = Icons.Close;
@@ -1749,11 +1749,7 @@ const FilledFolderIcon = (props) =>
 		...props,
 	},
 		/* @__PURE__ */ React.createElement("path", {
-		d: "M10 4c.6 0 1.2.26 1.6.7L13.3 6H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5c0-.55.45-1 1-1h7z",
-		opacity: "0.18"
-	}),
-		/* @__PURE__ */ React.createElement("path", {
-		d: "M4 7v10h16V9h-7.7c-.6 0-1.2-.26-1.6-.7L9.3 7H4z"
+		d: "M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"
 	})
 );
 const LeftCaret =
@@ -3402,10 +3398,10 @@ const getCurrentIconUrl = (pathname = location.pathname) => {
 				}
 				return IconUtilities.getChannelIconURL(channel);
 			} else if (!gId.startsWith("@")) {
-				return (
-					IconUtilities.getGuildIconURL(GuildStore.getGuild(gId)) ??
-					DefaultUserIconGrey
-				);
+				const guild = GuildStore.getGuild(gId);
+				return guild
+					? (IconUtilities.getGuildIconURL(guild) ?? DefaultUserIconGrey)
+					: DefaultUserIconGrey;
 			}
 		}
 	} catch (error) {
