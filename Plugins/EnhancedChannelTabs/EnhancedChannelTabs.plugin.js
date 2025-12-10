@@ -77,7 +77,7 @@ class UpdateManager {
 				BdApi.UI.showToast(`[${this.name}] You're up to date.`, { type: 'info' });
 			}
 		} catch (e) {
-			console.error(`[${this.name}] Update check failed:`, e);
+            BdApi.Logger.error(this.name, "Update check failed:", e);
 			if (!silent) BdApi.UI.showToast(`[${this.name}] Update check failed`, { type: 'error' });
 		}
 	}
@@ -143,8 +143,9 @@ class UpdateManager {
 					BdApi.UI.showToast('Please reload Discord (Ctrl+R)', { type: 'info', timeout: 0 });
 				}
 			}, 100);
-		} catch {
-			BdApi.UI.showToast('Update failed', { type: 'error' });
+        } catch (e) {
+            BdApi.Logger.error(this.name, "Update failed:", e);
+            BdApi.UI.showToast('Update failed', { type: 'error' });
 		}
 	}
 	async showChangelog() {
@@ -154,6 +155,7 @@ class UpdateManager {
 		if (!last) return;
 		try {
 			const res = await BdApi.Net.fetch(this.urls.changelog);
+            if (res.status !== 200) return;
 			const md = await res.text();
 			const changes = this.parseChangelog(md, last, this.version);
 			if (changes.length === 0) return;
@@ -162,11 +164,12 @@ class UpdateManager {
 				subtitle: `Version ${this.version}`,
 				changes
 			});
-		} catch { }
+        } catch { /* Changelog fetch failed, ignore */ }
 	}
 	async showFullChangelog() {
 		try {
 			const res = await BdApi.Net.fetch(this.urls.changelog);
+            if (res.status !== 200) throw new Error("Failed to fetch changelog");
 			const md = await res.text();
 			const changes = this.parseChangelog(md, "0.0.0", this.version);
 			BdApi.UI.showChangelogModal({
