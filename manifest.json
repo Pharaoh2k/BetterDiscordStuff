@@ -22,6 +22,11 @@
       "enabled": true
     },
     {
+      "id": "Better Split Large Messages",
+      "name": "BetterSplitLargeMessages",
+      "enabled": true
+    },
+    {
       "id": "Better Friends Since",
       "name": "BetterFriendsSince",
       "enabled": true
