@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 4.1.4
+ * @version 4.1.5
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
  */
@@ -77,7 +77,7 @@ class UpdateManager {
 				BdApi.UI.showToast(`[${this.name}] You're up to date.`, { type: 'info' });
 			}
 		} catch (e) {
-            BdApi.Logger.error(this.name, "Update check failed:", e);
+			BdApi.Logger.error(this.name, "Update check failed:", e);
 			if (!silent) BdApi.UI.showToast(`[${this.name}] Update check failed`, { type: 'error' });
 		}
 	}
@@ -87,7 +87,7 @@ class UpdateManager {
 			title: `${this.name}`,
 			content: `v${version} is available`,
 			type: "info",
-			duration: 60000,
+			duration: 6000000,
 			actions: [
 				{
 					label: "Update",
@@ -143,9 +143,9 @@ class UpdateManager {
 					BdApi.UI.showToast('Please reload Discord (Ctrl+R)', { type: 'info', timeout: 0 });
 				}
 			}, 100);
-        } catch (e) {
-            BdApi.Logger.error(this.name, "Update failed:", e);
-            BdApi.UI.showToast('Update failed', { type: 'error' });
+		} catch (e) {
+			BdApi.Logger.error(this.name, "Update failed:", e);
+			BdApi.UI.showToast('Update failed', { type: 'error' });
 		}
 	}
 	async showChangelog() {
@@ -155,7 +155,7 @@ class UpdateManager {
 		if (!last) return;
 		try {
 			const res = await BdApi.Net.fetch(this.urls.changelog);
-            if (res.status !== 200) return;
+			if (res.status !== 200) return;
 			const md = await res.text();
 			const changes = this.parseChangelog(md, last, this.version);
 			if (changes.length === 0) return;
@@ -164,12 +164,12 @@ class UpdateManager {
 				subtitle: `Version ${this.version}`,
 				changes
 			});
-        } catch { /* Changelog fetch failed, ignore */ }
+		} catch { /* Changelog fetch failed, ignore */ }
 	}
 	async showFullChangelog() {
 		try {
 			const res = await BdApi.Net.fetch(this.urls.changelog);
-            if (res.status !== 200) throw new Error("Failed to fetch changelog");
+			if (res.status !== 200) throw new Error("Failed to fetch changelog");
 			const md = await res.text();
 			const changes = this.parseChangelog(md, "0.0.0", this.version);
 			BdApi.UI.showChangelogModal({
@@ -182,50 +182,66 @@ class UpdateManager {
 		}
 	}
 	parseChangelog(md, from, to) {
-		const lines = md.split('\n');
-		const versions = [];
-		let current = null;
-		let items = [];
-		for (const line of lines) {
-			const ver = line.match(/^###\s+([\d.]+)/)?.[1];
-			if (ver) {
-				if (current) versions.push({ version: current, items });
-				current = ver;
-				items = [];
-			} else if (line.trim().startsWith('-') && current) {
-				const item = line.trim().substring(1).trim();
-				if (item) items.push(item);
-			}
-		}
-		if (current) versions.push({ version: current, items });
-		const relevant = versions.filter(v =>
-			this.isNewer(v.version, from) && !this.isNewer(v.version, to)
+		const versions = this._parseChangelogVersions(md);
+		const relevant = versions.filter(
+			v => this.isNewer(v.version, from) && !this.isNewer(v.version, to)
 		);
 		const grouped = { added: [], improved: [], fixed: [], other: [] };
+		const getType = (lower) => {
+			if (lower.includes("fix")) return "fixed";
+			if (lower.includes("add") || lower.includes("initial")) return "added";
+			if (lower.includes("improv") || lower.includes("updat")) return "improved";
+			return "other";
+		};
 		for (const v of relevant) {
 			for (const item of v.items) {
 				const lower = item.toLowerCase();
 				const tagged = `${item} (v${v.version})`;
-				if (lower.includes('fix')) grouped.fixed.push(tagged);
-				else if (lower.includes('add') || lower.includes('initial')) grouped.added.push(tagged);
-				else if (lower.includes('improv') || lower.includes('updat')) grouped.improved.push(tagged);
-				else grouped.other.push(tagged);
+				grouped[getType(lower)].push(tagged);
 			}
 		}
+		const sections = [
+			["New Features", "added", "added"],
+			["Improvements", "improved", "improved"],
+			["Bug Fixes", "fixed", "fixed"],
+			["Other Changes", "other", "progress"]
+		];
 		const result = [];
-		if (grouped.added.length) result.push({ title: "New Features", type: "added", items: grouped.added });
-		if (grouped.improved.length) result.push({ title: "Improvements", type: "improved", items: grouped.improved });
-		if (grouped.fixed.length) result.push({ title: "Bug Fixes", type: "fixed", items: grouped.fixed });
-		if (grouped.other.length) result.push({ title: "Other Changes", type: "progress", items: grouped.other });
+		for (const [title, key, type] of sections) {
+			if (grouped[key].length) {
+				result.push({ title, type, items: grouped[key] });
+			}
+		}
 		return result;
 	}
-	isNewer(v1, v2 = this.version) {
-		const [a, b] = [v1, v2].map(v => v.split('.').map(Number));
-		for (let i = 0; i < Math.max(a.length, b.length); i++) {
-			if ((a[i] || 0) > (b[i] || 0)) return true;
-			if ((a[i] || 0) < (b[i] || 0)) return false;
+	_parseChangelogVersions(md) {
+		const lines = md.split("\n");
+		const versions = [];
+		let current = null;
+		let items = [];
+		const push = () => {
+			if (!current) return;
+			versions.push({ version: current, items });
+			items = [];
+		};
+		for (const line of lines) {
+			const ver = line.match(/^###\s+([\d.]+)/)?.[1];
+			if (ver) {
+				push();
+				current = ver;
+				continue;
+			}
+			if (!current) continue;
+			const trimmed = line.trim();
+			if (!trimmed.startsWith("-")) continue;
+			const item = trimmed.substring(1).trim();
+			if (item) items.push(item);
 		}
-		return false;
+		push();
+		return versions;
+	}
+	isNewer(v1, v2 = this.version) {
+		return Utils.semverCompare(v2, v1) === 1;
 	}
 }
 class StyleManager {
@@ -261,9 +277,9 @@ class StyleManager {
 			.channelTabs-tabIconWrapper rect,
 			.channelTabs-favIconWrapper rect { x: 0; y: 0; rx: 50%; ry: 50%; -webkit-mask: none; mask: none; fill: none; height: 20px; width: 20px; stroke-width: 2px; }
 			.channelTabs-onlineIcon { stroke: var(--status-online); }
-			.channelTabs-idleIcon { stroke: var(--status-idle); }
+			.channelTabs-idleIcon { stroke: var(--icon-status-idle); }
 			.channelTabs-doNotDisturbIcon { stroke: var(--status-danger); }
-			.channelTabs-offlineIcon { stroke: var(--status-offline); }
+			.channelTabs-offlineIcon { stroke: var(--icon-status-offline); }
 		`;
 	}
 	static getTabNavStyle() {
@@ -272,15 +288,15 @@ class StyleManager {
 			.channelTabs-tabNavClose svg { transform: scale(0.75); }
 			.channelTabs-tabNavLeft svg,
 			.channelTabs-tabNavRight svg { transform: scale(0.6); }
-			.channelTabs-tabContainer .channelTabs-tabNav>div:hover { color: var(--interactive-text-hover); background-color: var(--background-modifier-hover); }
-			.channelTabs-tabContainer .channelTabs-tabNav>div:active { color: var(--interactive-text-active); background-color: var(--background-modifier-active); }
+			.channelTabs-tabContainer .channelTabs-tabNav>div:hover { color: var(--interactive-text-hover); background-color: var(--background-mod-subtle); }
+			.channelTabs-tabContainer .channelTabs-tabNav>div:active { color: var(--interactive-text-active); background-color: var(--background-mod-normal); }
 			.channelTabs-tabContainer[data-tab-count="1"] .channelTabs-tabNav>.channelTabs-tabNavClose { color: var(--interactive-muted); background: none; }
 			.channelTabs-tabNav>div { display: flex; align-items: center; justify-content: center; height: var(--channelTabs-tabHeight); width: 32px; border-radius: var(--radius-xs); color: var(--interactive-text-default); }
 		`;
 	}
 	static getBaseStyle(noDragClasses, systemBarClasses) {
 		return `
-			.channelTabs-input .bd-text-input { border: 1px solid var(--input-border); width: 100%; }
+			.channelTabs-input .bd-text-input { border: 1px solid var(--input-border-hover); width: 100%; }
 			.channelTabs-tabNav { display:none; }
 			div:has(> div > #channelTabs-container) { grid-template-rows: [top] auto [titleBarEnd] min-content [noticeEnd] 1fr [end]; }
 			${noDragClasses.map((x) => `.${x}`).join(", ")} { -webkit-app-region: no-drag; }
@@ -292,11 +308,11 @@ class StyleManager {
 			#channelTabs-container>:not(#channelTabs-settingsMenu)+div { padding-top: var(--space-4); border-top: 1px solid var(--border-subtle); }
 			/* Tabs */
 			.channelTabs-tab { position: relative; display: flex; align-items: center; height: var(--channelTabs-tabHeight); background: none; border-radius: var(--radius-xs); max-width: var(--channelTabs-tabWidth); min-width: var(--channelTabs-tabWidthMin); flex: 1 1 var(--channelTabs-tabWidthMin); margin-bottom: 3px; }
-			.channelTabs-tab:focus-visible { box-shadow: 0 0 0 2px var(--focus-primary); outline: none; }
+			.channelTabs-tab:focus-visible { box-shadow: 0 0 0 2px var(--text-link); outline: none; }
 			.channelTabs-tab>div:first-child { display: flex; width: calc(100% - 16px); align-items: center; }
-			.channelTabs-tab:not(.channelTabs-selected):hover { background: var(--background-modifier-hover); }
-			.channelTabs-tab:not(.channelTabs-selected):active { background: var(--background-modifier-active); }
-			.channelTabs-tab.channelTabs-selected { background: var(--background-modifier-selected); }
+			.channelTabs-tab:not(.channelTabs-selected):hover { background: var(--background-mod-subtle); }
+			.channelTabs-tab:not(.channelTabs-selected):active { background: var(--background-mod-normal); }
+			.channelTabs-tab.channelTabs-selected { background: var(--background-mod-strong); }
 			.channelTabs-tab.channelTabs-unread:not(.channelTabs-selected),
 			.channelTabs-tab.channelTabs-mention:not(.channelTabs-selected) { color: var(--interactive-text-hover); }
 			.channelTabs-tab.channelTabs-unread:not(.channelTabs-selected):hover,
@@ -308,7 +324,7 @@ class StyleManager {
 			.channelTabs-drop-after::before { right: 0; }
 			html:not(.platform-win) #channelTabs-settingsMenu { margin-right: 0; }
 			#channelTabs-settingsMenu { display: flex; justify-content: center; align-items: center; width: 32px; height: 32px; z-index: 1000; cursor: pointer; border-radius: var(--radius-xs); }
-			#channelTabs-settingsMenu:hover { background: var(--background-modifier-hover); }
+			#channelTabs-settingsMenu:hover { background: var(--background-mod-subtle); }
 			.channelTabs-settingsIcon { width: 20px; height: 20px; }
 			.channelTabs-tab .channelTabs-tabName { margin-right: var(--space-6); font-size: var(--channelTabs-tabNameFontSize); line-height: normal; color: var(--interactive-text-default); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 			.channelTabs-tab:not(.channelTabs-selected):hover .channelTabs-tabName { color: var(--interactive-text-hover); }
@@ -318,18 +334,18 @@ class StyleManager {
 			.channelTabs-tabIcon { height: 20px; border-radius: 50%; -webkit-user-drag: none; }
 			.channelTabs-tabIconWrapper { margin: 0 var(--space-6); flex-shrink: 0; }
 			.channelTabs-onlineIcon { fill: var(--status-online); mask: url(#svg-mask-status-online); }
-			.channelTabs-idleIcon { fill: var(--status-idle); mask: url(#svg-mask-status-idle); }
+			.channelTabs-idleIcon { fill: var(--icon-status-idle); mask: url(#svg-mask-icon-status-idle); }
 			.channelTabs-doNotDisturbIcon { fill: var(--status-danger); mask: url(#svg-mask-status-dnd); }
-			.channelTabs-offlineIcon { fill: var(--status-offline); mask: url(#svg-mask-status-offline); }
+			.channelTabs-offlineIcon { fill: var(--icon-status-offline); mask: url(#svg-mask-icon-status-offline); }
 			.channelTabs-closeTab { position: relative; height: 16px; width: 16px; flex-shrink: 0; right: 6px; border-radius: var(--radius-xs); color: var(--interactive-text-default); cursor: pointer; display: flex; align-items: center; justify-content: center; }
 			.channelTabs-closeTab svg { height: 100%; width: 100%; transform: scale(0.85); }
 			.channelTabs-closeTab:hover { background: var(--status-danger); color: var(--white-100); }
 			.channelTabs-newTab { display: flex; align-items: center; justify-content: center; flex-shrink: 0; height: var(--channelTabs-openTabSize); width: 24px; margin: 0 var(--space-6) 3px var(--space-6); border-radius: var(--radius-xs); cursor: pointer; color: var(--interactive-text-default); margin-right: var(--space-6); }
-			.channelTabs-newTab:hover { background: var(--background-modifier-hover); color: var(--interactive-text-hover); }
-			.channelTabs-newTab:active { background: var(--background-modifier-active); color: var(--interactive-text-active); }
+			.channelTabs-newTab:hover { background: var(--background-mod-subtle); color: var(--interactive-text-hover); }
+			.channelTabs-newTab:active { background: var(--background-mod-normal); color: var(--interactive-text-active); }
 			.channelTabs-tabListDropdown { display: flex; align-items: center; justify-content: center; flex-shrink: 0; height: var(--channelTabs-openTabSize); width: 24px; margin: 0 64px 3px 0; border-radius: var(--radius-xs); cursor: pointer; color: var(--interactive-text-default); }
-			.channelTabs-tabListDropdown:hover { background: var(--background-modifier-hover); color: var(--interactive-text-hover); }
-			.channelTabs-tabListDropdown:active { background: var(--background-modifier-active); color: var(--interactive-text-active); }
+			.channelTabs-tabListDropdown:hover { background: var(--background-mod-subtle); color: var(--interactive-text-hover); }
+			.channelTabs-tabListDropdown:active { background: var(--background-mod-normal); color: var(--interactive-text-active); }
 			.channelTabs-tabListDropdown svg { width: 16px; height: 16px; }
 			/* Badges */
 			.channelTabs-gridContainer { display: flex; margin-right: var(--space-6); gap: var(--space-4); align-items: center; }
@@ -366,8 +382,8 @@ class StyleManager {
 			.channelTabs-favStarIcon { width: 20px; height: 20px; opacity: 0.9; }
 			.channelTabs-favContainer { display: flex; align-items: center; flex-wrap: wrap; -webkit-app-region: drag; }
 			.channelTabs-fav { position: relative; display: flex; align-items: center; min-width: 0; border-radius: var(--radius-xs); height: var(--channelTabs-favHeight); background: none; flex: 0 0 1; max-width: var(--channelTabs-tabWidth); margin-bottom: 3px; padding-left: var(--space-6); padding-right: var(--space-6); }
-			.channelTabs-fav:hover { background: var(--background-modifier-hover); }
-			.channelTabs-fav:active { background: var(--background-modifier-active); }
+			.channelTabs-fav:hover { background: var(--background-mod-subtle); }
+			.channelTabs-fav:active { background: var(--background-mod-normal); }
 			.channelTabs-favIcon { height: 20px; border-radius: 50%; -webkit-user-drag: none; }
 			.channelTabs-favName { margin-left: var(--space-6); font-size: var(--channelTabs-tabNameFontSize); line-height: normal; color: var(--interactive-text-default); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 			.channelTabs-fav:hover .channelTabs-favName { color: var(--interactive-text-hover); }
@@ -376,7 +392,7 @@ class StyleManager {
 			.channelTabs-favGroupBtn { display: flex; align-items: center; min-width: 0; border-radius: var(--radius-xs); height: var(--channelTabs-favHeight); flex: 0 1 1; max-width: var(--channelTabs-tabWidth); padding: 0 var(--space-6); font-size: 12px; color: var(--interactive-text-default); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin-bottom: 3px; }
 			.channelTabs-favGroupBtn>:first-child { margin-left: var(--space-6); }
 			.channelTabs-favGroup { position: relative; }
-			.channelTabs-favGroup:hover .channelTabs-favGroupBtn { background: var(--background-modifier-hover); }
+			.channelTabs-favGroup:hover .channelTabs-favGroupBtn { background: var(--background-mod-subtle); }
 			.channelTabs-favGroup-content { z-index: 1001; display: none; position: absolute; min-width: max-content; background-color: var(--background-surface-high); box-shadow: var(--shadow-high); border-radius: var(--radius-xs); padding: var(--space-4); left: calc(100% + 6px); top: 0; }
 			.channelTabs-favGroup-content>:last-child { margin-bottom: 0; }
 			.channelTabs-favGroupShow { display: block; }
@@ -399,7 +415,7 @@ class StyleManager {
 			[aria-label="Open Quick Switcher"] { pointer-events: none !important; position: absolute !important; z-index: -1 !important; }
 			/* Tab List Menu Items (De-inlined) */
 			.channelTabs-tabListMenuItem { display: flex; align-items: center; width: 100%; min-height: 26px; cursor: pointer; position: relative; z-index: 1000; border-radius: var(--radius-xs); padding: var(--space-4); }
-			.channelTabs-tabListMenuItem:hover { background-color: var(--background-modifier-hover); }
+			.channelTabs-tabListMenuItem:hover { background-color: var(--background-mod-subtle); }
 			.channelTabs-tabListMenuIcon { width: 18px; height: 18px; margin-right: 10px; border-radius: 50%; flex-shrink: 0; }
 			.channelTabs-tabListMenuName { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; padding-right: 8px; }
 			.channelTabs-tabListBadgeContainer { display: flex; gap: var(--space-4); flex-shrink: 0; margin-right: 4px; }
@@ -407,12 +423,12 @@ class StyleManager {
 			.channelTabs-closedTabsContainer { max-height: 400px; overflow-y: auto; padding: var(--space-10); }
 			.channelTabs-closedTabsEmpty { text-align: center; color: var(--text-muted); padding: 20px; }
 			.channelTabs-closedTabItem { padding: var(--space-10); border-bottom: 1px solid var(--border-subtle); cursor: pointer; display: flex; align-items: center; gap: 10px; border-radius: var(--radius-xs); }
-			.channelTabs-closedTabItem:hover { background-color: var(--background-modifier-hover); }
+			.channelTabs-closedTabItem:hover { background-color: var(--background-mod-subtle); }
 			.channelTabs-closedTabIcon { width: 20px; height: 20px; border-radius: 50%; }
 			.channelTabs-closedTabInfo { flex: 1; }
 			.channelTabs-closedTabName { font-weight: 500; }
 			.channelTabs-closedTabMeta { font-size: 12px; color: var(--text-muted); }
-			.channelTabs-closedTabButton { padding: 4px 12px; border-radius: var(--radius-xs); border: none; background: var(--button-filled-brand-background); color: var(--white-100); cursor: pointer; font-size: 13px; }
+			.channelTabs-closedTabButton { padding: 4px 12px; border-radius: var(--radius-xs); border: none; background: var(--badge-background-default); color: var(--white-100); cursor: pointer; font-size: 13px; }
 			/* Utility Classes */
 			.channelTabs-shortcutLabelKeys { color: var(--text-muted); padding: 8px; font-size: 12px; white-space: pre-wrap; }
 			.channelTabs-minimumTabWidthLabel { pointer-events: none; }
@@ -4296,6 +4312,11 @@ function BaseFavFolder(props) {
 			onDoubleClick: (e) => {
 				e.preventDefault();
 				e.stopPropagation();
+			},
+			onMouseLeave: () => {
+				if (!isRootGroup && context.openPath?.includes(props.favGroup.groupId)) {
+					context.toggleGroup?.(props.favGroup.groupId);
+				}
 			}
 		},
 		/* @__PURE__ */ React.createElement(
@@ -4348,6 +4369,12 @@ function BaseFavFolder(props) {
 const DroppableGroup = makeDroppable(
 	[DNDTypes.GROUP, DNDTypes.FAVORITE, DNDTypes.TAB],
 	(props, monitor) => {
+		if (monitor.didDrop()) {
+			const result = monitor.getDropResult?.();
+			if (result?.handledBy) {
+				return;
+			}
+		}
 		const dropped = monitor.getItem();
 		const itemType = monitor.getItemType();
 		if (props.groupId === dropped.groupId) return;
