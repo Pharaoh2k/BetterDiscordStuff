@@ -1,5 +1,10 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+## 4.1.5
+- Several more fixes to match Discord changes
+- Fixed a couple of folder drag-and-drop issues
+- A few other minor changes
+
 ## 4.1.4
 - Updated (once more) to match Discord changes
 
