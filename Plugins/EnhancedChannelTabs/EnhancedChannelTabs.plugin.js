@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 4.1.3
+ * @version 4.1.4
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
  */
@@ -337,7 +337,7 @@ class StyleManager {
 			.channelTabs-unreadBadge { border-radius: var(--radius-sm); padding: 0 4px; min-width: 8px; width: fit-content; height: 16px; font-size: 12px; line-height: 16px; font-weight: 600; text-align: center; color: var(--white-100); }
 			.channelTabs-typingBadge { border-radius: var(--radius-sm); padding-left: 4px; padding-right: 4px; min-width: 8px; width: fit-content; height: 16px; font-size: 12px; line-height: 16px; font-weight: 600; text-align: center; color: var(--white-100); }
 			.channelTabs-mentionBadge { background-color: var(--status-danger); }
-			.channelTabs-unreadBadge { background-color: var(--badge-brand-bg); color: var(--badge-brand-text); }
+			.channelTabs-unreadBadge { background-color: var(--badge-background-default); color: var(--badge-text-default); }
 			/* Legacy alignment classes - now flex order */
 			.channelTabs-classicBadgeAlignment { margin-right: var(--space-6); }
 			.channelTabs-badgeAlignLeft { order: -1; }
