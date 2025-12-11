@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 4.1.2
+ * @version 4.1.3
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
  */
@@ -247,9 +247,9 @@ class StyleManager {
 	static getPrivacyStyle() {
 		return `
 			#app-mount .channelTabs-favGroupBtn { color: transparent !important; }
-			#app-mount .channelTabs-tabName { color: transparent; background-color: var(--interactive-normal); opacity: 0.5; }
-			#app-mount .channelTabs-selected .channelTabs-tabName { background-color: var(--interactive-active); }
-			#app-mount .channelTabs-favName { color: transparent; background-color: var(--interactive-normal); opacity: 0.5; }
+			#app-mount .channelTabs-tabName { color: transparent; background-color: var(--interactive-text-default); opacity: 0.5; }
+			#app-mount .channelTabs-selected .channelTabs-tabName { background-color: var(--interactive-text-active); }
+			#app-mount .channelTabs-favName { color: transparent; background-color: var(--interactive-text-default); opacity: 0.5; }
 		`;
 	}
 	static getRadialStatusStyle() {
@@ -272,10 +272,10 @@ class StyleManager {
 			.channelTabs-tabNavClose svg { transform: scale(0.75); }
 			.channelTabs-tabNavLeft svg,
 			.channelTabs-tabNavRight svg { transform: scale(0.6); }
-			.channelTabs-tabContainer .channelTabs-tabNav>div:hover { color: var(--interactive-hover); background-color: var(--background-modifier-hover); }
-			.channelTabs-tabContainer .channelTabs-tabNav>div:active { color: var(--interactive-active); background-color: var(--background-modifier-active); }
+			.channelTabs-tabContainer .channelTabs-tabNav>div:hover { color: var(--interactive-text-hover); background-color: var(--background-modifier-hover); }
+			.channelTabs-tabContainer .channelTabs-tabNav>div:active { color: var(--interactive-text-active); background-color: var(--background-modifier-active); }
 			.channelTabs-tabContainer[data-tab-count="1"] .channelTabs-tabNav>.channelTabs-tabNavClose { color: var(--interactive-muted); background: none; }
-			.channelTabs-tabNav>div { display: flex; align-items: center; justify-content: center; height: var(--channelTabs-tabHeight); width: 32px; border-radius: var(--radius-xs); color: var(--interactive-normal); }
+			.channelTabs-tabNav>div { display: flex; align-items: center; justify-content: center; height: var(--channelTabs-tabHeight); width: 32px; border-radius: var(--radius-xs); color: var(--interactive-text-default); }
 		`;
 	}
 	static getBaseStyle(noDragClasses, systemBarClasses) {
@@ -298,9 +298,9 @@ class StyleManager {
 			.channelTabs-tab:not(.channelTabs-selected):active { background: var(--background-modifier-active); }
 			.channelTabs-tab.channelTabs-selected { background: var(--background-modifier-selected); }
 			.channelTabs-tab.channelTabs-unread:not(.channelTabs-selected),
-			.channelTabs-tab.channelTabs-mention:not(.channelTabs-selected) { color: var(--interactive-hover); }
+			.channelTabs-tab.channelTabs-mention:not(.channelTabs-selected) { color: var(--interactive-text-hover); }
 			.channelTabs-tab.channelTabs-unread:not(.channelTabs-selected):hover,
-			.channelTabs-tab.channelTabs-mention:not(.channelTabs-selected):hover { color: var(--interactive-active); }
+			.channelTabs-tab.channelTabs-mention:not(.channelTabs-selected):hover { color: var(--interactive-text-active); }
 			.channelTabs-dragging { opacity: 0.5; }
 			.channelTabs-drop-before::before,
 			.channelTabs-drop-after::before { content: ""; position: absolute; top: 0; bottom: 0; width: 2px; background-color: var(--brand-500); z-index: 10; }
@@ -310,10 +310,10 @@ class StyleManager {
 			#channelTabs-settingsMenu { display: flex; justify-content: center; align-items: center; width: 32px; height: 32px; z-index: 1000; cursor: pointer; border-radius: var(--radius-xs); }
 			#channelTabs-settingsMenu:hover { background: var(--background-modifier-hover); }
 			.channelTabs-settingsIcon { width: 20px; height: 20px; }
-			.channelTabs-tab .channelTabs-tabName { margin-right: var(--space-6); font-size: var(--channelTabs-tabNameFontSize); line-height: normal; color: var(--interactive-normal); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-			.channelTabs-tab:not(.channelTabs-selected):hover .channelTabs-tabName { color: var(--interactive-hover); }
+			.channelTabs-tab .channelTabs-tabName { margin-right: var(--space-6); font-size: var(--channelTabs-tabNameFontSize); line-height: normal; color: var(--interactive-text-default); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+			.channelTabs-tab:not(.channelTabs-selected):hover .channelTabs-tabName { color: var(--interactive-text-hover); }
 			.channelTabs-tab:not(.channelTabs-selected):active .channelTabs-tabName,
-			.channelTabs-tab.channelTabs-selected .channelTabs-tabName { color: var(--interactive-active); }
+			.channelTabs-tab.channelTabs-selected .channelTabs-tabName { color: var(--interactive-text-active); }
 			/* Icons */
 			.channelTabs-tabIcon { height: 20px; border-radius: 50%; -webkit-user-drag: none; }
 			.channelTabs-tabIconWrapper { margin: 0 var(--space-6); flex-shrink: 0; }
@@ -321,15 +321,15 @@ class StyleManager {
 			.channelTabs-idleIcon { fill: var(--status-idle); mask: url(#svg-mask-status-idle); }
 			.channelTabs-doNotDisturbIcon { fill: var(--status-danger); mask: url(#svg-mask-status-dnd); }
 			.channelTabs-offlineIcon { fill: var(--status-offline); mask: url(#svg-mask-status-offline); }
-			.channelTabs-closeTab { position: relative; height: 16px; width: 16px; flex-shrink: 0; right: 6px; border-radius: var(--radius-xs); color: var(--interactive-normal); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+			.channelTabs-closeTab { position: relative; height: 16px; width: 16px; flex-shrink: 0; right: 6px; border-radius: var(--radius-xs); color: var(--interactive-text-default); cursor: pointer; display: flex; align-items: center; justify-content: center; }
 			.channelTabs-closeTab svg { height: 100%; width: 100%; transform: scale(0.85); }
 			.channelTabs-closeTab:hover { background: var(--status-danger); color: var(--white-100); }
-			.channelTabs-newTab { display: flex; align-items: center; justify-content: center; flex-shrink: 0; height: var(--channelTabs-openTabSize); width: 24px; margin: 0 var(--space-6) 3px var(--space-6); border-radius: var(--radius-xs); cursor: pointer; color: var(--interactive-normal); margin-right: var(--space-6); }
-			.channelTabs-newTab:hover { background: var(--background-modifier-hover); color: var(--interactive-hover); }
-			.channelTabs-newTab:active { background: var(--background-modifier-active); color: var(--interactive-active); }
-			.channelTabs-tabListDropdown { display: flex; align-items: center; justify-content: center; flex-shrink: 0; height: var(--channelTabs-openTabSize); width: 24px; margin: 0 64px 3px 0; border-radius: var(--radius-xs); cursor: pointer; color: var(--interactive-normal); }
-			.channelTabs-tabListDropdown:hover { background: var(--background-modifier-hover); color: var(--interactive-hover); }
-			.channelTabs-tabListDropdown:active { background: var(--background-modifier-active); color: var(--interactive-active); }
+			.channelTabs-newTab { display: flex; align-items: center; justify-content: center; flex-shrink: 0; height: var(--channelTabs-openTabSize); width: 24px; margin: 0 var(--space-6) 3px var(--space-6); border-radius: var(--radius-xs); cursor: pointer; color: var(--interactive-text-default); margin-right: var(--space-6); }
+			.channelTabs-newTab:hover { background: var(--background-modifier-hover); color: var(--interactive-text-hover); }
+			.channelTabs-newTab:active { background: var(--background-modifier-active); color: var(--interactive-text-active); }
+			.channelTabs-tabListDropdown { display: flex; align-items: center; justify-content: center; flex-shrink: 0; height: var(--channelTabs-openTabSize); width: 24px; margin: 0 64px 3px 0; border-radius: var(--radius-xs); cursor: pointer; color: var(--interactive-text-default); }
+			.channelTabs-tabListDropdown:hover { background: var(--background-modifier-hover); color: var(--interactive-text-hover); }
+			.channelTabs-tabListDropdown:active { background: var(--background-modifier-active); color: var(--interactive-text-active); }
 			.channelTabs-tabListDropdown svg { width: 16px; height: 16px; }
 			/* Badges */
 			.channelTabs-gridContainer { display: flex; margin-right: var(--space-6); gap: var(--space-4); align-items: center; }
@@ -362,18 +362,18 @@ class StyleManager {
 			.channelTabs-favGroupBtn .channelTabs-noTyping { display: none; }
 			/* Favorites */
 			.channelTabs-fav .channelTabs-favName + div { margin-left: var(--space-6); }
-			.channelTabs-favStar { display: flex; align-items: center; justify-content: flex-end; width: 28px; height: var(--channelTabs-favHeight); flex-shrink: 0; color: var(--interactive-normal); }
+			.channelTabs-favStar { display: flex; align-items: center; justify-content: flex-end; width: 28px; height: var(--channelTabs-favHeight); flex-shrink: 0; color: var(--interactive-text-default); }
 			.channelTabs-favStarIcon { width: 20px; height: 20px; opacity: 0.9; }
 			.channelTabs-favContainer { display: flex; align-items: center; flex-wrap: wrap; -webkit-app-region: drag; }
 			.channelTabs-fav { position: relative; display: flex; align-items: center; min-width: 0; border-radius: var(--radius-xs); height: var(--channelTabs-favHeight); background: none; flex: 0 0 1; max-width: var(--channelTabs-tabWidth); margin-bottom: 3px; padding-left: var(--space-6); padding-right: var(--space-6); }
 			.channelTabs-fav:hover { background: var(--background-modifier-hover); }
 			.channelTabs-fav:active { background: var(--background-modifier-active); }
 			.channelTabs-favIcon { height: 20px; border-radius: 50%; -webkit-user-drag: none; }
-			.channelTabs-favName { margin-left: var(--space-6); font-size: var(--channelTabs-tabNameFontSize); line-height: normal; color: var(--interactive-normal); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-			.channelTabs-fav:hover .channelTabs-favName { color: var(--interactive-hover); }
-			.channelTabs-fav:active .channelTabs-favName { color: var(--interactive-active); }
+			.channelTabs-favName { margin-left: var(--space-6); font-size: var(--channelTabs-tabNameFontSize); line-height: normal; color: var(--interactive-text-default); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+			.channelTabs-fav:hover .channelTabs-favName { color: var(--interactive-text-hover); }
+			.channelTabs-fav:active .channelTabs-favName { color: var(--interactive-text-active); }
 			.channelTabs-noFavNotice { color: var(--text-muted); font-size: 14px; padding: 3px; }
-			.channelTabs-favGroupBtn { display: flex; align-items: center; min-width: 0; border-radius: var(--radius-xs); height: var(--channelTabs-favHeight); flex: 0 1 1; max-width: var(--channelTabs-tabWidth); padding: 0 var(--space-6); font-size: 12px; color: var(--interactive-normal); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin-bottom: 3px; }
+			.channelTabs-favGroupBtn { display: flex; align-items: center; min-width: 0; border-radius: var(--radius-xs); height: var(--channelTabs-favHeight); flex: 0 1 1; max-width: var(--channelTabs-tabWidth); padding: 0 var(--space-6); font-size: 12px; color: var(--interactive-text-default); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin-bottom: 3px; }
 			.channelTabs-favGroupBtn>:first-child { margin-left: var(--space-6); }
 			.channelTabs-favGroup { position: relative; }
 			.channelTabs-favGroup:hover .channelTabs-favGroupBtn { background: var(--background-modifier-hover); }
@@ -1773,21 +1773,21 @@ const SettingsMenuIcon = /* @__PURE__ */ React.createElement(
 		viewBox: "0 0 80 80",
 	},
 	/* @__PURE__ */ React.createElement("rect", {
-		fill: "var(--interactive-normal)",
+		fill: "var(--interactive-text-default)",
 		x: "20",
 		y: "15",
 		width: "50",
 		height: "10",
 	}),
 	/* @__PURE__ */ React.createElement("rect", {
-		fill: "var(--interactive-normal)",
+		fill: "var(--interactive-text-default)",
 		x: "20",
 		y: "35",
 		width: "50",
 		height: "10",
 	}),
 	/* @__PURE__ */ React.createElement("rect", {
-		fill: "var(--interactive-normal)",
+		fill: "var(--interactive-text-default)",
 		x: "20",
 		y: "55",
 		width: "50",
