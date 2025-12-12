@@ -39,9 +39,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ---- end MIT notice ---- */
-const { Data, ContextMenu, Patcher, Webpack, React, DOM, ReactUtils, UI, Hooks, Utils } = new BdApi(
-	"EnhancedChannelTabs",
-);
 class UpdateManager {
 	constructor(pluginName, version, github = "Pharaoh2k/BetterDiscordStuff") {
 		this.name = pluginName;
@@ -473,7 +470,9 @@ class StyleManager {
 	}
 }
 let pluginMeta;
-
+const { ContextMenu, Patcher, Webpack, React, DOM, ReactUtils, UI, Hooks, Utils } = new BdApi(
+	"ChannelTabs",
+);
 const Store = Utils?.Store ?? class {
 	constructor() {
 		this.listeners = new Set();
@@ -507,6 +506,7 @@ const Store = Utils?.Store ?? class {
 		this.listeners.delete(listener);
 	}
 };
+const { Data } = BdApi;
 const TabStateStore = new Store();
 TabStateStore.state = {
 	tabs: [],
