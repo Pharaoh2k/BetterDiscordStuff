@@ -39,7 +39,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ---- end MIT notice ---- */
-const { ContextMenu, Patcher, Webpack, React, DOM, ReactUtils, UI, Hooks, Utils } = new BdApi(
+const { Data, ContextMenu, Patcher, Webpack, React, DOM, ReactUtils, UI, Hooks, Utils } = new BdApi(
 	"ChannelTabs",
 );
 class UpdateManager {
