@@ -40,7 +40,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ---- end MIT notice ---- */
 const { Data, ContextMenu, Patcher, Webpack, React, DOM, ReactUtils, UI, Hooks, Utils } = new BdApi(
-	"ChannelTabs",
+	"EnhancedChannelTabs",
 );
 class UpdateManager {
 	constructor(pluginName, version, github = "Pharaoh2k/BetterDiscordStuff") {
