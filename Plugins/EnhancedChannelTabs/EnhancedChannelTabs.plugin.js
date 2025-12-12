@@ -169,7 +169,7 @@ class UpdateManager {
 	async showFullChangelog() {
 		try {
 			const res = await BdApi.Net.fetch(this.urls.changelog);
-			if (res.status !== 200) throw new Error("Failed to fetch changelog");
+            if (res.status !== 200) throw new Error("Failed to fetch changelog");
 			const md = await res.text();
 			const changes = this.parseChangelog(md, "0.0.0", this.version);
 			BdApi.UI.showChangelogModal({
@@ -182,66 +182,50 @@ class UpdateManager {
 		}
 	}
 	parseChangelog(md, from, to) {
-		const versions = this._parseChangelogVersions(md);
-		const relevant = versions.filter(
-			v => this.isNewer(v.version, from) && !this.isNewer(v.version, to)
+		const lines = md.split('\n');
+		const versions = [];
+		let current = null;
+		let items = [];
+		for (const line of lines) {
+			const ver = line.match(/^###\s+([\d.]+)/)?.[1];
+			if (ver) {
+				if (current) versions.push({ version: current, items });
+				current = ver;
+				items = [];
+			} else if (line.trim().startsWith('-') && current) {
+				const item = line.trim().substring(1).trim();
+				if (item) items.push(item);
+			}
+		}
+		if (current) versions.push({ version: current, items });
+		const relevant = versions.filter(v =>
+			this.isNewer(v.version, from) && !this.isNewer(v.version, to)
 		);
 		const grouped = { added: [], improved: [], fixed: [], other: [] };
-		const getType = (lower) => {
-			if (lower.includes("fix")) return "fixed";
-			if (lower.includes("add") || lower.includes("initial")) return "added";
-			if (lower.includes("improv") || lower.includes("updat")) return "improved";
-			return "other";
-		};
 		for (const v of relevant) {
 			for (const item of v.items) {
 				const lower = item.toLowerCase();
 				const tagged = `${item} (v${v.version})`;
-				grouped[getType(lower)].push(tagged);
+				if (lower.includes('fix')) grouped.fixed.push(tagged);
+				else if (lower.includes('add') || lower.includes('initial')) grouped.added.push(tagged);
+				else if (lower.includes('improv') || lower.includes('updat')) grouped.improved.push(tagged);
+				else grouped.other.push(tagged);
 			}
 		}
-		const sections = [
-			["New Features", "added", "added"],
-			["Improvements", "improved", "improved"],
-			["Bug Fixes", "fixed", "fixed"],
-			["Other Changes", "other", "progress"]
-		];
 		const result = [];
-		for (const [title, key, type] of sections) {
-			if (grouped[key].length) {
-				result.push({ title, type, items: grouped[key] });
-			}
-		}
+		if (grouped.added.length) result.push({ title: "New Features", type: "added", items: grouped.added });
+		if (grouped.improved.length) result.push({ title: "Improvements", type: "improved", items: grouped.improved });
+		if (grouped.fixed.length) result.push({ title: "Bug Fixes", type: "fixed", items: grouped.fixed });
+		if (grouped.other.length) result.push({ title: "Other Changes", type: "progress", items: grouped.other });
 		return result;
 	}
-	_parseChangelogVersions(md) {
-		const lines = md.split("\n");
-		const versions = [];
-		let current = null;
-		let items = [];
-		const push = () => {
-			if (!current) return;
-			versions.push({ version: current, items });
-			items = [];
-		};
-		for (const line of lines) {
-			const ver = line.match(/^###\s+([\d.]+)/)?.[1];
-			if (ver) {
-				push();
-				current = ver;
-				continue;
-			}
-			if (!current) continue;
-			const trimmed = line.trim();
-			if (!trimmed.startsWith("-")) continue;
-			const item = trimmed.substring(1).trim();
-			if (item) items.push(item);
-		}
-		push();
-		return versions;
-	}
 	isNewer(v1, v2 = this.version) {
-		return BdApi.Utils.semverCompare(v2, v1) === 1;
+		const [a, b] = [v1, v2].map(v => v.split('.').map(Number));
+		for (let i = 0; i < Math.max(a.length, b.length); i++) {
+			if ((a[i] || 0) > (b[i] || 0)) return true;
+			if ((a[i] || 0) < (b[i] || 0)) return false;
+		}
+		return false;
 	}
 }
 class StyleManager {
