@@ -1,29 +1,29 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
-## 4.1.5
+### 4.1.5
 - Several more fixes to match Discord changes
 - Fixed a couple of folder drag-and-drop issues
 - A few other minor changes
 
-## 4.1.4
+### 4.1.4
 - Updated (once more) to match Discord changes
 
-## 4.1.3
+### 4.1.3
 - Updated to match Discord changes
 
-## 4.1.2
+### 4.1.2
 - Improved empty and filled folders SVGs
 
-## 4.1.1
+### 4.1.1
 - Fixed/Restored missing FolderIcon
 
-## 4.1.0
+### 4.1.0
 - Implemented multiple UI/UX improvements and fixes
 
-## 4.0.1
+### 4.0.1
 - Title bar now refreshes without reloading Discord
 
-## 4.0.0
+### 4.0.0
 - Completely rebuilt how tabs are saved and managed for better stability
 - Tabs, favorites, and groups now have unique IDs so they won't get mixed up
 - Settings save more efficiently and won't slow things down
@@ -42,16 +42,16 @@
 - Added fallbacks to prevent crashes when Discord updates
 - Fixed issues with orphaned or broken favorite groups
 
-## 3.1.3
+### 3.1.3
 - A minor adjustment
 
-## 3.1.2
+### 3.1.2
 - Fixed plugin compatibility with latest Discord update (add a robust TitleBar detection)
 
-## 3.1.1
+### 3.1.1
 - Fixed TopBar reference handling to resolve initialization timing issues caused by Discord update.
 
-## 3.1.0
+### 3.1.0
 - Replaced incorrect and obsolete Discord CSS vars with current ones
 - Replaced var with const/let for modern JavaScript practices
 - Simplified complex nested ternaries into readable if-statements
@@ -84,7 +84,7 @@
 - Improved focus management for keyboard tab navigation
 - Reduced imperative DOM manipulation in context menus by moving styles to CSS
  
-## 3.0.8
+### 3.0.8
 - Merged the following upstream changes:
 - Fixed the topbar preventing interaction with image viewer controls
 - Fixed compatiblity with CollapsibleUI
