@@ -1,5 +1,10 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+### 4.1.6
+- Rebranded all internal identifiers from `channelTabs` to `enhancedChannelTabs`
+- Fixed click detection on favorite group buttons
+- Updated all user-facing text to reference "EnhancedChannelTabs"
+  
 ### 4.1.5
 - Several more fixes to match Discord changes
 - Fixed a couple of folder drag-and-drop issues
