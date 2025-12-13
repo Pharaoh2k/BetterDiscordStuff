@@ -150,21 +150,20 @@ class UpdateManager {
 	}
 	async showChangelog() {
 		const last = BdApi.Data.load(this.name, 'version');
-		if (last === this.version) return;
+		console.log(`[${this.name}] showChangelog: last=${last}, current=${this.version}`);
+		if (last === this.version) { console.log(`[${this.name}] Skipping: versions match`); return; }
 		BdApi.Data.save(this.name, 'version', this.version);
-		if (!last) return;
+		if (!last) { console.log(`[${this.name}] Skipping: fresh install`); return; }
 		try {
 			const res = await BdApi.Net.fetch(this.urls.changelog);
+			console.log(`[${this.name}] Changelog fetch status: ${res.status}`);
 			if (res.status !== 200) return;
 			const md = await res.text();
 			const changes = this.parseChangelog(md, last, this.version);
+			console.log(`[${this.name}] Parsed changes:`, changes);
 			if (changes.length === 0) return;
-			BdApi.UI.showChangelogModal({
-				title: this.name,
-				subtitle: `Version ${this.version}`,
-				changes
-			});
-		} catch { /* Changelog fetch failed, ignore */ }
+			BdApi.UI.showChangelogModal({ title: this.name, subtitle: `Version ${this.version}`, changes });
+		} catch (e) { console.error(`[${this.name}] Changelog error:`, e); }
 	}
 	async showFullChangelog() {
 		try {
