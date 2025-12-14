@@ -1,7 +1,7 @@
 # ShowAllChannelsAuto
 A BetterDiscord plugin that automatically enables "Show All Channels" for every Discord server.
 
-![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.0.1-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Discord](https://img.shields.io/badge/discord-BetterDiscord-7289DA.svg)
 
