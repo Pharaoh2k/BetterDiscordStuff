@@ -1,5 +1,8 @@
 # [BetterSplitLargeMessages](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterSplitLargeMessages "BetterSplitLargeMessages") Changelog
 
+### 1.0.1
+- Improved update manager
+
 ### 1.0.0
 - Initial public release
 - Automatic message splitting for messages exceeding Discord's character limit
