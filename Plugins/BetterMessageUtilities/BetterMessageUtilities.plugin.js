@@ -221,12 +221,13 @@ class UpdateManager {
 }
 const { Webpack, Data, UI, React, ReactDOM, ReactUtils, Utils } = BdApi;
 module.exports = class BetterMessageUtilities {
-    constructor() {
+    constructor(meta) {
+        this.meta = meta;
         this.KeyCodes = { DELETE: 46, ESCAPE: 27, ENTER: 13, CTRL: 17, ALT: 18, SHIFT: 16, D: 68, E: 69, P: 80, R: 82, H: 72, Q: 81, S: 83, C: 67, BACKSPACE: 8 };
         this.ClickTypes = { CLICK: 0, DBLCLICK: 1 };
         this.updateManager = new UpdateManager(
-            "BetterMessageUtilities",
-            "1.0.1",
+            meta.name,
+            meta.version,
             "Pharaoh2k/BetterDiscordStuff"
         );
         this.defaultSettings = {
@@ -254,7 +255,7 @@ module.exports = class BetterMessageUtilities {
         this.loadSettings();
         this.addEventListeners();
         this.updateManager.start(this.settings.general.autoUpdate);
-        UI.showToast("BetterMessageUtilities started!", {
+        UI.showToast(`${this.meta.name} started!`, {
             type: "success"
         });
     }
@@ -262,7 +263,7 @@ module.exports = class BetterMessageUtilities {
         this.removeEventListeners();
         this.updateManager.stop();
         if (globalThis.BMU) delete globalThis.BMU;
-        UI.showToast("BetterMessageUtilities stopped!", {
+        UI.showToast(`${this.meta.name} stopped!`, {
             type: "info"
         });
     }
@@ -292,8 +293,8 @@ module.exports = class BetterMessageUtilities {
                 };
                 this.startEditMessage = Webpack.getModule(m => m?.startEditMessage && typeof m.startEditMessage === "function");
             } else {
-                console.error("BetterMessageUtilities: Webpack is required but not available");
-                UI.showToast("BetterMessageUtilities: Failed to load - outdated BetterDiscord version", { type: "error" });
+                console.error(`${this.meta.name}: Webpack is required but not available`);
+                UI.showToast(`${this.meta.name}: Failed to load - outdated BetterDiscord version`, { type: "error" });
                 return;
             }
             if (!this.ElectronModule) {
@@ -302,12 +303,12 @@ module.exports = class BetterMessageUtilities {
             this.React = React;
             this.ReactDOM = ReactDOM;
         } catch (error) {
-            console.error("BetterMessageUtilities: Error loading Discord modules:", error);
-            UI.showToast("BetterMessageUtilities: Some modules failed to load.", { type: "warning" });
+            console.error(`${this.meta.name}: Error loading Discord modules:`, error);
+            UI.showToast(`${this.meta.name}: Some modules failed to load.`, { type: "warning" });
         }
     }
     loadSettings() {
-        const savedSettings = Data.load("BetterMessageUtilities", "settings");
+        const savedSettings = Data.load(this.meta.name, "settings");
         if (!savedSettings) {
             this.settings = structuredClone(this.defaultSettings);
             return;
@@ -333,7 +334,7 @@ module.exports = class BetterMessageUtilities {
             };
         }
     }
-    saveSettings() { Data.save("BetterMessageUtilities", "settings", this.settings); }
+    saveSettings() { Data.save(this.meta.name, "settings", this.settings); }
     addEventListeners() {
         this.keyDownHandler = (e) => { this.pressedKeys.add(e.keyCode); if (e.keyCode === this.KeyCodes.ESCAPE && this.settings.general.clearOnEscape) { const chatInput = document.querySelector('[class*="textArea-"]'); if (chatInput && document.activeElement === chatInput) { chatInput.value = ""; chatInput.dispatchEvent(new Event('input', { bubbles: true })); } } };
         this.keyUpHandler = (e) => this.pressedKeys.delete(e.keyCode);
@@ -382,7 +383,7 @@ module.exports = class BetterMessageUtilities {
             }
             return message;
         } catch (error) {
-            console.error("BetterMessageUtilities: Error getting message from React:", error);
+            console.error(`${this.meta.name}: Error getting message from React:`, error);
             return null;
         }
     }
@@ -647,7 +648,7 @@ module.exports = class BetterMessageUtilities {
             };
             return BdApi.UI.buildSettingsPanel(settingsConfig);
         } catch (error) {
-            console.error("BetterMessageUtilities: Error in getSettingsPanel:", error);
+            console.error(`${this.meta.name}: Error in getSettingsPanel:`, error);
             const errorPanel = document.createElement("div");
             errorPanel.style.padding = "20px";
             errorPanel.style.color = "var(--status-danger)";
