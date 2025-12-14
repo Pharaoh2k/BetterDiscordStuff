@@ -2,10 +2,10 @@
   "name": "BetterRelativeTimestamps",
   "description": "Adds live-updating relative timestamps to Discord messages",
   "author": "Pharaoh2k",
-  "version": "1.1.0",
+  "version": "1.1.2",
   "status": "Active",
   "workingStatus": "Working",
-  "lastUpdated": "2025-10-08",
+  "lastUpdated": "2025-12-14",
   "releaseDate": "2025-01-01",
   "features": [
     "Live-updating relative timestamps",
