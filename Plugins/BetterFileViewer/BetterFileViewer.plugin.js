@@ -13,11 +13,7 @@ const TAG = "BetterFileViewer";
 const DEV = false;
 const log = (...a) => DEV && console.log(`[${TAG}]`, ...a);
 const CONFIG = {
-    info: {
-        name: "BetterFileViewer",
-        version: "3.0.0",
-        github: "Pharaoh2k/BetterDiscordStuff"
-    },
+    github: "Pharaoh2k/BetterDiscordStuff",
     defaultConfig: [{
         type: "switch",
         id: "autoUpdate",
@@ -438,11 +434,12 @@ function getConfigWithCurrentValues(current, defaults = CONFIG.defaultConfig) {
     }));
 }
 module.exports = class BetterFileViewer {
-    constructor() {
+    constructor(meta) {
+        this.meta = meta;
         this.updateManager = new UpdateManager(
-            CONFIG.info.name,
-            CONFIG.info.version,
-            CONFIG.info.github
+            meta.name,
+            meta.version,
+            CONFIG.github
         );
         this.settings = this.getSettings();
         this.buttons = new Map();
@@ -453,7 +450,7 @@ module.exports = class BetterFileViewer {
                 ...acc,
                 [cfg.id]: cfg.value
             }), {}),
-            ...BdApi.Data.load(CONFIG.info.name, "settings")
+            ...BdApi.Data.load(this.meta.name, "settings")
         };
     }
     saveSettings(newSettings) {
@@ -461,7 +458,7 @@ module.exports = class BetterFileViewer {
             ...this.settings,
             ...newSettings
         };
-        BdApi.Data.save(CONFIG.info.name, "settings", this.settings);
+        BdApi.Data.save(this.meta.name, "settings", this.settings);
         if (Object.hasOwn(newSettings, 'autoUpdate')) {
             if (newSettings.autoUpdate) {
                 this.updateManager.start(true);
@@ -471,12 +468,12 @@ module.exports = class BetterFileViewer {
         }
     }
     start() {
-        BdApi.DOM.addStyle(CONFIG.info.name, CSS);
+        BdApi.DOM.addStyle(this.meta.name, CSS);
         this.updateManager.start(this.settings.autoUpdate);
         log("Plugin started");
     }
     stop() {
-        BdApi.DOM.removeStyle(CONFIG.info.name);
+        BdApi.DOM.removeStyle(this.meta.name);
         this.updateManager.stop();
         for (const button of this.buttons.values()) {
             button.destroy();
