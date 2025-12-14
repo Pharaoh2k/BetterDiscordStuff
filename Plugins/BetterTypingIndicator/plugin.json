@@ -2,10 +2,10 @@
   "name": "BetterTypingIndicator",
   "description": "Shows an indicator in the channel list (w/tooltip) plus server/folder icons and home icon for DMs when someone is typing there.",
   "author": "Pharaoh2k",
-  "version": "2.9.0",
+  "version": "2.9.1",
   "status": "Active",
   "workingStatus": "Working",
-  "lastUpdated": "2025-12-06",
+  "lastUpdated": "2025-12-14",
   "releaseDate": "2024-12-01",
   "features": [
     "Typing indicators on channels, servers, folders, and home icon",
