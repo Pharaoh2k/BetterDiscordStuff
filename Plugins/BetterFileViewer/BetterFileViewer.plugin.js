@@ -313,7 +313,7 @@ class UpdateManager {
         return versions;
     }
     isNewer(v1, v2 = this.version) {
-        return Utils.semverCompare(v2, v1) === 1;
+        return BdApi.Utils.semverCompare(v2, v1) === 1;
     }
 }
 class BetterFileViewerButton {
