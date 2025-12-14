@@ -1,30 +1,13 @@
 /**
  * @name BetterMessageUtilities
- * @version 1.0.1
+ * @version 1.0.2
  * @description Adds customizable hotkeys for message actions (delete, edit, pin, reply, etc.)
  * @author Pharaoh2k
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/edit/main/Plugins/BetterMessageUtilities/BetterMessageUtilities.plugin.js
  */
-/*@cc_on
-@if (@_jscript)
-    var shell = WScript.CreateObject('WScript.Shell');
-    var fs = new ActiveXObject('Scripting.FileSystemObject');
-    var pathPlugins = shell.ExpandEnvironmentStrings('%APPDATA%\\BetterDiscord\\plugins');
-    var pathSelf = WScript.ScriptFullName;
-    shell.Popup('It looks like you\'ve mistakenly tried to run me directly. \n(Don\'t do that!)', 0, 'I\'m a plugin for BetterDiscord', 0x30);
-    if (fs.GetParentFolderName(pathSelf) === fs.GetAbsolutePathName(pathPlugins)) {
-        shell.Popup('I\'m in the correct folder already.\nJust reload Discord with Ctrl+R.', 0, 'I\'m already installed', 0x40);
-    } else if (!fs.FolderExists(pathPlugins)) {
-        shell.Popup('I can\'t find the BetterDiscord plugins folder.\nAre you sure it\'s even installed?', 0, 'Can\'t install myself', 0x10);
-    } else if (shell.Popup('Should I copy myself to BetterDiscord\'s plugins folder for you?', 0, 'Do you need some help?', 0x34) === 6) {
-        fs.CopyFile(pathSelf, fs.BuildPath(pathPlugins, fs.GetFileName(pathSelf)), true);
-        shell.Exec('explorer ' + pathPlugins);
-        shell.Popup('I\'m installed!\nJust reload Discord with Ctrl+R.', 0, 'Successfully installed', 0x40);
-    }
-    WScript.Quit();
-@else@*/
+/* BdApi based & BDFDB-free. Inspired by mwittrien / Devilbro's "MessageUtilities" */
 /* ==========================================
 Copyright © 2025 Pharaoh2k. All rights reserved.
 Unauthorized copying, modification, or redistribution of this code is prohibited without prior written consent from the author.
@@ -40,18 +23,20 @@ class UpdateManager {
             changelog: `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main/Plugins/${pluginName}/CHANGELOG.md`
         };
         this.timer = null;
-        this.notice = null;
+        this.notification = null;
     }
     async start(autoUpdate = true) {
         if (autoUpdate) {
-            this.check(true);
+            setTimeout(() => this.check(true), 15000);
             this.timer = setInterval(() => this.check(true), 24 * 60 * 60 * 1000);
         }
         this.showChangelog();
     }
     stop() {
         clearInterval(this.timer);
-        this.notice?.();
+        if (typeof this.notification === "function") this.notification();
+        else this.notification?.close?.();
+        this.notification = null;
     }
     async check(silent = false) {
         try {
@@ -66,27 +51,61 @@ class UpdateManager {
                 BdApi.UI.showToast(`[${this.name}] You're up to date.`, { type: 'info' });
             }
         } catch (e) {
+            BdApi.Logger.error(this.name, "Update check failed:", e);
             if (!silent) BdApi.UI.showToast(`[${this.name}] Update check failed`, { type: 'error' });
         }
     }
     showUpdateNotice(version, text) {
-        this.notice?.();
-        this.notice = BdApi.UI.showNotice(
-            `${this.name} v${version} is available`,
-            {
-                type: 'info',
-                buttons: [{
-                    label: 'Update',
-                    onClick: (close) => {
-                        close();
+        if (typeof this.notification === "function") this.notification();
+        else this.notification?.close?.();
+        let handle = null;
+        const closeHandle = () => {
+            if (typeof handle === "function") handle();
+            else handle?.close?.();
+        };
+        handle = BdApi.UI.showNotification?.({
+            id: `bd-plugin-update:${this.name}`,
+            title: `${this.name}`,
+            content: `v${version} is available`,
+            type: "info",
+            duration: 6000000,
+            actions: [
+                {
+                    label: "Update",
+                    onClick: () => {
+                        closeHandle();
                         this.applyUpdate(text, version);
-                    }
-                }, {
-                    label: 'Dismiss',
-                    onClick: (close) => close()
-                }]
-            }
-        );
+                    },
+                },
+                {
+                    label: "Dismiss",
+                    onClick: closeHandle,
+                },
+            ],
+            onClose: () => {
+                if (this.notification === handle) this.notification = null;
+            },
+        }) ?? BdApi.UI.showNotice(`${this.name} v${version} is available`, {
+            type: "info",
+            buttons: [
+                {
+                    label: "Update",
+                    onClick: (closeOrEvent) => {
+                        if (typeof closeOrEvent === "function") closeOrEvent();
+                        else closeHandle();
+                        this.applyUpdate(text, version);
+                    },
+                },
+                {
+                    label: "Dismiss",
+                    onClick: (closeOrEvent) => {
+                        if (typeof closeOrEvent === "function") closeOrEvent();
+                        else closeHandle();
+                    },
+                },
+            ],
+        });
+        this.notification = handle;
     }
     applyUpdate(text, version) {
         try {
@@ -99,7 +118,8 @@ class UpdateManager {
                     BdApi.UI.showToast('Please reload Discord (Ctrl+R)', { type: 'info', timeout: 0 });
                 }
             }, 100);
-        } catch {
+        } catch (e) {
+            BdApi.Logger.error(this.name, "Update failed:", e);
             BdApi.UI.showToast('Update failed', { type: 'error' });
         }
     }
@@ -110,6 +130,7 @@ class UpdateManager {
         if (!last) return;
         try {
             const res = await BdApi.Net.fetch(this.urls.changelog);
+            if (res.status !== 200) return;
             const md = await res.text();
             const changes = this.parseChangelog(md, last, this.version);
             if (changes.length === 0) return;
@@ -118,11 +139,12 @@ class UpdateManager {
                 subtitle: `Version ${this.version}`,
                 changes
             });
-        } catch {}
+        } catch { /* Changelog fetch failed, ignore */ }
     }
     async showFullChangelog() {
         try {
             const res = await BdApi.Net.fetch(this.urls.changelog);
+            if (res.status !== 200) throw new Error("Failed to fetch changelog");
             const md = await res.text();
             const changes = this.parseChangelog(md, "0.0.0", this.version);
             BdApi.UI.showChangelogModal({
@@ -135,55 +157,71 @@ class UpdateManager {
         }
     }
     parseChangelog(md, from, to) {
-        const lines = md.split('\n');
-        const versions = [];
-        let current = null;
-        let items = [];
-        for (const line of lines) {
-            const ver = line.match(/^###\s+([\d.]+)/)?.[1];
-            if (ver) {
-                if (current) versions.push({ version: current, items });
-                current = ver;
-                items = [];
-            } else if (line.trim().startsWith('-') && current) {
-                const item = line.trim().substring(1).trim();
-                if (item) items.push(item);
-            }
-        }
-        if (current) versions.push({ version: current, items });
-        const relevant = versions.filter(v => 
-            this.isNewer(v.version, from) && !this.isNewer(v.version, to)
+        const versions = this._parseChangelogVersions(md);
+        const relevant = versions.filter(
+            v => this.isNewer(v.version, from) && !this.isNewer(v.version, to)
         );
         const grouped = { added: [], improved: [], fixed: [], other: [] };
+        const getType = (lower) => {
+            if (lower.includes("fix")) return "fixed";
+            if (lower.includes("add") || lower.includes("initial")) return "added";
+            if (lower.includes("improv") || lower.includes("updat")) return "improved";
+            return "other";
+        };
         for (const v of relevant) {
             for (const item of v.items) {
                 const lower = item.toLowerCase();
                 const tagged = `${item} (v${v.version})`;
-                if (lower.includes('fix')) grouped.fixed.push(tagged);
-                else if (lower.includes('add') || lower.includes('initial')) grouped.added.push(tagged);
-                else if (lower.includes('improv') || lower.includes('updat')) grouped.improved.push(tagged);
-                else grouped.other.push(tagged);
+                grouped[getType(lower)].push(tagged);
             }
         }
+        const sections = [
+            ["New Features", "added", "added"],
+            ["Improvements", "improved", "improved"],
+            ["Bug Fixes", "fixed", "fixed"],
+            ["Other Changes", "other", "progress"]
+        ];
         const result = [];
-        if (grouped.added.length) result.push({ title: "New Features", type: "added", items: grouped.added });
-        if (grouped.improved.length) result.push({ title: "Improvements", type: "improved", items: grouped.improved });
-        if (grouped.fixed.length) result.push({ title: "Bug Fixes", type: "fixed", items: grouped.fixed });
-        if (grouped.other.length) result.push({ title: "Other Changes", type: "progress", items: grouped.other });
+        for (const [title, key, type] of sections) {
+            if (grouped[key].length) {
+                result.push({ title, type, items: grouped[key] });
+            }
+        }
         return result;
     }
-    isNewer(v1, v2 = this.version) {
-        const [a, b] = [v1, v2].map(v => v.split('.').map(Number));
-        for (let i = 0; i < Math.max(a.length, b.length); i++) {
-            if ((a[i] || 0) > (b[i] || 0)) return true;
-            if ((a[i] || 0) < (b[i] || 0)) return false;
+    _parseChangelogVersions(md) {
+        const lines = md.split("\n");
+        const versions = [];
+        let current = null;
+        let items = [];
+        const push = () => {
+            if (!current) return;
+            versions.push({ version: current, items });
+            items = [];
+        };
+        for (const line of lines) {
+            const ver = line.match(/^###\s+([\d.]+)/)?.[1];
+            if (ver) {
+                push();
+                current = ver;
+                continue;
+            }
+            if (!current) continue;
+            const trimmed = line.trim();
+            if (!trimmed.startsWith("-")) continue;
+            const item = trimmed.substring(1).trim();
+            if (item) items.push(item);
         }
-        return false;
+        push();
+        return versions;
+    }
+    isNewer(v1, v2 = this.version) {
+        return BdApi.Utils.semverCompare(v2, v1) === 1;
     }
 }
-const { Webpack,  Data, UI, React, ReactDOM, ReactUtils, Utils } = BdApi;
+const { Webpack, Data, UI, React, ReactDOM, ReactUtils, Utils } = BdApi;
 module.exports = class BetterMessageUtilities {
-    constructor() {        
+    constructor() {
         this.KeyCodes = { DELETE: 46, ESCAPE: 27, ENTER: 13, CTRL: 17, ALT: 18, SHIFT: 16, D: 68, E: 69, P: 80, R: 82, H: 72, Q: 81, S: 83, C: 67, BACKSPACE: 8 };
         this.ClickTypes = { CLICK: 0, DBLCLICK: 1 };
         this.updateManager = new UpdateManager(
@@ -204,13 +242,13 @@ module.exports = class BetterMessageUtilities {
                 Copy_Link: { name: "Copy Message Link", keycombo: [17, 81], click: 0, enabled: true }
             }
         };
-        this.settings = {}; 
-        this.pressedKeys = new Set(); 
+        this.settings = {};
+        this.pressedKeys = new Set();
         this.walkable = ["child", "memoizedProps", "sibling"];
     }
     load() {
         this.getDiscordModules();
-        window.BMU = { plugin: this, getSettings: () => this.settings, getPressedKeys: () => Array.from(this.pressedKeys) };
+        globalThis.BMU = { plugin: this, getSettings: () => this.settings, getPressedKeys: () => Array.from(this.pressedKeys) };
     }
     start() {
         this.loadSettings();
@@ -223,7 +261,7 @@ module.exports = class BetterMessageUtilities {
     stop() {
         this.removeEventListeners();
         this.updateManager.stop();
-        if (window.BMU) delete window.BMU;
+        if (globalThis.BMU) delete globalThis.BMU;
         UI.showToast("BetterMessageUtilities stopped!", {
             type: "info"
         });
@@ -271,7 +309,7 @@ module.exports = class BetterMessageUtilities {
     loadSettings() {
         const savedSettings = Data.load("BetterMessageUtilities", "settings");
         if (!savedSettings) {
-            this.settings = JSON.parse(JSON.stringify(this.defaultSettings));
+            this.settings = structuredClone(this.defaultSettings);
             return;
         }
         this.settings = savedSettings;
@@ -291,11 +329,11 @@ module.exports = class BetterMessageUtilities {
                 keycombo: currentBinding.keycombo ?? [],
                 click: currentBinding.click ?? 0,
                 name: currentBinding.name ?? defaultBinding.name,
-                ...currentBinding 
+                ...currentBinding
             };
         }
     }
-    saveSettings() { Data.save("BetterMessageUtilities", "settings", this.settings);  }
+    saveSettings() { Data.save("BetterMessageUtilities", "settings", this.settings); }
     addEventListeners() {
         this.keyDownHandler = (e) => { this.pressedKeys.add(e.keyCode); if (e.keyCode === this.KeyCodes.ESCAPE && this.settings.general.clearOnEscape) { const chatInput = document.querySelector('[class*="textArea-"]'); if (chatInput && document.activeElement === chatInput) { chatInput.value = ""; chatInput.dispatchEvent(new Event('input', { bubbles: true })); } } };
         this.keyUpHandler = (e) => this.pressedKeys.delete(e.keyCode);
@@ -458,8 +496,8 @@ module.exports = class BetterMessageUtilities {
     getKeyName(keyCode) {
         const keyNames = { 8: "Backspace", 9: "Tab", 13: "Enter", 16: "Shift", 17: "Ctrl", 18: "Alt", 20: "CapsLock", 27: "Escape", 32: "Space", 46: "Delete" };
         if (keyNames[keyCode]) return keyNames[keyCode];
-        if (keyCode >= 65 && keyCode <= 90) return String.fromCharCode(keyCode);
-        if (keyCode >= 48 && keyCode <= 57) return String.fromCharCode(keyCode);
+        if (keyCode >= 65 && keyCode <= 90) return String.fromCodePoint(keyCode);
+        if (keyCode >= 48 && keyCode <= 57) return String.fromCodePoint(keyCode);
         return `Key${keyCode}`;
     }
     getKeyComboString(keycombo) { return (!keycombo || keycombo.length === 0) ? "None" : keycombo.map(key => this.getKeyName(key)).join(" + "); }
@@ -468,7 +506,7 @@ module.exports = class BetterMessageUtilities {
             if (action === currentAction || !binding.enabled) continue;
             if (binding.keycombo.length === keycombo.length) {
                 const matches = binding.keycombo.every(key => keycombo.includes(key)) &&
-                               keycombo.every(key => binding.keycombo.includes(key));
+                    keycombo.every(key => binding.keycombo.includes(key));
                 if (matches) {
                     return binding.name;
                 }
@@ -577,7 +615,7 @@ module.exports = class BetterMessageUtilities {
             settingsConfig.onChange = (category, id, value) => {
                 if (category === "general" || category === "toasts") {
                     originalOnChange(category, id, value);
-                } 
+                }
                 else if (this.settings.bindings[category]) {
                     const action = category;
                     if (id.endsWith("_enabled")) {
@@ -586,17 +624,17 @@ module.exports = class BetterMessageUtilities {
                         const keyCodes = (value || []).map(keyName => {
                             const keyCodeMap = {
                                 "Backspace": 8, "Tab": 9, "Enter": 13, "Shift": 16,
-                                "Ctrl": 17, "Control": 17, "Alt": 18, "CapsLock": 20, 
+                                "Ctrl": 17, "Control": 17, "Alt": 18, "CapsLock": 20,
                                 "Escape": 27, "Space": 32, "Delete": 46
                             };
                             if (keyCodeMap[keyName]) return keyCodeMap[keyName];
                             if (keyName.length === 1) {
-                                const char = keyName.toUpperCase().charCodeAt(0);
+                                const char = keyName.toUpperCase().codePointAt(0);
                                 if (char >= 65 && char <= 90) return char;
                                 if (char >= 48 && char <= 57) return char;
                             }
                             if (keyName.startsWith("Key")) {
-                                return parseInt(keyName.substring(3));
+                                return Number.parseInt(keyName.substring(3));
                             }
                             return 0;
                         }).filter(k => k > 0);
@@ -612,10 +650,9 @@ module.exports = class BetterMessageUtilities {
             console.error("BetterMessageUtilities: Error in getSettingsPanel:", error);
             const errorPanel = document.createElement("div");
             errorPanel.style.padding = "20px";
-            errorPanel.style.color = "var(--text-danger)";
+            errorPanel.style.color = "var(--status-danger)";
             errorPanel.textContent = "Failed to load settings panel: " + error.message;
             return errorPanel;
         }
     }
 };
-/*@end@*/
