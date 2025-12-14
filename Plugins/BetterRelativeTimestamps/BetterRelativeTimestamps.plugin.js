@@ -1,30 +1,12 @@
 /**
  * @name BetterRelativeTimestamps
- * @version 1.1.1
+ * @version 1.1.2
  * @description Relative timestamps with live tooltip, smart cadence, seamless toggle of "relative-only".
  * @author  Pharaoh2k
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source  https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterRelativeTimestamps/BetterRelativeTimestamps.plugin.js
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BetterRelativeTimestamps/BetterRelativeTimestamps.plugin.js
  */
-/*@cc_on
-@if (@_jscript)
-    var shell = WScript.CreateObject('WScript.Shell');
-    var fs = new ActiveXObject('Scripting.FileSystemObject');
-    var pathPlugins = shell.ExpandEnvironmentStrings('%APPDATA%\\BetterDiscord\\plugins');
-    var pathSelf = WScript.ScriptFullName;
-    shell.Popup('It looks like you\'ve mistakenly tried to run me directly. \n(Don\'t do that!)', 0, 'I\'m a plugin for BetterDiscord', 0x30);
-    if (fs.GetParentFolderName(pathSelf) === fs.GetAbsolutePathName(pathPlugins)) {
-        shell.Popup('I\'m in the correct folder already.\nJust reload Discord with Ctrl+R.', 0, 'I\'m already installed', 0x40);
-    } else if (!fs.FolderExists(pathPlugins)) {
-        shell.Popup('I can\'t find the BetterDiscord plugins folder.\nAre you sure it\'s even installed?', 0, 'Can\'t install myself', 0x10);
-    } else if (shell.Popup('Should I copy myself to BetterDiscord\'s plugins folder for you?', 0, 'Do you need some help?', 0x34) === 6) {
-        fs.CopyFile(pathSelf, fs.BuildPath(pathPlugins, fs.GetFileName(pathSelf)), true);
-        shell.Exec('explorer ' + pathPlugins);
-        shell.Popup('I\'m installed!\nJust reload Discord with Ctrl+R.', 0, 'Successfully installed', 0x40);
-    }
-    WScript.Quit();
-@else@*/
 /*
 Copyright © 2025 Pharaoh2k. All rights reserved.
 Unauthorized copying, modification, or redistribution of this code is prohibited without prior written consent from the author.
@@ -40,18 +22,20 @@ class UpdateManager {
 			changelog: `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main/Plugins/${pluginName}/CHANGELOG.md`
 		};
 		this.timer = null;
-		this.notice = null;
+		this.notification = null;
 	}
 	async start(autoUpdate = true) {
 		if (autoUpdate) {
-			this.check(true);
+			setTimeout(() => this.check(true), 15000);
 			this.timer = setInterval(() => this.check(true), 24 * 60 * 60 * 1000);
 		}
 		this.showChangelog();
 	}
 	stop() {
 		clearInterval(this.timer);
-		this.notice?.();
+		if (typeof this.notification === "function") this.notification();
+		else this.notification?.close?.();
+		this.notification = null;
 	}
 	async check(silent = false) {
 		try {
@@ -66,27 +50,61 @@ class UpdateManager {
 				BdApi.UI.showToast(`[${this.name}] You're up to date.`, { type: 'info' });
 			}
 		} catch (e) {
+			BdApi.Logger.error(this.name, "Update check failed:", e);
 			if (!silent) BdApi.UI.showToast(`[${this.name}] Update check failed`, { type: 'error' });
 		}
 	}
 	showUpdateNotice(version, text) {
-		this.notice?.();
-		this.notice = BdApi.UI.showNotice(
-			`${this.name} v${version} is available`,
-			{
-				type: 'info',
-				buttons: [{
-					label: 'Update',
-					onClick: (close) => {
-						close();
+		if (typeof this.notification === "function") this.notification();
+		else this.notification?.close?.();
+		let handle = null;
+		const closeHandle = () => {
+			if (typeof handle === "function") handle();
+			else handle?.close?.();
+		};
+		handle = BdApi.UI.showNotification?.({
+			id: `bd-plugin-update:${this.name}`,
+			title: `${this.name}`,
+			content: `v${version} is available`,
+			type: "info",
+			duration: 6000000,
+			actions: [
+				{
+					label: "Update",
+					onClick: () => {
+						closeHandle();
 						this.applyUpdate(text, version);
-					}
-				}, {
-					label: 'Dismiss',
-					onClick: (close) => close()
-				}]
-			}
-		);
+					},
+				},
+				{
+					label: "Dismiss",
+					onClick: closeHandle,
+				},
+			],
+			onClose: () => {
+				if (this.notification === handle) this.notification = null;
+			},
+		}) ?? BdApi.UI.showNotice(`${this.name} v${version} is available`, {
+			type: "info",
+			buttons: [
+				{
+					label: "Update",
+					onClick: (closeOrEvent) => {
+						if (typeof closeOrEvent === "function") closeOrEvent();
+						else closeHandle();
+						this.applyUpdate(text, version);
+					},
+				},
+				{
+					label: "Dismiss",
+					onClick: (closeOrEvent) => {
+						if (typeof closeOrEvent === "function") closeOrEvent();
+						else closeHandle();
+					},
+				},
+			],
+		});
+		this.notification = handle;
 	}
 	applyUpdate(text, version) {
 		try {
@@ -99,30 +117,32 @@ class UpdateManager {
 					BdApi.UI.showToast('Please reload Discord (Ctrl+R)', { type: 'info', timeout: 0 });
 				}
 			}, 100);
-		} catch {
+		} catch (e) {
+			BdApi.Logger.error(this.name, "Update failed:", e);
 			BdApi.UI.showToast('Update failed', { type: 'error' });
 		}
 	}
 	async showChangelog() {
 		const last = BdApi.Data.load(this.name, 'version');
-		if (last === this.version) return;
+		console.log(`[${this.name}] showChangelog: last=${last}, current=${this.version}`);
+		if (last === this.version) { console.log(`[${this.name}] Skipping: versions match`); return; }
 		BdApi.Data.save(this.name, 'version', this.version);
-		if (!last) return;
+		if (!last) { console.log(`[${this.name}] Skipping: fresh install`); return; }
 		try {
 			const res = await BdApi.Net.fetch(this.urls.changelog);
+			console.log(`[${this.name}] Changelog fetch status: ${res.status}`);
+			if (res.status !== 200) return;
 			const md = await res.text();
 			const changes = this.parseChangelog(md, last, this.version);
+			console.log(`[${this.name}] Parsed changes:`, changes);
 			if (changes.length === 0) return;
-			BdApi.UI.showChangelogModal({
-				title: this.name,
-				subtitle: `Version ${this.version}`,
-				changes
-			});
-		} catch { }
+			BdApi.UI.showChangelogModal({ title: this.name, subtitle: `Version ${this.version}`, changes });
+		} catch (e) { console.error(`[${this.name}] Changelog error:`, e); }
 	}
 	async showFullChangelog() {
 		try {
 			const res = await BdApi.Net.fetch(this.urls.changelog);
+			if (res.status !== 200) throw new Error("Failed to fetch changelog");
 			const md = await res.text();
 			const changes = this.parseChangelog(md, "0.0.0", this.version);
 			BdApi.UI.showChangelogModal({
@@ -135,55 +155,69 @@ class UpdateManager {
 		}
 	}
 	parseChangelog(md, from, to) {
-		const lines = md.split('\n');
-		const versions = [];
-		let current = null;
-		let items = [];
-		for (const line of lines) {
-			const ver = line.match(/^###\s+([\d.]+)/)?.[1];
-			if (ver) {
-				if (current) versions.push({ version: current, items });
-				current = ver;
-				items = [];
-			} else if (line.trim().startsWith('-') && current) {
-				const item = line.trim().substring(1).trim();
-				if (item) items.push(item);
-			}
-		}
-		if (current) versions.push({ version: current, items });
-		const relevant = versions.filter(v =>
-			this.isNewer(v.version, from) && !this.isNewer(v.version, to)
+		const versions = this._parseChangelogVersions(md);
+		const relevant = versions.filter(
+			v => this.isNewer(v.version, from) && !this.isNewer(v.version, to)
 		);
 		const grouped = { added: [], improved: [], fixed: [], other: [] };
+		const getType = (lower) => {
+			if (lower.includes("fix")) return "fixed";
+			if (lower.includes("add") || lower.includes("initial")) return "added";
+			if (lower.includes("improv") || lower.includes("updat")) return "improved";
+			return "other";
+		};
 		for (const v of relevant) {
 			for (const item of v.items) {
 				const lower = item.toLowerCase();
 				const tagged = `${item} (v${v.version})`;
-				if (lower.includes('fix')) grouped.fixed.push(tagged);
-				else if (lower.includes('add') || lower.includes('initial')) grouped.added.push(tagged);
-				else if (lower.includes('improv') || lower.includes('updat')) grouped.improved.push(tagged);
-				else grouped.other.push(tagged);
+				grouped[getType(lower)].push(tagged);
 			}
 		}
+		const sections = [
+			["New Features", "added", "added"],
+			["Improvements", "improved", "improved"],
+			["Bug Fixes", "fixed", "fixed"],
+			["Other Changes", "other", "progress"]
+		];
 		const result = [];
-		if (grouped.added.length) result.push({ title: "New Features", type: "added", items: grouped.added });
-		if (grouped.improved.length) result.push({ title: "Improvements", type: "improved", items: grouped.improved });
-		if (grouped.fixed.length) result.push({ title: "Bug Fixes", type: "fixed", items: grouped.fixed });
-		if (grouped.other.length) result.push({ title: "Other Changes", type: "progress", items: grouped.other });
+		for (const [title, key, type] of sections) {
+			if (grouped[key].length) {
+				result.push({ title, type, items: grouped[key] });
+			}
+		}
 		return result;
 	}
-	isNewer(v1, v2 = this.version) {
-		const [a, b] = [v1, v2].map(v => v.split('.').map(Number));
-		for (let i = 0; i < Math.max(a.length, b.length); i++) {
-			if ((a[i] || 0) > (b[i] || 0)) return true;
-			if ((a[i] || 0) < (b[i] || 0)) return false;
+	_parseChangelogVersions(md) {
+		const lines = md.split("\n");
+		const versions = [];
+		let current = null;
+		let items = [];
+		const push = () => {
+			if (!current) return;
+			versions.push({ version: current, items });
+			items = [];
+		};
+		for (const line of lines) {
+			const ver = line.match(/^###\s+([\d.]+)/)?.[1];
+			if (ver) {
+				push();
+				current = ver;
+				continue;
+			}
+			if (!current) continue;
+			const trimmed = line.trim();
+			if (!trimmed.startsWith("-")) continue;
+			const item = trimmed.substring(1).trim();
+			if (item) items.push(item);
 		}
-		return false;
+		push();
+		return versions;
+	}
+	isNewer(v1, v2 = this.version) {
+		return BdApi.Utils.semverCompare(v2, v1) === 1;
 	}
 }
 module.exports = class BetterRelativeTimestamps {
-	static PLUGIN_NAME = 'BetterRelativeTimestamps';
-	static VERSION = '1.1.1';
 	static GITHUB = 'Pharaoh2k/BetterDiscordStuff';
 	static CHUNK_MS = 8;
 	static BURST_CAP = 150;
@@ -191,12 +225,12 @@ module.exports = class BetterRelativeTimestamps {
 	static SAFETY_INTERVAL = 1000;
 	static DEBOUNCE_DELAY = 50;
 	static TIME_UNITS = Object.freeze([
-		{ name: 'year',   seconds: 31_536_000, short: 'y' },
-		{ name: 'month',  seconds: 2_592_000,  short: 'mo' },
-		{ name: 'day',    seconds: 86_400,     short: 'd' },
-		{ name: 'hour',   seconds: 3_600,      short: 'h' },
-		{ name: 'minute', seconds: 60,         short: 'm' },
-		{ name: 'second', seconds: 1,          short: 's' }
+		{ name: 'year', seconds: 31_536_000, short: 'y' },
+		{ name: 'month', seconds: 2_592_000, short: 'mo' },
+		{ name: 'day', seconds: 86_400, short: 'd' },
+		{ name: 'hour', seconds: 3_600, short: 'h' },
+		{ name: 'minute', seconds: 60, short: 'm' },
+		{ name: 'second', seconds: 1, short: 's' }
 	]);
 	static panelConfig = [
 		{
@@ -235,10 +269,11 @@ module.exports = class BetterRelativeTimestamps {
 			value: true
 		}
 	];
-	constructor() {
+	constructor(meta) {
+		this.meta = meta;
 		this.updateManager = new UpdateManager(
-			BetterRelativeTimestamps.PLUGIN_NAME,
-			BetterRelativeTimestamps.VERSION,
+			meta.name,
+			meta.version,
 			BetterRelativeTimestamps.GITHUB
 		);
 	}
@@ -246,11 +281,9 @@ module.exports = class BetterRelativeTimestamps {
 		this.defaultSettings = Object.fromEntries(
 			BetterRelativeTimestamps.panelConfig.map(s => [s.id, s.value])
 		);
-		this.settingsKey = 'BetterRelativeTimestampsSettings';
-		this.settings = {
-			...this.defaultSettings,
-			...(BdApi.Data.load(this.settingsKey) ?? {})
-		};
+		this.settingsKey = this.meta.name;
+		const savedSettings = BdApi.Data.load(this.settingsKey) || {};
+		this.settings = { ...this.defaultSettings, ...savedSettings };
 		this.visibleSpans = new Set();
 		this.processedElements = new WeakSet();
 		this.timerHandle = null;
@@ -280,7 +313,7 @@ module.exports = class BetterRelativeTimestamps {
 			this.removeAllRelatives();
 			this.scanQueue = [];
 			this.visibleSpans.clear();
-			BdApi.DOM.removeStyle('BetterRelativeTimestampsStyles');
+			BdApi.DOM.removeStyle(this.meta.name);
 			this.updateManager.stop();
 		} catch (error) {
 			this.logError('Error during plugin stop', error);
@@ -350,8 +383,8 @@ module.exports = class BetterRelativeTimestamps {
 			const start = performance.now();
 			try {
 				while (this.scanQueue.length &&
-				       (processedInBurst < BetterRelativeTimestamps.BURST_CAP || 
-				        performance.now() - start < BetterRelativeTimestamps.CHUNK_MS)) {
+					(processedInBurst < BetterRelativeTimestamps.BURST_CAP ||
+						performance.now() - start < BetterRelativeTimestamps.CHUNK_MS)) {
 					const element = this.scanQueue.shift();
 					if (element && element.isConnected) {
 						this.attachRelative(element);
@@ -374,6 +407,12 @@ module.exports = class BetterRelativeTimestamps {
 			setTimeout(work, 0);
 		}
 	}
+	getJustNowResult(absoluteSeconds) {
+		const next = this.settings.hideSeconds
+			? (60 - (absoluteSeconds % 60)) * 1000
+			: BetterRelativeTimestamps.MIN_UPDATE_INTERVAL;
+		return { visual: 'Just now', aria: 'just now', next };
+	}
 	breakDown(absoluteSeconds, isPast) {
 		const visible = [];
 		const aria = [];
@@ -390,11 +429,8 @@ module.exports = class BetterRelativeTimestamps {
 			}
 		}
 		if (visible.length === 0) {
-			const next = this.settings.hideSeconds
-			  ? (60 - (absoluteSeconds % 60)) * 1000
-			  : BetterRelativeTimestamps.MIN_UPDATE_INTERVAL;
-			return { visual: 'Just now', aria: 'just now', next };
-		  }
+			return this.getJustNowResult(absoluteSeconds);
+		}
 		const unitMs = firstUnit.seconds * 1000;
 		const remainingMs = (absoluteSeconds * 1000) % unitMs;
 		const next = remainingMs === 0 ? unitMs : unitMs - remainingMs;
@@ -409,7 +445,7 @@ module.exports = class BetterRelativeTimestamps {
 		if (!timeEl || timeEl.classList.contains('brt-handled')) return;
 		try {
 			const timestamp = new Date(timeEl.getAttribute('datetime'));
-			if (isNaN(timestamp.getTime())) {
+			if (Number.isNaN(timestamp.getTime())) {
 				this.logWarn('Invalid datetime attribute', timeEl);
 				return;
 			}
@@ -438,9 +474,8 @@ module.exports = class BetterRelativeTimestamps {
 			const absoluteSeconds = Math.floor(Math.abs(elapsedMs) / 1000);
 			const { visual, aria, next } = this.breakDown(absoluteSeconds, isPast);
 			const prefix = this.settings.relativeOnly ? '' : ' — ';
-			const text = visual === 'Just now'
-				? visual
-				: (isPast ? `${visual} ago` : `in ${visual}`);
+			const suffix = isPast ? `${visual} ago` : `in ${visual}`;
+			const text = visual === 'Just now' ? visual : suffix;
 			span.textContent = prefix + text;
 			span.setAttribute('aria-label', aria);
 			const hostTimeEl = span._hostTimeEl;
@@ -474,9 +509,7 @@ module.exports = class BetterRelativeTimestamps {
 			let soonest = BetterRelativeTimestamps.SAFETY_INTERVAL;
 			const toDelete = [];
 			this.visibleSpans.forEach(span => {
-				if (!span.isConnected) {
-					toDelete.push(span);
-				} else {
+				if (span.isConnected) {
 					try {
 						const next = this.refreshOne(span, now);
 						soonest = Math.min(soonest, next);
@@ -484,6 +517,8 @@ module.exports = class BetterRelativeTimestamps {
 						this.logError('Error updating span', error);
 						toDelete.push(span);
 					}
+				} else {
+					toDelete.push(span);
 				}
 			});
 			toDelete.forEach(span => this.visibleSpans.delete(span));
@@ -495,7 +530,7 @@ module.exports = class BetterRelativeTimestamps {
 		run();
 	}
 	injectStyle() {
-		BdApi.DOM.addStyle('BetterRelativeTimestampsStyles', `
+		BdApi.DOM.addStyle(this.meta.name, `
 			.brt-span {
 				display: inline;
 				margin-left: 4px;
@@ -536,20 +571,22 @@ module.exports = class BetterRelativeTimestamps {
 		const config = BetterRelativeTimestamps.panelConfig.map(
 			s => ({ ...s, value: this.settings[s.id] })
 		);
-		config.push({
-			type: 'button',
-			id: 'checkUpdate',
-			name: 'Check for Updates',
-			note: 'Manually check for plugin updates',
-			onClick: () => this.updateManager.check()
-		});
-		config.push({
-			type: 'button',
-			id: 'viewChangelog',
-			name: 'View Changelog',
-			note: 'View all version changes',
-			onClick: () => this.updateManager.showFullChangelog()
-		});
+		config.push(
+			{
+				type: 'button',
+				id: 'checkUpdate',
+				name: 'Check for Updates',
+				note: 'Manually check for plugin updates',
+				onClick: () => this.updateManager.check()
+			},
+			{
+				type: 'button',
+				id: 'viewChangelog',
+				name: 'View Changelog',
+				note: 'View all version changes',
+				onClick: () => this.updateManager.showFullChangelog()
+			}
+		);
 		const panel = BdApi.UI.buildSettingsPanel({
 			settings: config,
 			onChange: (_, id, val) => {
@@ -571,13 +608,12 @@ module.exports = class BetterRelativeTimestamps {
 	}
 	logError(message, error) {
 		if (this.settings?.enableLogging) {
-			console.error(`[BetterRelativeTimestamps] ${message}:`, error);
+			console.error(`[${this.meta.name}] ${message}:`, error);
 		}
 	}
 	logWarn(message, ...args) {
 		if (this.settings?.enableLogging) {
-			console.warn(`[BetterRelativeTimestamps] ${message}:`, ...args);
+			console.warn(`[${this.meta.name}] ${message}:`, ...args);
 		}
 	}
 };
-/*@end@*/
