@@ -2,31 +2,13 @@
  * @name BetterServerDetails
  * @author Pharaoh2k
  * @description Shows Server Details (owner, creation/join date, members, etc.) in a custom tooltip on the server list.
- * @version 1.0.1
+ * @version 1.0.2
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BetterServerDetails/BetterServerDetails.plugin.js
  */
 /* BdApi based & BDFDB-free. Inspired by mwittrien / Devilbro's "ServerDetails" */
-/*@cc_on
-@if (@_jscript)
-    var shell = WScript.CreateObject('WScript.Shell');
-    var fs = new ActiveXObject('Scripting.FileSystemObject');
-    var pathPlugins = shell.ExpandEnvironmentStrings('%APPDATA%\\BetterDiscord\\plugins');
-    var pathSelf = WScript.ScriptFullName;
-    shell.Popup('It looks like you\'ve mistakenly tried to run me directly. \n(Don\'t do that!)', 0, 'I\'m a plugin for BetterDiscord', 0x30);
-    if (fs.GetParentFolderName(pathSelf) === fs.GetAbsolutePathName(pathPlugins)) {
-        shell.Popup('I\'m in the correct folder already.\nJust reload Discord with Ctrl+R.', 0, 'I\'m already installed', 0x40);
-    } else if (!fs.FolderExists(pathPlugins)) {
-        shell.Popup('I can\'t find the BetterDiscord plugins folder.\nAre you sure it\'s even installed?', 0, 'Can\'t install myself', 0x10);
-    } else if (shell.Popup('Should I copy myself to BetterDiscord\'s plugins folder for you?', 0, 'Do you need some help?', 0x34) === 6) {
-        fs.CopyFile(pathSelf, fs.BuildPath(pathPlugins, fs.GetFileName(pathSelf)), true);
-        shell.Exec('explorer ' + pathPlugins);
-        shell.Popup('I\'m installed!\nJust reload Discord with Ctrl+R.', 0, 'Successfully installed', 0x40);
-    }
-    WScript.Quit();
-@else@*/
 /*
 Copyright © 2025 Pharaoh2k. All rights reserved.
 Unauthorized copying, modification, or redistribution of this code is prohibited without prior written consent from the author.
@@ -64,42 +46,38 @@ const TIMEOUTS = {
 };
 //#endregion Configuration
 //#region BdApi Destructuring & Utils
-const { React, ReactDOM, UI, DOM, Data, Webpack, Logger, Utils, Net, Plugins } = BdApi;
+const { React, ReactDOM, UI, DOM, Data, Webpack, Logger, Utils } = BdApi;
 const { debounce } = Utils;
 //#endregion BdApi Destructuring
 //#region Updater
-const UPDATE_DEV = false;
-const updateLog = (...a) => UPDATE_DEV && console.log("[BetterServerDetails]", ...a);
 class UpdateManager {
 	constructor(pluginName, version, github = "Pharaoh2k/BetterDiscordStuff") {
 		this.name = pluginName;
 		this.version = version;
-		const [user, repo] = github.split("/");
+		const [user, repo] = github.split('/');
 		this.urls = {
 			plugin: `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main/Plugins/${pluginName}/${pluginName}.plugin.js`,
 			changelog: `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main/Plugins/${pluginName}/CHANGELOG.md`
 		};
 		this.timer = null;
-		this.notice = null;
+		this.notification = null;
 	}
 	async start(autoUpdate = true) {
 		if (autoUpdate) {
-			this.check(true);
+			setTimeout(() => this.check(true), 15000);
 			this.timer = setInterval(() => this.check(true), 24 * 60 * 60 * 1000);
 		}
 		this.showChangelog();
 	}
 	stop() {
-		if (this.timer) clearInterval(this.timer);
-		this.timer = null;
-		if (this.notice) {
-			try { this.notice(); } catch { }
-			this.notice = null;
-		}
+		clearInterval(this.timer);
+		if (typeof this.notification === "function") this.notification();
+		else this.notification?.close?.();
+		this.notification = null;
 	}
 	async check(silent = false) {
 		try {
-			const res = await Net.fetch(this.urls.plugin);
+			const res = await BdApi.Net.fetch(this.urls.plugin);
 			if (res.status !== 200) throw new Error("Failed");
 			const text = await res.text();
 			const version = text.match(/@version\s+([\d.]+)/)?.[1];
@@ -107,87 +85,117 @@ class UpdateManager {
 			if (this.isNewer(version)) {
 				this.showUpdateNotice(version, text);
 			} else if (!silent) {
-				UI.showToast(`[${this.name}] You're up to date.`, { type: "info" });
+				BdApi.UI.showToast(`[${this.name}] You're up to date.`, { type: 'info' });
 			}
 		} catch (e) {
-			updateLog("Update check failed:", e);
-			if (!silent) UI.showToast(
-				`[${this.name}] Update check failed`,
-				{ type: "error" }
-			);
+			BdApi.Logger.error(this.name, "Update check failed:", e);
+			if (!silent) BdApi.UI.showToast(`[${this.name}] Update check failed`, { type: 'error' });
 		}
 	}
 	showUpdateNotice(version, text) {
-		if (this.notice) {
-			try { this.notice(); } catch { }
-		}
-		this.notice = UI.showNotice(
+		this.notification?.close?.();
+		const handle = BdApi.UI.showNotification?.({
+			title: `${this.name}`,
+			content: `v${version} is available`,
+			type: "info",
+			duration: 6000000,
+			actions: [
+				{
+					label: "Update",
+					onClick: () => {
+						handle?.close?.();
+						this.applyUpdate(text, version);
+					},
+				},
+				{
+					label: "Dismiss",
+					onClick: () => handle?.close?.(),
+				},
+			],
+			onClose: () => {
+				if (this.notification === handle) this.notification = null;
+			},
+		}) ?? BdApi.UI.showNotice(
 			`${this.name} v${version} is available`,
 			{
-				type: "info",
+				type: 'info',
 				buttons: [{
-					label: "Update",
-					onClick: (close) => {
-						close();
+					label: 'Update',
+					onClick: (closeOrEvent) => {
+						if (typeof closeOrEvent === 'function') {
+							closeOrEvent();
+						} else if (this.notification && typeof this.notification === 'function') {
+							this.notification();
+						}
 						this.applyUpdate(text, version);
 					}
 				}, {
-					label: "Dismiss",
-					onClick: (close) => close()
+					label: 'Dismiss',
+					onClick: (closeOrEvent) => {
+						if (typeof closeOrEvent === 'function') {
+							closeOrEvent();
+						} else if (this.notification && typeof this.notification === 'function') {
+							this.notification();
+						}
+					}
 				}]
 			}
 		);
+		this.notification = handle;
 	}
 	applyUpdate(text, version) {
 		try {
-			require("fs").writeFileSync(__filename, text);
-			UI.showToast(`Updated to v${version}. Reloading...`, { type: "success" });
+			require('fs').writeFileSync(__filename, text);
+			BdApi.UI.showToast(`Updated to v${version}. Reloading...`, { type: 'success' });
 			setTimeout(() => {
 				try {
-					Plugins.reload(this.name);
+					BdApi.Plugins.reload(this.name);
 				} catch {
-					UI.showToast("Please reload Discord (Ctrl+R)", { type: "info", timeout: 0 });
+					BdApi.UI.showToast('Please reload Discord (Ctrl+R)', { type: 'info', timeout: 0 });
 				}
 			}, 100);
-		} catch {
-			BdApi.UI.showToast("Update failed", { type: "error" });
+		} catch (e) {
+			BdApi.Logger.error(this.name, "Update failed:", e);
+			BdApi.UI.showToast('Update failed', { type: 'error' });
 		}
 	}
 	async showChangelog() {
-		const last = BdApi.Data.load(this.name, "version");
+		const last = BdApi.Data.load(this.name, 'version');
 		if (last === this.version) return;
-		Data.save(this.name, "version", this.version);
+		BdApi.Data.save(this.name, 'version', this.version);
 		if (!last) return;
 		try {
-			const res = await Net.fetch(this.urls.changelog);
+			const res = await BdApi.Net.fetch(this.urls.changelog);
+			if (res.status !== 200) return;
 			const md = await res.text();
 			const changes = this.parseChangelog(md, last, this.version);
-			if (!changes.length) return;
-			UI.showChangelogModal({
+			if (changes.length === 0) return;
+			BdApi.UI.showChangelogModal({
 				title: this.name,
 				subtitle: `Version ${this.version}`,
 				changes
 			});
-		} catch { }
+		} catch { /* Changelog fetch failed, ignore */ }
 	}
 	async showFullChangelog() {
 		try {
-			const res = await Net.fetch(this.urls.changelog);
+			const res = await BdApi.Net.fetch(this.urls.changelog);
+			if (res.status !== 200) throw new Error("Failed to fetch changelog");
 			const md = await res.text();
-			const changes = this.parseChangelog(md, "1.0.0", this.version);
-			UI.showChangelogModal({
+			const changes = this.parseChangelog(md, "0.0.0", this.version);
+			BdApi.UI.showChangelogModal({
 				title: this.name,
-				subtitle: "All Changes",
+				subtitle: `All Changes`,
 				changes: changes.length ? changes : [{ title: "No changes found", items: [] }]
 			});
 		} catch {
-			UI.showToast("Could not fetch changelog", { type: "error" });
+			BdApi.UI.showToast("Could not fetch changelog", { type: "error" });
 		}
 	}
 	parseChangelog(md, from, to) {
 		const versions = this._parseChangelogVersions(md);
-		const relevant = versions.filter(v =>
-			this.isNewer(v.version, from) && !this.isNewer(v.version, to)
+		const relevant = versions.filter(
+			v => this.isNewer(v.version, from) && !this.isNewer(v.version, to)
 		);
 		const grouped = { added: [], improved: [], fixed: [], other: [] };
 		const getType = (lower) => {
@@ -526,13 +534,13 @@ class ServerTooltipManager {
 		el.style.setProperty("--serverdetails-tooltip-width", `${width}px`);
 		const color = this.plugin.settings.tooltipColor;
 		const defaultGradientColor = "#2b2d31";
-		if (color && color.trim() && color.trim() !== defaultGradientColor) {
+		if (color?.trim() && color.trim() !== defaultGradientColor) {
 			el.style.setProperty("--serverdetails-bg-color", color.trim());
 		} else {
 			el.style.setProperty("--serverdetails-bg-color", "linear-gradient(135deg, #2b2d31 0%, #232428 100%)");
 		}
 		const accentColor = this.plugin.settings.accentColor;
-		if (accentColor && accentColor.trim()) {
+		if (accentColor?.trim()) {
 			el.style.setProperty("--serverdetails-accent-color", accentColor.trim());
 		} else {
 			el.style.setProperty("--serverdetails-accent-color", "#5865f2");
@@ -606,7 +614,7 @@ class ServerTooltipManager {
 		const related = e.relatedTarget;
 		if (
 			related &&
-			(guildEl.contains(related) || (this.tooltipElement && this.tooltipElement.contains(related)))
+			(guildEl.contains(related) || (this.tooltipElement?.contains(related)))
 		) return;
 		this._handleGuildLeave(guildEl);
 		this.currentGuildElement = null;
@@ -639,8 +647,8 @@ class ServerTooltipManager {
 		const related = e.relatedTarget;
 		if (
 			related &&
-			((this.tooltipElement && this.tooltipElement.contains(related)) ||
-				(this.currentGuildElement && this.currentGuildElement.contains(related)))
+			((this.tooltipElement?.contains(related)) ||
+				(this.currentGuildElement?.contains(related)))
 		) return;
 		this._clearShowTimeout();
 		this._hideTooltip();
@@ -677,7 +685,7 @@ class ServerTooltipManager {
 		}
 	}
 	_isTooltipVisible() {
-		return this.tooltipElement && this.tooltipElement.classList.contains("visible");
+		return this.tooltipElement?.classList.contains("visible");
 	}
 	_showTooltipForCurrent() {
 		if (!this._running || !this.tooltipElement || !this.hoveredGuildId) return;
@@ -828,7 +836,7 @@ class ServerTooltipManager {
 			}
 		}
 		const rowsHtml = rows
-			.filter(r => r && r.value !== undefined && r.value !== null)
+			.filter(r => r?.value !== undefined && r.value !== null)
 			.map(r => {
 				const dataAttr = settings.showIcons ? ` data-type="${escapeHtml(r.type)}"` : '';
 				return (
@@ -847,12 +855,12 @@ class ServerTooltipManager {
 		return headerHtml + rowsHtml;
 	}
 	_getGuildIconURL(guild) {
-		if (!guild || !guild.icon) return null;
+		if (!guild?.icon) return null;
 		const ext = guild.icon.startsWith("a_") ? "gif" : "webp";
 		return `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.${ext}?size=256`;
 	}
 	_getGuildAcronym(guild) {
-		const name = guild && guild.name ? guild.name : "";
+		const name = guild?.name ? guild.name : "";
 		if (!name) return "?";
 		const words = name.split(/\s+/).filter(Boolean);
 		if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
@@ -869,7 +877,7 @@ class ServerTooltipManager {
 		return tag;
 	}
 	_getCreationDate(guild) {
-		if (!guild || !guild.id) return null;
+		if (!guild?.id) return null;
 		const ts = this.plugin._snowflakeToTimestamp(guild.id);
 		return ts ? new Date(ts) : null;
 	}
@@ -887,7 +895,7 @@ class ServerTooltipManager {
 		const loc = guild.preferredLocale || guild.preferred_locale || "";
 		if (!loc) return "Unknown";
 		const localeSetting = this.plugin.settings.dateLocale;
-		const displayLocale = localeSetting && localeSetting.trim().length ? localeSetting.trim() : undefined;
+		const displayLocale = localeSetting?.trim().length ? localeSetting.trim() : undefined;
 		try {
 			if (typeof Intl !== "undefined" && Intl.DisplayNames) {
 				const baseLang = loc.split("-")[0];
@@ -970,7 +978,7 @@ module.exports = class BetterServerDetails {
 	getSettingsPanel() {
 		if (!this.uiManager) return document.createElement("div");
 		const panel = this.uiManager.renderSettingsPanel();
-		if (panel && panel._pluginRoot) this._settingsRoot = panel._pluginRoot;
+		if (panel?._pluginRoot) this._settingsRoot = panel._pluginRoot;
 		return panel;
 	}
 	//#endregion Settings Panel
@@ -1043,7 +1051,7 @@ module.exports = class BetterServerDetails {
 		}
 		try {
 			return date.toLocaleString(
-				(localeSetting && localeSetting.trim().length) ? localeSetting.trim() : undefined,
+				(localeSetting?.trim().length) ? localeSetting.trim() : undefined,
 				options
 			);
 		} catch {
@@ -1058,7 +1066,7 @@ module.exports = class BetterServerDetails {
 			.serverdetails-tooltip.visible { opacity: 1; transform: scale(1); pointer-events: auto; }
 			.serverdetails-tooltip-header { display: flex; flex-direction: column; align-items: center; margin-bottom: 8px; padding-bottom: 12px; border-bottom: 2px solid; border-image: linear-gradient(90deg, transparent, var(--serverdetails-accent-color, #5865f2), transparent) 1; }
 			.serverdetails-tooltip-name { font-weight: 700; font-size: 16px; margin-bottom: 8px; text-align: center; color: #fff; }
-			.serverdetails-tooltip-icon { display: flex; align-items: center; justify-content: center; margin-bottom: 8px; width: calc(var(--serverdetails-tooltip-width, 300px) - 80px); height: calc(var(--serverdetails-tooltip-width, 300px) - 80px); max-width: 200px; max-height: 200px; border-radius: 16px; overflow: hidden; background-color: var(--background-primary); color: var(--header-primary); font-size: 32px; font-weight: 600; text-transform: uppercase; box-shadow: 0 4px 16px rgba(88, 101, 242, 0.4); position: relative; }
+			.serverdetails-tooltip-icon { display: flex; align-items: center; justify-content: center; margin-bottom: 8px; width: calc(var(--serverdetails-tooltip-width, 300px) - 80px); height: calc(var(--serverdetails-tooltip-width, 300px) - 80px); max-width: 200px; max-height: 200px; border-radius: 16px; overflow: hidden; background-color: var(--modal-background); color: var(--mobile-text-heading-primary); font-size: 32px; font-weight: 600; text-transform: uppercase; box-shadow: 0 4px 16px rgba(88, 101, 242, 0.4); position: relative; }
 			.serverdetails-tooltip-icon::after { content: ''; position: absolute; top: -50%; right: -50%; width: 100%; height: 100%; background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent); }
 			.serverdetails-tooltip-icon img { width: 100%; height: 100%; object-fit: cover; }
 			.serverdetails-row { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; padding: 6px 8px; border-radius: 6px; }
@@ -1078,4 +1086,3 @@ module.exports = class BetterServerDetails {
 	//#endregion Styles
 };
 //#endregion Main Plugin Class
-/*@end@*/
