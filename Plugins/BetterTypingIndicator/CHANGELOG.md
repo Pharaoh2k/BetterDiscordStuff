@@ -1,5 +1,9 @@
 # [BetterTypingIndicator](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterTypingIndicator "BetterTypingIndicator") Changelog
 
+### 2.9.1
+- Updated to match Discord changes
+- Improved update-checker
+
 ### 2.9.0
 - Made plugin version single-source: added PLUGIN_NAME/META_VERSION and wired CONFIG.info.version to BdApi meta.
 - Migrated helper functions to arrow style and split parseChangelog into smaller helpers for lower complexity.
