@@ -2,7 +2,7 @@
 
 A BetterDiscord plugin that allows you to send longer messages by automatically splitting them into multiple chunks. No Nitro spoofing, respects server limits and slowmode.
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.0.1-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Discord](https://img.shields.io/badge/discord-BetterDiscord-7289DA.svg)
 
