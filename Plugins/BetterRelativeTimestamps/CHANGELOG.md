@@ -1,8 +1,12 @@
 # [BetterRelativeTimestamps](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterRelativeTimestamps "BetterRelativeTimestamps") Changelog
 
+### 1.1.2
+- Improved updates manager
+- Improved code quality
+
 ### 1.1.1
-Added updates manager
-Added auto-update-checker
+- Added updates manager
+- Added auto-update-checker
 
 ### 1.1.0
 - Fixed future timestamps showing incorrectly (e.g., "-5m ago" instead of "in 5m")
