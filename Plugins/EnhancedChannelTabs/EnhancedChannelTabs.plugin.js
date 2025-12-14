@@ -82,8 +82,15 @@ class UpdateManager {
 		}
 	}
 	showUpdateNotice(version, text) {
-		this.notification?.close?.();
-		const handle = BdApi.UI.showNotification?.({
+		if (typeof this.notification === "function") this.notification();
+		else this.notification?.close?.();
+		let handle = null;
+		const closeHandle = () => {
+			if (typeof handle === "function") handle();
+			else handle?.close?.();
+		};
+		handle = BdApi.UI.showNotification?.({
+			id: `bd-plugin-update:${this.name}`,
 			title: `${this.name}`,
 			content: `v${version} is available`,
 			type: "info",
@@ -92,44 +99,38 @@ class UpdateManager {
 				{
 					label: "Update",
 					onClick: () => {
-						handle?.close?.();
+						closeHandle();
 						this.applyUpdate(text, version);
 					},
 				},
 				{
 					label: "Dismiss",
-					onClick: () => handle?.close?.(),
+					onClick: closeHandle,
 				},
 			],
 			onClose: () => {
 				if (this.notification === handle) this.notification = null;
 			},
-		}) ?? BdApi.UI.showNotice(
-			`${this.name} v${version} is available`,
-			{
-				type: 'info',
-				buttons: [{
-					label: 'Update',
+		}) ?? BdApi.UI.showNotice(`${this.name} v${version} is available`, {
+			type: "info",
+			buttons: [
+				{
+					label: "Update",
 					onClick: (closeOrEvent) => {
-						if (typeof closeOrEvent === 'function') {
-							closeOrEvent();
-						} else if (this.notification && typeof this.notification === 'function') {
-							this.notification();
-						}
+						if (typeof closeOrEvent === "function") closeOrEvent();
+						else closeHandle();
 						this.applyUpdate(text, version);
-					}
-				}, {
-					label: 'Dismiss',
+					},
+				},
+				{
+					label: "Dismiss",
 					onClick: (closeOrEvent) => {
-						if (typeof closeOrEvent === 'function') {
-							closeOrEvent();
-						} else if (this.notification && typeof this.notification === 'function') {
-							this.notification();
-						}
-					}
-				}]
-			}
-		);
+						if (typeof closeOrEvent === "function") closeOrEvent();
+						else closeHandle();
+					},
+				},
+			],
+		});
 		this.notification = handle;
 	}
 	applyUpdate(text, version) {
@@ -240,7 +241,7 @@ class UpdateManager {
 		return versions;
 	}
 	isNewer(v1, v2 = this.version) {
-		return Utils.semverCompare(v2, v1) === 1;
+		return BdApi.Utils.semverCompare(v2, v1) === 1;
 	}
 }
 class StyleManager {
