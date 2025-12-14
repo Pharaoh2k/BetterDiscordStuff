@@ -1,7 +1,7 @@
 /**
  * @name BetterSplitLargeMessages
  * @author Pharaoh2k
- * @version 1.0.0
+ * @version 1.0.1
  * @description Splits large messages to smaller ones (~2000/4000 chars). No Nitro spoofing. Honors server limits & slowmode, optional chunk cap, hides upsell banners/modals.
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterSplitLargeMessages/BetterSplitLargeMessages.plugin.js
@@ -25,194 +25,209 @@ const DEFAULT_SETTINGS = {
 };
 /* ================= UpdateManager Class ================= */
 class UpdateManager {
-    constructor(pluginName, version, github = "Pharaoh2k/BetterDiscordStuff") {
-        this.name = pluginName;
-        this.version = version;
-        const [user, repo] = github.split('/');
-        this.urls = {
-            plugin: `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main/Plugins/${pluginName}/${pluginName}.plugin.js`,
-            changelog: `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main/Plugins/${pluginName}/CHANGELOG.md`
-        };
-        this.timer = null;
-        this.notification = null;
-    }
-    async start(autoUpdate = true) {
-        if (autoUpdate) {
-            setTimeout(() => this.check(true), 15000);
-            this.timer = setInterval(() => this.check(true), 24 * 60 * 60 * 1000);
-        }
-        this.showChangelog();
-    }
-    stop() {
-        clearInterval(this.timer);
-        this.timer = null;
-        if (typeof this.notification === "function") this.notification();
-        else this.notification?.close?.();
-        this.notification = null;
-    }
-    async check(silent = false) {
-        try {
-            const res = await BdApi.Net.fetch(this.urls.plugin);
-            if (res.status !== 200) throw new Error("Failed to fetch plugin");
-            const text = await res.text();
-            const version = text.match(/@version\s+([\d.]+)/)?.[1];
-            if (!version) throw new Error("No version found in remote file");
-            if (this.isNewer(version)) {
-                this.showUpdateNotice(version, text);
-            } else if (!silent) {
-                BdApi.UI.showToast(`[${this.name}] You're up to date.`, { type: 'info' });
-            }
-        } catch (e) {
-            BdApi.Logger.error(this.name, "Update check failed:", e);
-            if (!silent) BdApi.UI.showToast(`[${this.name}] Update check failed`, { type: 'error' });
-        }
-    }
-    showUpdateNotice(version, text) {
-        this.notification?.close?.();
-        const handle = BdApi.UI.showNotification?.({
-            title: `${this.name}`,
-            content: `v${version} is available`,
-            type: "info",
-            duration: 60000,
-            actions: [
-                {
-                    label: "Update",
-                    onClick: () => {
-                        handle?.close?.();
-                        this.applyUpdate(text, version);
-                    },
-                },
-                {
-                    label: "Dismiss",
-                    onClick: () => handle?.close?.(),
-                },
-            ],
-            onClose: () => {
-                if (this.notification === handle) this.notification = null;
-            },
-        }) ?? BdApi.UI.showNotice(
-            `${this.name} v${version} is available`,
-            {
-                type: 'info',
-                buttons: [{
-                    label: 'Update',
-                    onClick: (closeOrEvent) => {
-                        if (typeof closeOrEvent === 'function') {
-                            closeOrEvent();
-                        } else if (this.notification && typeof this.notification === 'function') {
-                            this.notification();
-                        }
-                        this.applyUpdate(text, version);
-                    }
-                }, {
-                    label: 'Dismiss',
-                    onClick: (closeOrEvent) => {
-                        if (typeof closeOrEvent === 'function') {
-                            closeOrEvent();
-                        } else if (this.notification && typeof this.notification === 'function') {
-                            this.notification();
-                        }
-                    }
-                }]
-            }
-        );
-        this.notification = handle;
-    }
-    applyUpdate(text, version) {
-        try {
-            require('fs').writeFileSync(__filename, text);
-            BdApi.UI.showToast(`Updated to v${version}. Reloading...`, { type: 'success' });
-            setTimeout(() => {
-                try {
-                    BdApi.Plugins.reload(this.name);
-                } catch {
-                    BdApi.UI.showToast('Please reload Discord (Ctrl+R)', { type: 'info', timeout: 0 });
-                }
-            }, 100);
-        } catch (e) {
-            BdApi.Logger.error(this.name, "Update failed:", e);
-            BdApi.UI.showToast('Update failed', { type: 'error' });
-        }
-    }
-    async showChangelog() {
-        const last = BdApi.Data.load(this.name, 'version');
-        if (last === this.version) return;
-        BdApi.Data.save(this.name, 'version', this.version);
-        if (!last) return;
-        try {
-            const res = await BdApi.Net.fetch(this.urls.changelog);
-            if (res.status !== 200) return;
-            const md = await res.text();
-            const changes = this.parseChangelog(md, last, this.version);
-            if (changes.length === 0) return;
-            BdApi.UI.showChangelogModal({
-                title: this.name,
-                subtitle: `Version ${this.version}`,
-                changes
-            });
-        } catch { /* Changelog fetch failed, ignore */ }
-    }
-    async showFullChangelog() {
-        try {
-            const res = await BdApi.Net.fetch(this.urls.changelog);
-            if (res.status !== 200) throw new Error("Failed to fetch changelog");
-            const md = await res.text();
-            const changes = this.parseChangelog(md, "0.0.0", this.version);
-            BdApi.UI.showChangelogModal({
-                title: this.name,
-                subtitle: `All Changes`,
-                changes: changes.length ? changes : [{ title: "No changes found", items: [] }]
-            });
-        } catch {
-            BdApi.UI.showToast("Could not fetch changelog", { type: "error" });
-        }
-    }
-    parseChangelog(md, from, to) {
-        const lines = md.split('\n');
-        const versions = [];
-        let current = null;
-        let items = [];
-        for (const line of lines) {
-            const ver = line.match(/^###\s+([\d.]+)/)?.[1];
-            if (ver) {
-                if (current) versions.push({ version: current, items });
-                current = ver;
-                items = [];
-            } else if (line.trim().startsWith('-') && current) {
-                const item = line.trim().substring(1).trim();
-                if (item) items.push(item);
-            }
-        }
-        if (current) versions.push({ version: current, items });
-        const relevant = versions.filter(v =>
-            this.isNewer(v.version, from) && !this.isNewer(v.version, to)
-        );
-        const grouped = { added: [], improved: [], fixed: [], other: [] };
-        for (const v of relevant) {
-            for (const item of v.items) {
-                const lower = item.toLowerCase();
-                const tagged = `${item} (v${v.version})`;
-                if (lower.includes('fix')) grouped.fixed.push(tagged);
-                else if (lower.includes('add') || lower.includes('initial')) grouped.added.push(tagged);
-                else if (lower.includes('improv') || lower.includes('updat')) grouped.improved.push(tagged);
-                else grouped.other.push(tagged);
-            }
-        }
-        const result = [];
-        if (grouped.added.length) result.push({ title: "New Features", type: "added", items: grouped.added });
-        if (grouped.improved.length) result.push({ title: "Improvements", type: "improved", items: grouped.improved });
-        if (grouped.fixed.length) result.push({ title: "Bug Fixes", type: "fixed", items: grouped.fixed });
-        if (grouped.other.length) result.push({ title: "Other Changes", type: "progress", items: grouped.other });
-        return result;
-    }
-    isNewer(v1, v2 = this.version) {
-        const [a, b] = [v1, v2].map(v => v.split('.').map(Number));
-        for (let i = 0; i < Math.max(a.length, b.length); i++) {
-            if ((a[i] || 0) > (b[i] || 0)) return true;
-            if ((a[i] || 0) < (b[i] || 0)) return false;
-        }
-        return false;
-    }
+	constructor(pluginName, version, github = "Pharaoh2k/BetterDiscordStuff") {
+		this.name = pluginName;
+		this.version = version;
+		const [user, repo] = github.split('/');
+		this.urls = {
+			plugin: `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main/Plugins/${pluginName}/${pluginName}.plugin.js`,
+			changelog: `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main/Plugins/${pluginName}/CHANGELOG.md`
+		};
+		this.timer = null;
+		this.notification = null;
+	}
+	async start(autoUpdate = true) {
+		if (autoUpdate) {
+			setTimeout(() => this.check(true), 15000);
+			this.timer = setInterval(() => this.check(true), 24 * 60 * 60 * 1000);
+		}
+		this.showChangelog();
+	}
+	stop() {
+		clearInterval(this.timer);
+		if (typeof this.notification === "function") this.notification();
+		else this.notification?.close?.();
+		this.notification = null;
+	}
+	async check(silent = false) {
+		try {
+			const res = await BdApi.Net.fetch(this.urls.plugin);
+			if (res.status !== 200) throw new Error("Failed");
+			const text = await res.text();
+			const version = text.match(/@version\s+([\d.]+)/)?.[1];
+			if (!version) throw new Error("No version");
+			if (this.isNewer(version)) {
+				this.showUpdateNotice(version, text);
+			} else if (!silent) {
+				BdApi.UI.showToast(`[${this.name}] You're up to date.`, { type: 'info' });
+			}
+		} catch (e) {
+			BdApi.Logger.error(this.name, "Update check failed:", e);
+			if (!silent) BdApi.UI.showToast(`[${this.name}] Update check failed`, { type: 'error' });
+		}
+	}
+	showUpdateNotice(version, text) {
+		if (typeof this.notification === "function") this.notification();
+		else this.notification?.close?.();
+		let handle = null;
+		const closeHandle = () => {
+			if (typeof handle === "function") handle();
+			else handle?.close?.();
+		};
+		handle = BdApi.UI.showNotification?.({
+			id: `bd-plugin-update:${this.name}`,
+			title: `${this.name}`,
+			content: `v${version} is available`,
+			type: "info",
+			duration: 6000000,
+			actions: [
+				{
+					label: "Update",
+					onClick: () => {
+						closeHandle();
+						this.applyUpdate(text, version);
+					},
+				},
+				{
+					label: "Dismiss",
+					onClick: closeHandle,
+				},
+			],
+			onClose: () => {
+				if (this.notification === handle) this.notification = null;
+			},
+		}) ?? BdApi.UI.showNotice(`${this.name} v${version} is available`, {
+			type: "info",
+			buttons: [
+				{
+					label: "Update",
+					onClick: (closeOrEvent) => {
+						if (typeof closeOrEvent === "function") closeOrEvent();
+						else closeHandle();
+						this.applyUpdate(text, version);
+					},
+				},
+				{
+					label: "Dismiss",
+					onClick: (closeOrEvent) => {
+						if (typeof closeOrEvent === "function") closeOrEvent();
+						else closeHandle();
+					},
+				},
+			],
+		});
+		this.notification = handle;
+	}
+	applyUpdate(text, version) {
+		try {
+			require('fs').writeFileSync(__filename, text);
+			BdApi.UI.showToast(`Updated to v${version}. Reloading...`, { type: 'success' });
+			setTimeout(() => {
+				try {
+					BdApi.Plugins.reload(this.name);
+				} catch {
+					BdApi.UI.showToast('Please reload Discord (Ctrl+R)', { type: 'info', timeout: 0 });
+				}
+			}, 100);
+		} catch (e) {
+			BdApi.Logger.error(this.name, "Update failed:", e);
+			BdApi.UI.showToast('Update failed', { type: 'error' });
+		}
+	}
+	async showChangelog() {
+		const last = BdApi.Data.load(this.name, 'version');
+		console.log(`[${this.name}] showChangelog: last=${last}, current=${this.version}`);
+		if (last === this.version) { console.log(`[${this.name}] Skipping: versions match`); return; }
+		BdApi.Data.save(this.name, 'version', this.version);
+		if (!last) { console.log(`[${this.name}] Skipping: fresh install`); return; }
+		try {
+			const res = await BdApi.Net.fetch(this.urls.changelog);
+			console.log(`[${this.name}] Changelog fetch status: ${res.status}`);
+			if (res.status !== 200) return;
+			const md = await res.text();
+			const changes = this.parseChangelog(md, last, this.version);
+			console.log(`[${this.name}] Parsed changes:`, changes);
+			if (changes.length === 0) return;
+			BdApi.UI.showChangelogModal({ title: this.name, subtitle: `Version ${this.version}`, changes });
+		} catch (e) { console.error(`[${this.name}] Changelog error:`, e); }
+	}
+	async showFullChangelog() {
+		try {
+			const res = await BdApi.Net.fetch(this.urls.changelog);
+			if (res.status !== 200) throw new Error("Failed to fetch changelog");
+			const md = await res.text();
+			const changes = this.parseChangelog(md, "0.0.0", this.version);
+			BdApi.UI.showChangelogModal({
+				title: this.name,
+				subtitle: `All Changes`,
+				changes: changes.length ? changes : [{ title: "No changes found", items: [] }]
+			});
+		} catch {
+			BdApi.UI.showToast("Could not fetch changelog", { type: "error" });
+		}
+	}
+	parseChangelog(md, from, to) {
+		const versions = this._parseChangelogVersions(md);
+		const relevant = versions.filter(
+			v => this.isNewer(v.version, from) && !this.isNewer(v.version, to)
+		);
+		const grouped = { added: [], improved: [], fixed: [], other: [] };
+		const getType = (lower) => {
+			if (lower.includes("fix")) return "fixed";
+			if (lower.includes("add") || lower.includes("initial")) return "added";
+			if (lower.includes("improv") || lower.includes("updat")) return "improved";
+			return "other";
+		};
+		for (const v of relevant) {
+			for (const item of v.items) {
+				const lower = item.toLowerCase();
+				const tagged = `${item} (v${v.version})`;
+				grouped[getType(lower)].push(tagged);
+			}
+		}
+		const sections = [
+			["New Features", "added", "added"],
+			["Improvements", "improved", "improved"],
+			["Bug Fixes", "fixed", "fixed"],
+			["Other Changes", "other", "progress"]
+		];
+		const result = [];
+		for (const [title, key, type] of sections) {
+			if (grouped[key].length) {
+				result.push({ title, type, items: grouped[key] });
+			}
+		}
+		return result;
+	}
+	_parseChangelogVersions(md) {
+		const lines = md.split("\n");
+		const versions = [];
+		let current = null;
+		let items = [];
+		const push = () => {
+			if (!current) return;
+			versions.push({ version: current, items });
+			items = [];
+		};
+		for (const line of lines) {
+			const ver = line.match(/^###\s+([\d.]+)/)?.[1];
+			if (ver) {
+				push();
+				current = ver;
+				continue;
+			}
+			if (!current) continue;
+			const trimmed = line.trim();
+			if (!trimmed.startsWith("-")) continue;
+			const item = trimmed.substring(1).trim();
+			if (item) items.push(item);
+		}
+		push();
+		return versions;
+	}
+	isNewer(v1, v2 = this.version) {
+		return BdApi.Utils.semverCompare(v2, v1) === 1;
+	}
 }
 /* ================= Main Plugin Class ================= */
 module.exports = class BetterSplitLargeMessages {
@@ -744,7 +759,7 @@ module.exports = class BetterSplitLargeMessages {
     }
     _createMarkdownParser() {
         const stack = [];
-        const top = () => stack.at(-1);
+        const top = () => stack[stack.length - 1];
         const toggle = (type, meta = {}) => {
             if (top()?.type === type) stack.pop();
             else stack.push({ type, ...meta });
@@ -825,7 +840,7 @@ module.exports = class BetterSplitLargeMessages {
         BdApi.Patcher.before(PLUGIN_NAME, this.charCountModule, this.charCountExportKey, (_, args) => {
             if (!this.settings.hideUpsell) return;
             const props = args[0];
-            if (props?.type?.upsellLongMessages) {
+            if (props && props.type && props.type.upsellLongMessages) {
                 props.type = { ...props.type, upsellLongMessages: null };
             }
         });
