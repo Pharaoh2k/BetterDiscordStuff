@@ -2,10 +2,10 @@
   "name": "BetterSplitLargeMessages",
   "description": "Allows larger messages by client-side splitting. No Nitro spoofing. Honors server limits & slowmode, optional chunk cap, hides upsell banners/modals.",
   "author": "Pharaoh2k",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "status": "Active",
   "workingStatus": "Working",
-  "lastUpdated": "2025-12-10",
+  "lastUpdated": "2025-12-14",
   "releaseDate": "2025-12-10",
   "features": [
     "Automatic message splitting for long messages",
