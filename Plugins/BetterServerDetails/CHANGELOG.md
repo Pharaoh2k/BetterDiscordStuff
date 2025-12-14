@@ -1,5 +1,9 @@
 # [BetterServerDetails](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterServerDetails "BetterServerDetails") Changelog
 
+### 1.0.2
+- Updated to match Discord changes
+- Improved update-checker
+
 ### 1.0.1
 - BdApi related improvements (minor)
 
