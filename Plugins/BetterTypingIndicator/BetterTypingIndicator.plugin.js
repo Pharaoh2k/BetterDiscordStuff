@@ -1,6 +1,6 @@
 /**
  * @name BetterTypingIndicator
- * @version 2.9.0
+ * @version 2.9.1
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/edit/main/Plugins/BetterTypingIndicator/BetterTypingIndicator.plugin.js
  * @authorId 874825550408089610
@@ -14,8 +14,8 @@ Contributions are welcome via GitHub pull requests. Please ensure submissions al
 */
 const PLUGIN_NAME = "BetterTypingIndicator";
 const META_VERSION =
-  BdApi?.Plugins?.getMeta?.(PLUGIN_NAME)?.version ||
-  (require("fs").readFileSync(__filename, "utf8").match(/@version\s+([\d.]+)/)?.[1] ?? "0.0.0");
+    BdApi?.Plugins?.getMeta?.(PLUGIN_NAME)?.version ||
+    (require("fs").readFileSync(__filename, "utf8").match(/@version\s+([\d.]+)/)?.[1] ?? "0.0.0");
 const { Data, DOM, React, ReactDOM, UI, Webpack, Utils, Hooks } = BdApi;
 const TYPES = { CHANNEL: 'channel', GUILD: 'guild', FOLDER: 'folder', HOME: 'home' };
 const TYPING_EVENTS = ['TYPING_START', 'TYPING_STOP', 'MESSAGE_CREATE'];
@@ -205,197 +205,209 @@ const DEFAULT_SETTINGS_MAP = CONFIG.defaultConfig.reduce((acc, cfg) => ({
 }), {});
 const mergeSettings = (...sources) => Object.assign({}, DEFAULT_SETTINGS_MAP, ...sources.filter(Boolean));
 class UpdateManager {
-	constructor(pluginName, version, github = "Pharaoh2k/BetterDiscordStuff") {
-		this.name = pluginName;
-		this.version = version;
-		const [user, repo] = github.split('/');
-		this.urls = {
-			plugin: `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main/Plugins/${pluginName}/${pluginName}.plugin.js`,
-			changelog: `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main/Plugins/${pluginName}/CHANGELOG.md`
-		};
-		this.timer = null;
-		this.notification = null;
-	}
-	async start(autoUpdate = true) {
-		if (autoUpdate) {
-			setTimeout(() => this.check(true), 15000);
-			this.timer = setInterval(() => this.check(true), 24 * 60 * 60 * 1000);
-		}
-		this.showChangelog();
-	}
-	stop() {
-		clearInterval(this.timer);
-		if (typeof this.notification === "function") this.notification();
-		else this.notification?.close?.();
-		this.notification = null;
-	}
-	async check(silent = false) {
-		try {
-			const res = await BdApi.Net.fetch(this.urls.plugin);
-			if (res.status !== 200) throw new Error("Failed");
-			const text = await res.text();
-			const version = text.match(/@version\s+([\d.]+)/)?.[1];
-			if (!version) throw new Error("No version");
-			if (this.isNewer(version)) {
-				this.showUpdateNotice(version, text);
-			} else if (!silent) {
-				BdApi.UI.showToast(`[${this.name}] You're up to date.`, { type: 'info' });
-			}
-		} catch (e) {
-			console.error(`[${this.name}] Update check failed:`, e);
-			if (!silent) BdApi.UI.showToast(`[${this.name}] Update check failed`, { type: 'error' });
-		}
-	}
-	showUpdateNotice(version, text) {
-		this.notification?.close?.();
-		const handle = BdApi.UI.showNotification?.({
-			title: `${this.name}`,
-			content: `v${version} is available`,
-			type: "info",
-			duration: 60000,
-			actions: [
-				{
-					label: "Update",
-					onClick: () => {
-						handle?.close?.();
-						this.applyUpdate(text, version);
-					},
-				},
-				{
-					label: "Dismiss",
-					onClick: () => handle?.close?.(),
-				},
-			],
-			onClose: () => {
-				if (this.notification === handle) this.notification = null;
-			},
-		}) ?? BdApi.UI.showNotice(
-			`${this.name} v${version} is available`,
-			{
-				type: 'info',
-				buttons: [{
-					label: 'Update',
-					onClick: (closeOrEvent) => {
-						if (typeof closeOrEvent === 'function') {
-							closeOrEvent();
-						} else if (this.notification && typeof this.notification === 'function') {
-							this.notification();
-						}
-						this.applyUpdate(text, version);
-					}
-				}, {
-					label: 'Dismiss',
-					onClick: (closeOrEvent) => {
-						if (typeof closeOrEvent === 'function') {
-							closeOrEvent();
-						} else if (this.notification && typeof this.notification === 'function') {
-							this.notification();
-						}
-					}
-				}]
-			}
-		);
-		this.notification = handle;
-	}
-	applyUpdate(text, version) {
-		try {
-			require('fs').writeFileSync(__filename, text);
-			BdApi.UI.showToast(`Updated to v${version}. Reloading...`, { type: 'success' });
-			setTimeout(() => {
-				try {
-					BdApi.Plugins.reload(this.name);
-				} catch {
-					BdApi.UI.showToast('Please reload Discord (Ctrl+R)', { type: 'info', timeout: 0 });
-				}
-			}, 100);
-		} catch {
-			BdApi.UI.showToast('Update failed', { type: 'error' });
-		}
-	}
-	async showChangelog() {
-		const last = BdApi.Data.load(this.name, 'version');
-		if (last === this.version) return;
-		BdApi.Data.save(this.name, 'version', this.version);
-		if (!last) return;
-		try {
-			const res = await BdApi.Net.fetch(this.urls.changelog);
-			const md = await res.text();
-			const changes = this.parseChangelog(md, last, this.version);
-			if (changes.length === 0) return;
-			BdApi.UI.showChangelogModal({
-				title: this.name,
-				subtitle: `Version ${this.version}`,
-				changes
-			});
-		} catch { }
-	}
-	async showFullChangelog() {
-		try {
-			const res = await BdApi.Net.fetch(this.urls.changelog);
-			const md = await res.text();
-			const changes = this.parseChangelog(md, "0.0.0", this.version);
-			BdApi.UI.showChangelogModal({
-				title: this.name,
-				subtitle: `All Changes`,
-				changes: changes.length ? changes : [{ title: "No changes found", items: [] }]
-			});
-		} catch {
-			BdApi.UI.showToast("Could not fetch changelog", { type: "error" });
-		}
-	}
-	parseChangelog(md, from, to) {
-		const versions = this.extractChangelogVersions(md);
-		return this.groupChangelogChanges(versions, from, to);
-	}
-	extractChangelogVersions(md) {
-		const lines = md.split('\n');
-		const versions = [];
-		let current = null;
-		let items = [];
-		for (const line of lines) {
-			const ver = line.match(/^###\s+([\d.]+)/)?.[1];
-			if (ver) {
-				if (current) versions.push({ version: current, items });
-				current = ver;
-				items = [];
-			} else if (line.trim().startsWith('-') && current) {
-				const item = line.trim().substring(1).trim();
-				if (item) items.push(item);
-			}
-		}
-		if (current) versions.push({ version: current, items });
-		return versions;
-	}
-	groupChangelogChanges(versions, from, to) {
-		const relevant = versions.filter(v =>
-			this.isNewer(v.version, from) && !this.isNewer(v.version, to)
-		);
-		const grouped = { added: [], improved: [], fixed: [], other: [] };
-		for (const v of relevant) {
-			for (const item of v.items) {
-				const lower = item.toLowerCase();
-				const tagged = `${item} (v${v.version})`;
-				if (lower.includes('fix')) grouped.fixed.push(tagged);
-				else if (lower.includes('add') || lower.includes('initial')) grouped.added.push(tagged);
-				else if (lower.includes('improv') || lower.includes('updat')) grouped.improved.push(tagged);
-				else grouped.other.push(tagged);
-			}
-		}
-		const result = [];
-		if (grouped.added.length) result.push({ title: "New Features", type: "added", items: grouped.added });
-		if (grouped.improved.length) result.push({ title: "Improvements", type: "improved", items: grouped.improved });
-		if (grouped.fixed.length) result.push({ title: "Bug Fixes", type: "fixed", items: grouped.fixed });
-		if (grouped.other.length) result.push({ title: "Other Changes", type: "progress", items: grouped.other });
-		return result;
-	}
-	isNewer(v1, v2 = this.version) {
-		const [a, b] = [v1, v2].map(v => v.split('.').map(Number));
-		for (let i = 0; i < Math.max(a.length, b.length); i++) {
-			if ((a[i] || 0) > (b[i] || 0)) return true;
-			if ((a[i] || 0) < (b[i] || 0)) return false;
-		}
-		return false;
-	}
+    constructor(pluginName, version, github = "Pharaoh2k/BetterDiscordStuff") {
+        this.name = pluginName;
+        this.version = version;
+        const [user, repo] = github.split('/');
+        this.urls = {
+            plugin: `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main/Plugins/${pluginName}/${pluginName}.plugin.js`,
+            changelog: `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main/Plugins/${pluginName}/CHANGELOG.md`
+        };
+        this.timer = null;
+        this.notification = null;
+    }
+    async start(autoUpdate = true) {
+        if (autoUpdate) {
+            setTimeout(() => this.check(true), 15000);
+            this.timer = setInterval(() => this.check(true), 24 * 60 * 60 * 1000);
+        }
+        this.showChangelog();
+    }
+    stop() {
+        clearInterval(this.timer);
+        if (typeof this.notification === "function") this.notification();
+        else this.notification?.close?.();
+        this.notification = null;
+    }
+    async check(silent = false) {
+        try {
+            const res = await BdApi.Net.fetch(this.urls.plugin);
+            if (res.status !== 200) throw new Error("Failed");
+            const text = await res.text();
+            const version = text.match(/@version\s+([\d.]+)/)?.[1];
+            if (!version) throw new Error("No version");
+            if (this.isNewer(version)) {
+                this.showUpdateNotice(version, text);
+            } else if (!silent) {
+                BdApi.UI.showToast(`[${this.name}] You're up to date.`, { type: 'info' });
+            }
+        } catch (e) {
+            BdApi.Logger.error(this.name, "Update check failed:", e);
+            if (!silent) BdApi.UI.showToast(`[${this.name}] Update check failed`, { type: 'error' });
+        }
+    }
+    showUpdateNotice(version, text) {
+        this.notification?.close?.();
+        const handle = BdApi.UI.showNotification?.({
+            title: `${this.name}`,
+            content: `v${version} is available`,
+            type: "info",
+            duration: 6000000,
+            actions: [
+                {
+                    label: "Update",
+                    onClick: () => {
+                        handle?.close?.();
+                        this.applyUpdate(text, version);
+                    },
+                },
+                {
+                    label: "Dismiss",
+                    onClick: () => handle?.close?.(),
+                },
+            ],
+            onClose: () => {
+                if (this.notification === handle) this.notification = null;
+            },
+        }) ?? BdApi.UI.showNotice(
+            `${this.name} v${version} is available`,
+            {
+                type: 'info',
+                buttons: [{
+                    label: 'Update',
+                    onClick: (closeOrEvent) => {
+                        if (typeof closeOrEvent === 'function') {
+                            closeOrEvent();
+                        } else if (this.notification && typeof this.notification === 'function') {
+                            this.notification();
+                        }
+                        this.applyUpdate(text, version);
+                    }
+                }, {
+                    label: 'Dismiss',
+                    onClick: (closeOrEvent) => {
+                        if (typeof closeOrEvent === 'function') {
+                            closeOrEvent();
+                        } else if (this.notification && typeof this.notification === 'function') {
+                            this.notification();
+                        }
+                    }
+                }]
+            }
+        );
+        this.notification = handle;
+    }
+    applyUpdate(text, version) {
+        try {
+            require('fs').writeFileSync(__filename, text);
+            BdApi.UI.showToast(`Updated to v${version}. Reloading...`, { type: 'success' });
+            setTimeout(() => {
+                try {
+                    BdApi.Plugins.reload(this.name);
+                } catch {
+                    BdApi.UI.showToast('Please reload Discord (Ctrl+R)', { type: 'info', timeout: 0 });
+                }
+            }, 100);
+        } catch (e) {
+            BdApi.Logger.error(this.name, "Update failed:", e);
+            BdApi.UI.showToast('Update failed', { type: 'error' });
+        }
+    }
+    async showChangelog() {
+        const last = BdApi.Data.load(this.name, 'version');
+        if (last === this.version) return;
+        BdApi.Data.save(this.name, 'version', this.version);
+        if (!last) return;
+        try {
+            const res = await BdApi.Net.fetch(this.urls.changelog);
+            if (res.status !== 200) return;
+            const md = await res.text();
+            const changes = this.parseChangelog(md, last, this.version);
+            if (changes.length === 0) return;
+            BdApi.UI.showChangelogModal({
+                title: this.name,
+                subtitle: `Version ${this.version}`,
+                changes
+            });
+        } catch { /* Changelog fetch failed, ignore */ }
+    }
+    async showFullChangelog() {
+        try {
+            const res = await BdApi.Net.fetch(this.urls.changelog);
+            if (res.status !== 200) throw new Error("Failed to fetch changelog");
+            const md = await res.text();
+            const changes = this.parseChangelog(md, "0.0.0", this.version);
+            BdApi.UI.showChangelogModal({
+                title: this.name,
+                subtitle: `All Changes`,
+                changes: changes.length ? changes : [{ title: "No changes found", items: [] }]
+            });
+        } catch {
+            BdApi.UI.showToast("Could not fetch changelog", { type: "error" });
+        }
+    }
+    parseChangelog(md, from, to) {
+        const versions = this._parseChangelogVersions(md);
+        const relevant = versions.filter(
+            v => this.isNewer(v.version, from) && !this.isNewer(v.version, to)
+        );
+        const grouped = { added: [], improved: [], fixed: [], other: [] };
+        const getType = (lower) => {
+            if (lower.includes("fix")) return "fixed";
+            if (lower.includes("add") || lower.includes("initial")) return "added";
+            if (lower.includes("improv") || lower.includes("updat")) return "improved";
+            return "other";
+        };
+        for (const v of relevant) {
+            for (const item of v.items) {
+                const lower = item.toLowerCase();
+                const tagged = `${item} (v${v.version})`;
+                grouped[getType(lower)].push(tagged);
+            }
+        }
+        const sections = [
+            ["New Features", "added", "added"],
+            ["Improvements", "improved", "improved"],
+            ["Bug Fixes", "fixed", "fixed"],
+            ["Other Changes", "other", "progress"]
+        ];
+        const result = [];
+        for (const [title, key, type] of sections) {
+            if (grouped[key].length) {
+                result.push({ title, type, items: grouped[key] });
+            }
+        }
+        return result;
+    }
+    _parseChangelogVersions(md) {
+        const lines = md.split("\n");
+        const versions = [];
+        let current = null;
+        let items = [];
+        const push = () => {
+            if (!current) return;
+            versions.push({ version: current, items });
+            items = [];
+        };
+        for (const line of lines) {
+            const ver = line.match(/^###\s+([\d.]+)/)?.[1];
+            if (ver) {
+                push();
+                current = ver;
+                continue;
+            }
+            if (!current) continue;
+            const trimmed = line.trim();
+            if (!trimmed.startsWith("-")) continue;
+            const item = trimmed.substring(1).trim();
+            if (item) items.push(item);
+        }
+        push();
+        return versions;
+    }
+    isNewer(v1, v2 = this.version) {
+        return Utils.semverCompare(v2, v1) === 1;
+    }
 }
 const getConfigWithCurrentValues = (current, defaults = CONFIG.defaultConfig) => {
     return defaults.map(opt => ({
@@ -427,26 +439,26 @@ const STYLES = `
 [data-animation="bounce"] { animation: typingBounce var(--animation-duration, 1.4s) infinite ease-in-out; }
 [data-animation="pulse"] { animation: typingPulse var(--animation-duration, 1.4s) infinite ease-in-out; }
 [data-animation="wave"] { animation: typingWave var(--animation-duration, 1.4s) infinite ease-in-out; }
-.typing-count-badge { background-color: var(--brand-experiment); color: white; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; }
+.typing-count-badge { background-color: black; color: white; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; }
 .bti-settings-panel { padding: 16px; }
 .bti-settings-panel > * { margin-bottom: 20px; }
 .bti-slider-container { display: flex; align-items: center; gap: 8px; }
 .bti-slider-container span { color: white; }
-.bti-select { background-color: var(--background-secondary); border: none; color: var(--text-normal); padding: 8px; border-radius: 4px; outline: none; }
+.bti-select { background-color: var(--background-mobile-secondary); border: none; color: var(--text-default); padding: 8px; border-radius: 4px; outline: none; }
 .bti-color-picker input[type="color"] { -webkit-appearance: none; width: 50px; height: 30px; background: none; border: none; cursor: pointer; border-radius: 4px; }
 .bti-tooltip-container { display: flex; flex-direction: column; }
 .bti-tooltip-container.avatars-only { flex-direction: row; align-items: center; gap: 2px; }
 .bti-user-row { display: flex; align-items: center; margin-bottom: 4px; font-size: 12px; }
 .bti-user-avatar { width: 24px; height: 24px; border-radius: 50%; margin-right: 8px; }
 .bti-typing-text { margin-top: 4px; height: 20px; line-height: 10px; }
-.bti-custom-tooltip { position: absolute; background-color: var(--tooltip-background, #2f3136) !important; color: var(--text-normal, #dcddde) !important; white-space: nowrap; z-index: 1000; pointer-events: none; opacity: 0; transition: opacity 0.2s ease-in-out; max-width: 300px; word-wrap: break-word; transform: translateX(-50%) translateY(-100%); margin-bottom: 10px; line-height: 1.4; padding: 6px 8px; border-radius: 4px; }
-.bti-custom-tooltip * { color: var(--text-normal); font-family: var(--font-display); font-weight: 500; font-size: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); pointer-events: none; user-select: none !important; }
+.bti-custom-tooltip { position: absolute; background-color: var(--tooltip-background, #2f3136) !important; color: var(--text-default, #dcddde) !important; white-space: nowrap; z-index: 1000; pointer-events: none; opacity: 0; transition: opacity 0.2s ease-in-out; max-width: 300px; word-wrap: break-word; transform: translateX(-50%) translateY(-100%); margin-bottom: 10px; line-height: 1.4; padding: 6px 8px; border-radius: 4px; }
+.bti-custom-tooltip * { color: var(--text-default); font-family: var(--font-display); font-weight: 500; font-size: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); pointer-events: none; user-select: none !important; }
 .bti-custom-tooltip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border-width: 5px; border-style: solid; border-color: var(--tooltip-background, #2f3136) transparent transparent transparent; }
 .bti-custom-tooltip.visible { opacity: 1; }
 .typing-avatar-container { transition: transform 0.2s ease; }
 .typing-avatar-container:hover { transform: scale(1.1); z-index: 1; }
 .typing-avatar-container + .typing-avatar-container { margin-left: -4px; }
-.typing-status-dot { box-shadow: 0 0 0 2px var(--background-primary); }
+.typing-status-dot { box-shadow: 0 0 0 2px var(--modal-background); }
 .bti-tooltip-container img { border-radius: inherit !important; clip-path: inherit !important; }
 /* Respect motion-sensitive users */
 @media (prefers-reduced-motion: reduce) { [data-animation] { animation: none !important; } }
@@ -1087,7 +1099,7 @@ class BetterTypingIndicator {
             CONFIG.info.version,
             "Pharaoh2k/BetterDiscordStuff"
         );
-    }    
+    }
     _ensureDomAdapter() {
         if (!this._elCache) this._elCache = new Map();
         if (!this._warnedSelectorMiss) this._warnedSelectorMiss = new Set();
@@ -1193,10 +1205,10 @@ class BetterTypingIndicator {
         DOM.addStyle('typing-indicator-css', STYLES);
         DOM.addStyle('bti-settings-text',
             `.bti-settings-panel, .bti-settings-panel *{
-            color:var(--text-normal,#dcddde)!important;
+            color:var(--text-default,#dcddde)!important;
         }
         .bti-settings-panel h1, .bti-settings-panel h2, .bti-settings-panel h3{
-            color:var(--header-primary,#ffffff)!important;
+            color:var(--mobile-text-heading-primary,#ffffff)!important;
         }`
         );
         this.initializeSettingsModules();
