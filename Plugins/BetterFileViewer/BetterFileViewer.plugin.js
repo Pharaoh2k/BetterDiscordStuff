@@ -5,28 +5,10 @@
  * @authorLink https://github.com/Pharaoh2k
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/BetterFileViewer/BetterFileViewer.plugin.js
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterFileViewer/BetterFileViewer.plugin.js
- * @invite ComingSonn
- * @version 3.0.0
+ * @invite ComingSoon
+ * @version 3.0.1
  * @description View PDF, office files and other files (stl) directly in Discord.
  */
-/*@cc_on
-@if (@_jscript)
-    var shell = WScript.CreateObject('WScript.Shell');
-    var fs = new ActiveXObject('Scripting.FileSystemObject');
-    var pathPlugins = shell.ExpandEnvironmentStrings('%APPDATA%\\BetterDiscord\\plugins');
-    var pathSelf = WScript.ScriptFullName;
-    shell.Popup('It looks like you\'ve mistakenly tried to run me directly. \n(Don\'t do that!)', 0, 'I\'m a plugin for BetterDiscord', 0x30);
-    if (fs.GetParentFolderName(pathSelf) === fs.GetAbsolutePathName(pathPlugins)) {
-        shell.Popup('I\'m in the correct folder already.\nJust reload Discord with Ctrl+R.', 0, 'I\'m already installed', 0x40);
-    } else if (!fs.FolderExists(pathPlugins)) {
-        shell.Popup('I can\'t find the BetterDiscord plugins folder.\nAre you sure it\'s even installed?', 0, 'Can\'t install myself', 0x10);
-    } else if (shell.Popup('Should I copy myself to BetterDiscord\'s plugins folder for you?', 0, 'Do you need some help?', 0x34) === 6) {
-        fs.CopyFile(pathSelf, fs.BuildPath(pathPlugins, fs.GetFileName(pathSelf)), true);
-        shell.Exec('explorer ' + pathPlugins);
-        shell.Popup('I\'m installed!\nJust reload Discord with Ctrl+R.', 0, 'Successfully installed', 0x40);
-    }
-    WScript.Quit();
-@else@*/
 const TAG = "BetterFileViewer";
 const DEV = false;
 const log = (...a) => DEV && console.log(`[${TAG}]`, ...a);
@@ -53,17 +35,17 @@ const CSS = `
         min-width: 300px;
         max-height: 80vh;
         min-height: 100px;
-        border: 1px solid var(--background-tertiary);
+        border: 1px solid var(--background-mobile-secondary-alt);
         border-radius: 4px;
         margin-top: 8px;
-        background: var(--background-secondary);
+        background: var(--background-mobile-secondary);
     }
     .BetterFileViewerButton {
         display: inline-flex !important;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        color: var(--interactive-normal);
+        color: var(--interactive-icon-default);
         transition: color 0.15s ease;
         background: none;
         border: none;
@@ -77,12 +59,12 @@ const CSS = `
         position: relative;
     }
     .BetterFileViewerButton:hover {
-        color: var(--interactive-hover);
-        background-color: var(--background-modifier-hover);
+        color: var(--interactive-icon-hover);
+        background-color: var(--background-mod-subtle);
     }
     .BetterFileViewerButton:active {
-        color: var(--interactive-active);
-        background-color: var(--background-modifier-active);
+        color: var(--interactive-icon-active);
+        background-color: var(--background-mod-normal);
     }
     .BetterFileViewerButton svg {
         width: 20px;
@@ -136,19 +118,23 @@ class UpdateManager {
         const [user, repo] = github.split('/');
         this.urls = {
             plugin: `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main/Plugins/${pluginName}/${pluginName}.plugin.js`,
+            changelog: `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main/Plugins/${pluginName}/CHANGELOG.md`
         };
         this.timer = null;
-        this.notice = null;
+        this.notification = null;
     }
     async start(autoUpdate = true) {
         if (autoUpdate) {
-            this.check(true);
+            setTimeout(() => this.check(true), 15000);
             this.timer = setInterval(() => this.check(true), 24 * 60 * 60 * 1000);
         }
+        this.showChangelog();
     }
     stop() {
         clearInterval(this.timer);
-        this.notice?.();
+        if (typeof this.notification === "function") this.notification();
+        else this.notification?.close?.();
+        this.notification = null;
     }
     async check(silent = false) {
         try {
@@ -163,38 +149,61 @@ class UpdateManager {
                 BdApi.UI.showToast(`[${this.name}] You're up to date.`, { type: 'info' });
             }
         } catch (e) {
+            BdApi.Logger.error(this.name, "Update check failed:", e);
             if (!silent) BdApi.UI.showToast(`[${this.name}] Update check failed`, { type: 'error' });
         }
     }
     showUpdateNotice(version, text) {
-		this.notice?.();
-		this.notice = BdApi.UI.showNotice(
-			`${this.name} v${version} is available`,
-			{
-				type: 'info',
-				buttons: [{
-					label: 'Update',
-					onClick: (closeOrEvent) => {
-						if (typeof closeOrEvent === 'function') {
-							closeOrEvent();
-						} else if (this.notice && typeof this.notice === 'function') {
-							this.notice();
-						}
-						this.applyUpdate(text, version);
-					}
-				}, {
-					label: 'Dismiss',
-					onClick: (closeOrEvent) => {
-						if (typeof closeOrEvent === 'function') {
-							closeOrEvent();
-						} else if (this.notice && typeof this.notice === 'function') {
-							this.notice();
-						}
-					}
-				}]
-			}
-		);
-	}
+        this.notification?.close?.();
+        const handle = BdApi.UI.showNotification?.({
+            title: `${this.name}`,
+            content: `v${version} is available`,
+            type: "info",
+            duration: 6000000,
+            actions: [
+                {
+                    label: "Update",
+                    onClick: () => {
+                        handle?.close?.();
+                        this.applyUpdate(text, version);
+                    },
+                },
+                {
+                    label: "Dismiss",
+                    onClick: () => handle?.close?.(),
+                },
+            ],
+            onClose: () => {
+                if (this.notification === handle) this.notification = null;
+            },
+        }) ?? BdApi.UI.showNotice(
+            `${this.name} v${version} is available`,
+            {
+                type: 'info',
+                buttons: [{
+                    label: 'Update',
+                    onClick: (closeOrEvent) => {
+                        if (typeof closeOrEvent === 'function') {
+                            closeOrEvent();
+                        } else if (this.notification && typeof this.notification === 'function') {
+                            this.notification();
+                        }
+                        this.applyUpdate(text, version);
+                    }
+                }, {
+                    label: 'Dismiss',
+                    onClick: (closeOrEvent) => {
+                        if (typeof closeOrEvent === 'function') {
+                            closeOrEvent();
+                        } else if (this.notification && typeof this.notification === 'function') {
+                            this.notification();
+                        }
+                    }
+                }]
+            }
+        );
+        this.notification = handle;
+    }
     applyUpdate(text, version) {
         try {
             require('fs').writeFileSync(__filename, text);
@@ -206,17 +215,105 @@ class UpdateManager {
                     BdApi.UI.showToast('Please reload Discord (Ctrl+R)', { type: 'info', timeout: 0 });
                 }
             }, 100);
-        } catch {
+        } catch (e) {
+            BdApi.Logger.error(this.name, "Update failed:", e);
             BdApi.UI.showToast('Update failed', { type: 'error' });
         }
     }
-    isNewer(v1, v2 = this.version) {
-        const [a, b] = [v1, v2].map(v => v.split('.').map(Number));
-        for (let i = 0; i < Math.max(a.length, b.length); i++) {
-            if ((a[i] || 0) > (b[i] || 0)) return true;
-            if ((a[i] || 0) < (b[i] || 0)) return false;
+    async showChangelog() {
+        const last = BdApi.Data.load(this.name, 'version');
+        if (last === this.version) return;
+        BdApi.Data.save(this.name, 'version', this.version);
+        if (!last) return;
+        try {
+            const res = await BdApi.Net.fetch(this.urls.changelog);
+            if (res.status !== 200) return;
+            const md = await res.text();
+            const changes = this.parseChangelog(md, last, this.version);
+            if (changes.length === 0) return;
+            BdApi.UI.showChangelogModal({
+                title: this.name,
+                subtitle: `Version ${this.version}`,
+                changes
+            });
+        } catch { /* Changelog fetch failed, ignore */ }
+    }
+    async showFullChangelog() {
+        try {
+            const res = await BdApi.Net.fetch(this.urls.changelog);
+            if (res.status !== 200) throw new Error("Failed to fetch changelog");
+            const md = await res.text();
+            const changes = this.parseChangelog(md, "0.0.0", this.version);
+            BdApi.UI.showChangelogModal({
+                title: this.name,
+                subtitle: `All Changes`,
+                changes: changes.length ? changes : [{ title: "No changes found", items: [] }]
+            });
+        } catch {
+            BdApi.UI.showToast("Could not fetch changelog", { type: "error" });
         }
-        return false;
+    }
+    parseChangelog(md, from, to) {
+        const versions = this._parseChangelogVersions(md);
+        const relevant = versions.filter(
+            v => this.isNewer(v.version, from) && !this.isNewer(v.version, to)
+        );
+        const grouped = { added: [], improved: [], fixed: [], other: [] };
+        const getType = (lower) => {
+            if (lower.includes("fix")) return "fixed";
+            if (lower.includes("add") || lower.includes("initial")) return "added";
+            if (lower.includes("improv") || lower.includes("updat")) return "improved";
+            return "other";
+        };
+        for (const v of relevant) {
+            for (const item of v.items) {
+                const lower = item.toLowerCase();
+                const tagged = `${item} (v${v.version})`;
+                grouped[getType(lower)].push(tagged);
+            }
+        }
+        const sections = [
+            ["New Features", "added", "added"],
+            ["Improvements", "improved", "improved"],
+            ["Bug Fixes", "fixed", "fixed"],
+            ["Other Changes", "other", "progress"]
+        ];
+        const result = [];
+        for (const [title, key, type] of sections) {
+            if (grouped[key].length) {
+                result.push({ title, type, items: grouped[key] });
+            }
+        }
+        return result;
+    }
+    _parseChangelogVersions(md) {
+        const lines = md.split("\n");
+        const versions = [];
+        let current = null;
+        let items = [];
+        const push = () => {
+            if (!current) return;
+            versions.push({ version: current, items });
+            items = [];
+        };
+        for (const line of lines) {
+            const ver = line.match(/^###\s+([\d.]+)/)?.[1];
+            if (ver) {
+                push();
+                current = ver;
+                continue;
+            }
+            if (!current) continue;
+            const trimmed = line.trim();
+            if (!trimmed.startsWith("-")) continue;
+            const item = trimmed.substring(1).trim();
+            if (item) items.push(item);
+        }
+        push();
+        return versions;
+    }
+    isNewer(v1, v2 = this.version) {
+        return Utils.semverCompare(v2, v1) === 1;
     }
 }
 class BetterFileViewerButton {
@@ -284,9 +381,9 @@ class BetterFileViewerButton {
         const fileContainer = this.button?.closest('[data-file-viewer-processed="true"]');
         if (fileContainer) {
             let insertTarget = fileContainer.parentElement;
-            while (insertTarget && insertTarget.parentElement) {
+            while (insertTarget?.parentElement) {
                 const parent = insertTarget.parentElement;
-                if (parent.id && parent.id.includes('message')) {
+                if (parent.id?.includes('message')) {
                     insertTarget = parent;
                     break;
                 }
@@ -386,7 +483,7 @@ module.exports = class BetterFileViewer {
         }
         this.buttons.clear();
         document.querySelectorAll('[data-file-viewer-processed]').forEach(el => {
-            el.removeAttribute('data-file-viewer-processed');
+            delete el.dataset.fileViewerProcessed;
         });
         log("Plugin stopped");
     }
@@ -422,11 +519,11 @@ module.exports = class BetterFileViewer {
         let depth = 0;
         const maxDepth = 10;
         while (fileContainer && depth < maxDepth) {
-            const hasFileStructure = 
+            const hasFileStructure =
                 fileContainer.querySelector('a[href*="/attachments/"]') &&
-                (fileContainer.querySelector('[aria-label="Download"]') || 
-                 fileContainer.querySelector('svg') ||
-                 depth > 2);
+                (fileContainer.querySelector('[aria-label="Download"]') ||
+                    fileContainer.querySelector('svg') ||
+                    depth > 2);
             if (hasFileStructure) {
                 break;
             }
@@ -434,15 +531,15 @@ module.exports = class BetterFileViewer {
             depth++;
         }
         if (!fileContainer) return;
-        if (fileContainer.hasAttribute('data-file-viewer-processed')) return;
+        if (Object.hasOwn(fileContainer.dataset, 'fileViewerProcessed')) return;
         const url = link.href;
         const filename = link.textContent || link.innerText || '';
-        const isSupported = ALL_EXTENSIONS.some(ext => 
+        const isSupported = ALL_EXTENSIONS.some(ext =>
             filename.toLowerCase().endsWith(`.${ext}`) ||
             url.toLowerCase().includes(`.${ext}`)
         );
         if (!isSupported) return;
-        fileContainer.setAttribute('data-file-viewer-processed', 'true');
+        fileContainer.dataset.fileViewerProcessed = 'true';
         let size = 0;
         const sizePattern = /(\d+(?:\.\d+)?)\s*(B|KB|MB|GB)/i;
         const textNodes = fileContainer.querySelectorAll('*');
@@ -451,9 +548,9 @@ module.exports = class BetterFileViewer {
             if (text && sizePattern.test(text)) {
                 const match = text.match(sizePattern);
                 if (match) {
-                    const [_, num, unit] = match;
-                    const multipliers = { B: 1, KB: 1024, MB: 1024*1024, GB: 1024*1024*1024 };
-                    size = parseFloat(num) * (multipliers[unit.toUpperCase()] || 0);
+                    const [, num, unit] = match;
+                    const multipliers = { B: 1, KB: 1024, MB: 1024 * 1024, GB: 1024 * 1024 * 1024 };
+                    size = Number.parseFloat(num) * (multipliers[unit.toUpperCase()] || 0);
                     break;
                 }
             }
@@ -475,8 +572,8 @@ module.exports = class BetterFileViewer {
             const svgs = fileContainer.querySelectorAll('svg');
             for (const svg of svgs) {
                 const parent = svg.parentElement;
-                if (parent && parent.parentElement) {
-                    if (parent.tagName === 'A' || parent.tagName === 'BUTTON' || 
+                if (parent?.parentElement) {
+                    if (parent.tagName === 'A' || parent.tagName === 'BUTTON' ||
                         parent.getAttribute('role') === 'button') {
                         buttonContainer = parent.parentElement;
                         break;
@@ -533,4 +630,3 @@ module.exports = class BetterFileViewer {
         return panel;
     }
 };
-/*@end@*/
