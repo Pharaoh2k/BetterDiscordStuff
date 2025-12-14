@@ -13,24 +13,11 @@ Unauthorized copying, modification, or redistribution of this code is prohibited
 Contributions are welcome via GitHub pull requests. Please ensure submissions align with the project's guidelines and coding standards.
 */
 const PLUGIN_NAME = "BetterTypingIndicator";
-const META_VERSION =
-    BdApi?.Plugins?.getMeta?.(PLUGIN_NAME)?.version ||
-    (require("fs").readFileSync(__filename, "utf8").match(/@version\s+([\d.]+)/)?.[1] ?? "0.0.0");
 const { Data, DOM, React, ReactDOM, UI, Webpack, Utils, Hooks } = BdApi;
 const TYPES = { CHANNEL: 'channel', GUILD: 'guild', FOLDER: 'folder', HOME: 'home' };
 const TYPING_EVENTS = ['TYPING_START', 'TYPING_STOP', 'MESSAGE_CREATE'];
 const CONFIG = {
-    info: {
-        name: PLUGIN_NAME,
-        authors: [{
-            name: "Pharaoh2k",
-            github_username: "Pharaoh2k",
-            twitter_username: "_Pharaoh2k",
-            discord_id: "874825550408089610"
-        }],
-        version: META_VERSION,
-        description: "Shows an indicator in the channel list (w/tooltip) plus server/folder icons and home icon for DMs when someone is typing there."
-    },
+    github: "Pharaoh2k/BetterDiscordStuff",
     defaultConfig: [{
         type: "switch",
         id: "channelBetterTypingIndicator",
@@ -1078,7 +1065,8 @@ const isChannelMuted = (guildId, channelId) => {
     return false;
 };
 class BetterTypingIndicator {
-    constructor() {
+    constructor(meta) {
+        this.meta = meta;
         this.typingState = new Map();
         this._roots = new Map();
         this.settings = this.getSettings();
@@ -1095,9 +1083,9 @@ class BetterTypingIndicator {
         this._warnedSelectorMiss = new Set();
         this._didValidateModules = false;
         this.updateManager = new UpdateManager(
-            CONFIG.info.name,
-            CONFIG.info.version,
-            "Pharaoh2k/BetterDiscordStuff"
+            meta.name,
+            meta.version,
+            CONFIG.github
         );
     }
     _ensureDomAdapter() {
@@ -1174,7 +1162,7 @@ class BetterTypingIndicator {
     getSettings() {
         return {
             ...DEFAULT_SETTINGS_MAP,
-            ...Data.load(CONFIG.info.name, "settings")
+            ...Data.load(this.meta.name, "settings")
         };
     }
     saveSettings(newSettings) {
@@ -1182,7 +1170,7 @@ class BetterTypingIndicator {
             ...this.settings,
             ...newSettings
         };
-        Data.save(CONFIG.info.name, "settings", this.settings);
+        Data.save(this.meta.name, "settings", this.settings);
         if (Object.hasOwn(newSettings, 'autoUpdate')) {
             if (newSettings.autoUpdate) {
                 this.updateManager.start(true);
