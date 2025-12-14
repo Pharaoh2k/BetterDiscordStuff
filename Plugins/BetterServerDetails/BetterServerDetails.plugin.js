@@ -93,8 +93,15 @@ class UpdateManager {
 		}
 	}
 	showUpdateNotice(version, text) {
-		this.notification?.close?.();
-		const handle = BdApi.UI.showNotification?.({
+		if (typeof this.notification === "function") this.notification();
+		else this.notification?.close?.();
+		let handle = null;
+		const closeHandle = () => {
+			if (typeof handle === "function") handle();
+			else handle?.close?.();
+		};
+		handle = BdApi.UI.showNotification?.({
+			id: `bd-plugin-update:${this.name}`,
 			title: `${this.name}`,
 			content: `v${version} is available`,
 			type: "info",
@@ -103,44 +110,38 @@ class UpdateManager {
 				{
 					label: "Update",
 					onClick: () => {
-						handle?.close?.();
+						closeHandle();
 						this.applyUpdate(text, version);
 					},
 				},
 				{
 					label: "Dismiss",
-					onClick: () => handle?.close?.(),
+					onClick: closeHandle,
 				},
 			],
 			onClose: () => {
 				if (this.notification === handle) this.notification = null;
 			},
-		}) ?? BdApi.UI.showNotice(
-			`${this.name} v${version} is available`,
-			{
-				type: 'info',
-				buttons: [{
-					label: 'Update',
+		}) ?? BdApi.UI.showNotice(`${this.name} v${version} is available`, {
+			type: "info",
+			buttons: [
+				{
+					label: "Update",
 					onClick: (closeOrEvent) => {
-						if (typeof closeOrEvent === 'function') {
-							closeOrEvent();
-						} else if (this.notification && typeof this.notification === 'function') {
-							this.notification();
-						}
+						if (typeof closeOrEvent === "function") closeOrEvent();
+						else closeHandle();
 						this.applyUpdate(text, version);
-					}
-				}, {
-					label: 'Dismiss',
+					},
+				},
+				{
+					label: "Dismiss",
 					onClick: (closeOrEvent) => {
-						if (typeof closeOrEvent === 'function') {
-							closeOrEvent();
-						} else if (this.notification && typeof this.notification === 'function') {
-							this.notification();
-						}
-					}
-				}]
-			}
-		);
+						if (typeof closeOrEvent === "function") closeOrEvent();
+						else closeHandle();
+					},
+				},
+			],
+		});
 		this.notification = handle;
 	}
 	applyUpdate(text, version) {
@@ -161,21 +162,20 @@ class UpdateManager {
 	}
 	async showChangelog() {
 		const last = BdApi.Data.load(this.name, 'version');
-		if (last === this.version) return;
+		console.log(`[${this.name}] showChangelog: last=${last}, current=${this.version}`);
+		if (last === this.version) { console.log(`[${this.name}] Skipping: versions match`); return; }
 		BdApi.Data.save(this.name, 'version', this.version);
-		if (!last) return;
+		if (!last) { console.log(`[${this.name}] Skipping: fresh install`); return; }
 		try {
 			const res = await BdApi.Net.fetch(this.urls.changelog);
+			console.log(`[${this.name}] Changelog fetch status: ${res.status}`);
 			if (res.status !== 200) return;
 			const md = await res.text();
 			const changes = this.parseChangelog(md, last, this.version);
+			console.log(`[${this.name}] Parsed changes:`, changes);
 			if (changes.length === 0) return;
-			BdApi.UI.showChangelogModal({
-				title: this.name,
-				subtitle: `Version ${this.version}`,
-				changes
-			});
-		} catch { /* Changelog fetch failed, ignore */ }
+			BdApi.UI.showChangelogModal({ title: this.name, subtitle: `Version ${this.version}`, changes });
+		} catch (e) { console.error(`[${this.name}] Changelog error:`, e); }
 	}
 	async showFullChangelog() {
 		try {
@@ -1086,3 +1086,4 @@ module.exports = class BetterServerDetails {
 	//#endregion Styles
 };
 //#endregion Main Plugin Class
+
