@@ -2,7 +2,7 @@
  * @name BetterFriendsSince
  * @author Pharaoh2k
  * @description Shows the date you and a friend became friends in the profile modal and Friends sidebar.
- * @version 1.2.0
+ * @version 1.2.1
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterFriendsSince/BetterFriendsSince.plugin.js
@@ -41,7 +41,7 @@ align with the project's guidelines and coding standards.
 const { Webpack, Patcher, React, Utils, UI, Logger, Hooks, Data, Net } = BdApi;
 const { Filters } = Webpack;
 class UpdateManager {
-	constructor(pluginName, version, github) {
+	constructor(pluginName, version, github = "Pharaoh2k/BetterFriendsSince") {
 		this.name = pluginName;
 		this.version = version;
 		const [user, repo] = github.split('/');
