@@ -1,5 +1,8 @@
 # [BetterFriendsSince](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterFriendsSince "BetterFriendsSince") Changelog
 
+### 1.2.1
+- Improved update-checker
+
 ### 1.2.0
 - Updated to match Discord changes
 - Added update-checker
