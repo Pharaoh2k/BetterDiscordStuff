@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 4.1.7
+ * @version 4.1.8
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
  */
@@ -294,7 +294,7 @@ class StyleManager {
 		`;
 	}
 	static getBaseStyle(noDragClasses, systemBarClasses) {
-		return `
+		return `		
 			.enhancedChannelTabs-input .bd-text-input { border: 1px solid var(--input-border-hover); width: 100%; }
 			.enhancedChannelTabs-tabNav { display:none; }
 			div:has(> div > #enhancedChannelTabs-container) { grid-template-rows: [top] auto [titleBarEnd] min-content [noticeEnd] 1fr [end]; }
@@ -718,6 +718,10 @@ const moveEntryToParentIndex = (entry, targetParentId, targetIndex, favs, favGro
 const TabActions = (() => {
 	const pluginRef = { current: null };
 	let historyNavigation = false;
+	const createFavRenamer = (favIndex, name) => (fav, index) =>
+		index === favIndex ? { ...fav, name } : fav;
+	const createGroupRenamer = (groupId, name) => (group) =>
+		group.groupId === groupId ? { ...group, name } : group;
 	const resolveFavIndex = (favKey) => {
 		const favs = TabStateStore.getState().favs || [];
 		return favs.findIndex((fav) => fav && (fav.id === favKey || fav.url === favKey));
@@ -824,7 +828,7 @@ const TabActions = (() => {
 			const closedTabEntry = {
 				...closingTab,
 				closedAt: Date.now(),
-				id: `closed-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+				id: `closed-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
 			};
 			addToClosedTabs(closedTabEntry);
 		}
@@ -953,6 +957,11 @@ const TabActions = (() => {
 	};
 	const renameFav = (currentName, favIndex) => {
 		let name = currentName;
+		const performRename = () => {
+			if (!name) return;
+			updateFavs((favsState) => favsState.map(createFavRenamer(favIndex, name)));
+			persistState();
+		};
 		BdApi.UI.showConfirmationModal(
 			"What should the new name be?",
 			/* @__PURE__ */ React.createElement(RenameInput, {
@@ -960,16 +969,7 @@ const TabActions = (() => {
 				onValueChange: (newContent) => (name = newContent.trim()),
 			}),
 			{
-				onConfirm: () => {
-					if (!name) return;
-					updateFavs((favsState) =>
-						favsState.map((fav, index) => {
-							if (index === favIndex) return { ...fav, name };
-							else return fav;
-						}),
-					);
-					persistState();
-				},
+				onConfirm: performRename,
 			},
 		);
 	};
@@ -1100,6 +1100,11 @@ const TabActions = (() => {
 	};
 	const renameFavGroup = (currentName, groupId) => {
 		let name = currentName;
+		const performRename = () => {
+			if (!name) return;
+			updateFavGroups((groups) => groups.map(createGroupRenamer(groupId, name)));
+			persistState();
+		};
 		BdApi.UI.showConfirmationModal(
 			"What should the new name be?",
 			/* @__PURE__ */ React.createElement(RenameInput, {
@@ -1107,16 +1112,7 @@ const TabActions = (() => {
 				onValueChange: (newContent) => (name = newContent.trim()),
 			}),
 			{
-				onConfirm: () => {
-					if (!name) return;
-					updateFavGroups((groups) =>
-						groups.map((group) => {
-							if (group.groupId === groupId) return { ...group, name };
-							else return group;
-						}),
-					);
-					persistState();
-				},
+				onConfirm: performRename,
 			},
 		);
 	};
@@ -2538,7 +2534,7 @@ function CreateTabListContextMenu(props, e) {
 	);
 	requestAnimationFrame(() => {
 		const menu = document.querySelector('[role="menu"]');
-		if (menu && menu.style) {
+		if (menu?.style) {
 			Object.assign(menu.style, StyleManager.getDropdownMenuPosition(buttonRect));
 		}
 	});
@@ -2552,8 +2548,14 @@ function CreateSettingsContextMenu(instance, e) {
 				BdApi.Hooks.useData(pluginName, "settings") ||
 				instance.props.plugin.settings ||
 				{};
+			const [storeState, setStoreState] = React.useState(TabStateStore.getState());
+			React.useEffect(() => {
+				const listener = () => setStoreState(TabStateStore.getState());
+				TabStateStore.addChangeListener(listener);
+				return () => TabStateStore.removeChangeListener(listener);
+			}, []);
 			const getSetting = (key, fallback) =>
-				settings?.[key] ?? instance.props.plugin.settings?.[key] ?? fallback;
+				storeState[key] ?? settings?.[key] ?? instance.props.plugin.settings?.[key] ?? fallback;
 			const setSetting = (key, value, afterSave) =>
 				instance.props.plugin.updateSettings({ [key]: value }, afterSave);
 			const toggleSetting = (key, afterSave) =>
@@ -3295,7 +3297,7 @@ const useFavGroupIndicators = (favGroup, favs) =>
 			prev.isTyping === next.isTyping
 	);
 const getCurrentUserStatus = (pathname = location.pathname) => {
-	const cId = (pathname.match(/^\/channels\/(\d+|@me|@favorites)\/(\d+)/) ||
+	const cId = (/^\/channels\/(\d+|@me|@favorites)\/(\d+)/.exec(pathname) ||
 		[])[2];
 	if (cId) {
 		const channel = ChannelStore.getChannel(cId);
@@ -3365,7 +3367,7 @@ const isChannelDM = (channel_id) => {
 };
 const getCurrentName = (pathname = location.pathname) => {
 	const [, gId, cId] =
-		pathname.match(/^\/channels\/(\d+|@me|@favorites)\/\b(\d+|\w+(-\w+)*)\b/) ||
+		/^\/channels\/(\d+|@me|@favorites)\/\b(\d+|\w+(-\w+)*)\b/.exec(pathname) ||
 		[];
 	if (cId) {
 		const channel = ChannelStore.getChannel(cId);
@@ -3389,11 +3391,11 @@ const getCurrentName = (pathname = location.pathname) => {
 		else return pathname;
 	} else {
 		if (pathname === "/channels/@me") return "Friends";
-		if (pathname.match(/^\/[a-z-]+$/))
+		if (/^\/[a-z-]+$/.test(pathname))
 			return pathname
-				.substr(1)
+				.slice(1)
 				.split("-")
-				.map((part) => part.substr(0, 1).toUpperCase() + part.substr(1))
+				.map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
 				.join(" ");
 		return pathname;
 	}
@@ -3401,8 +3403,8 @@ const getCurrentName = (pathname = location.pathname) => {
 const getCurrentIconUrl = (pathname = location.pathname) => {
 	try {
 		const [, gId, cId] =
-			pathname.match(
-				/^\/channels\/(\d+|@me|@favorites)(?:\/\b(\d+|\w+(-\w+)*)\b)?/,
+			/^\/channels\/(\d+|@me|@favorites)(?:\/\b(\d+|\w+(-\w+)*)\b)?/.exec(
+				pathname,
 			) || [];
 		if (gId) {
 			if (cId && gId.startsWith("@")) {
