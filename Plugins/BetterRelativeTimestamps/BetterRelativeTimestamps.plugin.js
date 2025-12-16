@@ -1,6 +1,6 @@
 /**
  * @name BetterRelativeTimestamps
- * @version 1.1.2
+ * @version 1.1.3
  * @description Relative timestamps with live tooltip, smart cadence, seamless toggle of "relative-only".
  * @author  Pharaoh2k
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
@@ -282,7 +282,7 @@ module.exports = class BetterRelativeTimestamps {
 			BetterRelativeTimestamps.panelConfig.map(s => [s.id, s.value])
 		);
 		this.settingsKey = this.meta.name;
-		const savedSettings = BdApi.Data.load(this.settingsKey) || {};
+		const savedSettings = BdApi.Data.load(this.settingsKey, 'settings') || {};
 		this.settings = { ...this.defaultSettings, ...savedSettings };
 		this.visibleSpans = new Set();
 		this.processedElements = new WeakSet();
@@ -558,7 +558,7 @@ module.exports = class BetterRelativeTimestamps {
 			...this.settings,
 			...newSettings
 		};
-		BdApi.Data.save(this.settingsKey, this.settings);
+		BdApi.Data.save(this.settingsKey, 'settings', this.settings);
 		if (Object.hasOwn(newSettings, 'autoUpdate')) {
 			if (newSettings.autoUpdate) {
 				this.updateManager.start(true);
