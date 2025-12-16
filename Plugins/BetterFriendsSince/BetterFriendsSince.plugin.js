@@ -2,7 +2,7 @@
  * @name BetterFriendsSince
  * @author Pharaoh2k
  * @description Shows the date you and a friend became friends in the profile modal and Friends sidebar.
- * @version 1.2.1
+ * @version 1.2.2
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterFriendsSince/BetterFriendsSince.plugin.js
@@ -309,17 +309,14 @@ const getCurrentLocale = LocaleStore => LocaleStore?.locale ?? LocaleStore?.syst
 const getHeadingForLocale = locale => HEADING_BY_LOCALE[locale] ?? HEADING_BY_LOCALE["en-US"];
 const isAbortError = err => err?.name === "AbortError";
 const findSidebarSectionKey = (mod) => {
-	if (typeof mod !== "object" || mod === null) return null;
-	return Object.keys(mod).find(k => {
-		try {
-			const value = mod[k];
-			return typeof value === "function" &&
-				value.toString().includes('introText:') &&
-				value.toString().includes('scrollIntoView:');
-		} catch {
-			return false;
-		}
-	}) ?? null;
+    if (!mod || typeof mod !== "object") return null;
+    const preciseKey = Object.keys(mod).find(k => {
+        const exportValue = mod[k];
+        return typeof exportValue === "function" && 
+               exportValue.toString().includes("introText");
+    });
+    if (preciseKey) return preciseKey;
+    return (typeof mod.Z === "function") ? "Z" : null;
 };
 const tryFilters = async (filterConfigs, signal, pluginName) => {
 	for (let i = 0; i < filterConfigs.length; i++) {
@@ -499,8 +496,8 @@ const BetterFriendsSince = meta => {
 		try {
 			const sidebarSectionMod = await tryFilters([
 				{ filter: Filters.bySource('introText:', 'headingClassName:') },
-				{ filter: Filters.bySource('introText:', '"text-default"') },
-				{ filter: Filters.bySource('headingClassName:', '"text-xs/semibold"') }
+				{ filter: Filters.bySource('scrollTargetId:', 'headingIcon:', '"text-xs/semibold"') },
+				{ filter: Filters.bySource('scrollTargetId:', 'headingVariant:') }
 			], signal, meta.name);
 			if (signal.aborted) return;
 			if (!sidebarSectionMod) {
