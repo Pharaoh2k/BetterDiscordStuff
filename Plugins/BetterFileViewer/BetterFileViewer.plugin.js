@@ -6,7 +6,7 @@
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/BetterFileViewer/BetterFileViewer.plugin.js
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterFileViewer/BetterFileViewer.plugin.js
  * @invite ComingSoon
- * @version 3.0.1
+ * @version 3.0.2
  * @description View PDF, office files and other files (stl) directly in Discord.
  */
 const TAG = "BetterFileViewer";
@@ -31,7 +31,7 @@ const CSS = `
         min-width: 300px;
         max-height: 80vh;
         min-height: 100px;
-        border: 1px solid var(--background-mobile-secondary-alt);
+        border: 1px solid var(--background-surface-high);
         border-radius: 4px;
         margin-top: 8px;
         background: var(--background-mobile-secondary);
