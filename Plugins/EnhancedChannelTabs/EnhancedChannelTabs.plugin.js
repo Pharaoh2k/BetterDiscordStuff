@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 4.1.9
+ * @version 4.2.0
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
  */
@@ -443,6 +443,20 @@ class StyleManager {
 			.enhancedChannelTabs-tabContainer:not([data-multiline="true"]) .enhancedChannelTabs-tabWrap { flex-wrap: nowrap !important; overflow-x: auto !important; overflow-y: hidden !important; scrollbar-width: none; }
 			.enhancedChannelTabs-tabContainer:not([data-multiline="true"]) .enhancedChannelTabs-tabWrap::-webkit-scrollbar { display: none; }
 			.enhancedChannelTabs-tabContainer { transition: margin 0.3s ease, padding 0.3s ease; }
+		`;
+	}
+	static getStackedStyles() {
+		return `
+		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] { display: flex !important; flex-wrap: wrap !important; align-items: center !important; width: 100% !important; padding-bottom: 5px; }
+		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-tabNav { order: 1 !important; margin-right: auto !important; display: flex !important; }
+		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-leading { order: 2 !important; margin-left: auto !important; margin-right: auto !important; display: flex; justify-content: center; pointer-events: none; }
+		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-newTab,
+		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-tabListDropdown,
+		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-trailing { order: 3 !important; margin-left: 0 !important; margin-bottom: 0 !important; }
+		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-tabListDropdown { margin-right: 4px !important; }
+		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-newTab { margin-left: auto !important; margin-right: 2px !important; }
+		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-tabWrap { order: 10 !important; flex-basis: 100% !important; width: 100% !important; margin-top: 4px !important; border-top: 1px solid var(--background-modifier-accent); display: flex !important; flex-wrap: wrap !important; max-height: 30vh; overflow-y: auto !important; }
+		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-tab { flex: 1 1 var(--enhancedChannelTabs-tabWidthMin); }
 		`;
 	}
 	static getTabListMenuStyle() {
@@ -2632,6 +2646,18 @@ CTRL + Mouse Scroll - Switch Tab Layout
 											}
 										},
 									},
+									{
+										type: "radio",
+										id: "tabLayout_stacked",
+										group: "tabLayout",
+										label: "Stacked",
+										checked: getMode() === "stacked",
+										action: () => {
+											if (getMode() !== "stacked") {
+												setSetting("tabLayoutMode", "stacked");
+											}
+										},
+									},
 								],
 							},
 							{
@@ -3463,9 +3489,14 @@ const TabStatus = (props) =>
 });
 const TabName = (props) =>
 	/* @__PURE__ */ React.createElement(
-	"span",
-	{ className: "enhancedChannelTabs-tabName" },
-	props.name,
+	Tooltip,
+	{ text: props.name, position: "top", delay: 500 },
+	(tooltipProps) =>
+		/* @__PURE__ */ React.createElement(
+		"span",
+		{ ...tooltipProps, className: "enhancedChannelTabs-tabName" },
+		props.name,
+	),
 );
 const TabClose = (props) =>
 	props.tabCount < 2
@@ -4206,7 +4237,7 @@ const TabListMenuItem = (props) => {
 		(props.minimized ? " enhancedChannelTabs-minimized" : "") +
 		(indicators.hasUnread ? " enhancedChannelTabs-unread" : "") +
 		(indicators.mentionCount > 0 ? " enhancedChannelTabs-mention" : "");
-	// Create simplified badges using classes
+
 	const renderMenuBadges = () => {
 		if (props.compactStyle) return null;
 		return React.createElement("div", { className: "enhancedChannelTabs-tabListBadgeContainer" },
@@ -4655,7 +4686,7 @@ function HorizontalScroll(props) {
 const TabBar = React.forwardRef((props, ref) => {
 	const scrollRef = React.useRef(null);
 	const tabRefs = React.useRef(new Map());
-	const isMultiRow = props.tabLayoutMode === "multi";
+	const isMultiRow = props.tabLayoutMode === "multi" || props.tabLayoutMode === "stacked";
 	const scrollToTab = React.useCallback((index) => {
 		const tab = props.tabs[index];
 		if (!tab) return;
@@ -4722,6 +4753,7 @@ const TabBar = React.forwardRef((props, ref) => {
 		scrollToTab,
 		tabs: props.tabs
 	};
+
 	const tabWrapStyle = isMultiRow ? {
 		display: "flex",
 		flexWrap: "wrap",
@@ -4741,12 +4773,14 @@ const TabBar = React.forwardRef((props, ref) => {
 			className: "enhancedChannelTabs-tabContainer",
 			"data-tab-count": props.tabs.length,
 			"data-multiline": isMultiRow,
+			"data-tab-layout": props.tabLayoutMode,
 			onDoubleClick: (e) => {
 				e.preventDefault();
 				e.stopPropagation();
 			},
 		},
-		props.leading,
+
+		/* @__PURE__ */ React.createElement("div", { className: "enhancedChannelTabs-leading" }, props.leading),
 		/* @__PURE__ */ React.createElement(
 			"div",
 			{ className: "enhancedChannelTabs-tabNav" },
@@ -5130,6 +5164,9 @@ module.exports = class EnhancedChannelTabs {
 		if (!styleId || styleId === "enhancedChannelTabs-style-multirow") {
 			DOM.addStyle("enhancedChannelTabs-style-multirow", StyleManager.getMultiRowStyles());
 		}
+		if (!styleId || styleId === "enhancedChannelTabs-style-stacked") {
+				DOM.addStyle("enhancedChannelTabs-style-stacked", StyleManager.getStackedStyles());
+		}
 	}
 	removeStyle() {
 		DOM.removeStyle("enhancedChannelTabs-style-compact");
@@ -5184,16 +5221,21 @@ module.exports = class EnhancedChannelTabs {
 		if (promiseState.cancelled) return;
 		Patcher.after(TitleBar, TitleBarKey, (thisObject, [props], returnValue) => {
 			if (props.windowKey !== void 0) return;
-			const trailing = React.Children.toArray(returnValue?.props?.children).find(
+
+			const children = React.Children.toArray(returnValue?.props?.children);
+
+			const trailing = children.find(
 				child =>
 					child?.props?.className?.includes("winButton") ||
 					child?.props?.className?.includes("trailing")
 			);
+
+			const leading = children.find(child => child !== trailing);
 			const injected = React.createElement(
 				DragProvider,
 				null,
 				React.createElement(HookedTopBar, {
-					leading: null,
+					leading: leading,
 					trailing: trailing,
 					reopenLastChannel: this.settings.reopenLastChannel,
 					showTabBar: this.settings.showTabBar,
@@ -5644,16 +5686,16 @@ module.exports = class EnhancedChannelTabs {
 							value: this.settings.tabLayoutMode || "single",
 							options: [
 								{ label: "Single row (horizontal scroll)", name: "Single row (horizontal scroll)", value: "single" },
-								{ label: "Multi-row (unlimited rows)", name: "Multi-row (unlimited rows)", value: "multi" }
+								{ label: "Multi-row (unlimited rows)", name: "Multi-row (unlimited rows)", value: "multi" },
+								{ label: "Stacked (Toolbar Top, Tabs Bottom)", name: "Stacked (Toolbar Top, Tabs Bottom)", value: "stacked" }
 							],
 							onChange: (value) => {
 								this.updateSettings(
 									{ tabLayoutMode: value },
-									() =>
-										BdApi.UI.showToast(
-											`📑 ${value === "single" ? "Single row mode" : "Multi-row mode"}`,
-											{ type: "info", timeout: 2000 }
-										),
+									() => BdApi.UI.showToast(
+										`📑 Layout: ${value.charAt(0).toUpperCase() + value.slice(1)}`,
+										{ type: "info", timeout: 2000 }
+									)
 								);
 							},
 						},
