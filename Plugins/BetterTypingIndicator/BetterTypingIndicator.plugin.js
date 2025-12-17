@@ -1,6 +1,6 @@
 /**
  * @name BetterTypingIndicator
- * @version 2.9.1
+ * @version 2.9.2
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/edit/main/Plugins/BetterTypingIndicator/BetterTypingIndicator.plugin.js
  * @authorId 874825550408089610
@@ -431,7 +431,7 @@ const STYLES = `
 .bti-settings-panel > * { margin-bottom: 20px; }
 .bti-slider-container { display: flex; align-items: center; gap: 8px; }
 .bti-slider-container span { color: white; }
-.bti-select { background-color: var(--background-mobile-secondary); border: none; color: var(--text-default); padding: 8px; border-radius: 4px; outline: none; }
+.bti-select { background-color: var(--background-mod-subtle); border: none; color: var(--text-default); padding: 8px; border-radius: 4px; outline: none; }
 .bti-color-picker input[type="color"] { -webkit-appearance: none; width: 50px; height: 30px; background: none; border: none; cursor: pointer; border-radius: 4px; }
 .bti-tooltip-container { display: flex; flex-direction: column; }
 .bti-tooltip-container.avatars-only { flex-direction: row; align-items: center; gap: 2px; }
