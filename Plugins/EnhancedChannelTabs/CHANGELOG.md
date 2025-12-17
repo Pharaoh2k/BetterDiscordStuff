@@ -1,5 +1,9 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+### 4.2.0
+- Added "Stacked" layout (Toolbar Top, Tabs Bottom)
+- Added mouse-hover tooltips to tabs
+
 ### 4.1.9
 - Updated a style to match Discord changes
 
