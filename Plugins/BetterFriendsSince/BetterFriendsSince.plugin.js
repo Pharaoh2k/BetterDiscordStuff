@@ -2,7 +2,7 @@
  * @name BetterFriendsSince
  * @author Pharaoh2k
  * @description Shows the date you and a friend became friends in the profile modal and Friends sidebar.
- * @version 1.2.2
+ * @version 1.3.0
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterFriendsSince/BetterFriendsSince.plugin.js
@@ -318,13 +318,11 @@ const findSidebarSectionKey = (mod) => {
     if (preciseKey) return preciseKey;
     return (typeof mod.Z === "function") ? "Z" : null;
 };
-const tryFilters = async (filterConfigs, signal, pluginName) => {
-	for (let i = 0; i < filterConfigs.length; i++) {
-		const { filter, options = {} } = filterConfigs[i];
+const tryFilters = async (filterConfigs, signal) => {
+	for (const { filter, options = {} } of filterConfigs) {
 		try {
 			const module = Webpack.getModule(filter, options);
 			if (module) {
-				if (i > 0) Logger.info(pluginName, `Found using fallback filter ${i + 1}`);
 				return module;
 			}
 		} catch { /* try next */ }
@@ -427,78 +425,146 @@ const BetterFriendsSince = meta => {
 			)
 	);
 	const handleSidebarPatch = (_, [props], returnValue) => {
-		if (!props || !returnValue) return;
-		if (props.__BetterFriendsSinceInjected) return;
-		const childProps = props.children?.props;
-		const userId = childProps?.userId ?? childProps?.userID ?? null;
-		if (!userId) return;
-		if (!RelationshipStore?.isFriend?.(userId)) return;
-		if (Object.keys(childProps).length !== 1) return;
-		const BaseSection =
-			SidebarSectionComponent ||
-			(React.isValidElement(returnValue) ? returnValue.type : null);
-		if (!BaseSection) return;
-		const BetterFriendsSinceSection = React.createElement(
-			BaseSection,
-			{
-				key: `friends-since-sidebar-${userId}`,
-				heading: getHeadingForLocale(getCurrentLocale(LocaleStore)),
-				headingColor: props.headingColor,
-				__BetterFriendsSinceInjected: true
-			},
-			React.createElement(BetterFriendsSinceSidebarContent, { userId })
-		);
-		return React.createElement(React.Fragment, null, returnValue, BetterFriendsSinceSection);
+		try {
+			if (!props || !returnValue) return;
+			if (props.__BetterFriendsSinceInjected) return;
+			const childProps = props.children?.props;
+			const userId = childProps?.userId ?? childProps?.userID ?? null;
+			if (!userId) return;
+			if (!RelationshipStore?.isFriend?.(userId)) return;
+			if (Object.keys(childProps).length !== 1) return;
+			const BaseSection =
+				SidebarSectionComponent ||
+				(React.isValidElement(returnValue) ? returnValue.type : null);
+			if (!BaseSection) return;
+			const BetterFriendsSinceSection = React.createElement(
+				BaseSection,
+				{
+					key: `friends-since-sidebar-${userId}`,
+					heading: getHeadingForLocale(getCurrentLocale(LocaleStore)),
+					headingColor: props.headingColor,
+					__BetterFriendsSinceInjected: true
+				},
+				React.createElement(BetterFriendsSinceSidebarContent, { userId })
+			);
+			return React.createElement(React.Fragment, null, returnValue, BetterFriendsSinceSection);
+		} catch (err) {
+			Logger.warn(meta.name, "Sidebar section patch failed:", err);
+		}
+	};
+	const handleSidebarBodyPatch = (_, [props], returnValue) => {
+		try {
+			if (!props || !returnValue) return;
+			const userId = props?.user?.id;
+			if (!userId) return;
+			if (!RelationshipStore?.isFriend?.(userId)) return;
+			const memberSinceSection = Utils.findInTree(
+				returnValue,
+				n => React.isValidElement(n) &&
+					n.props?.heading &&
+					n.props?.children?.props?.userId === userId,
+				{ walkable: ['props', 'children'] }
+			);
+			if (!memberSinceSection) return;
+			if (!SidebarSectionComponent) {
+				SidebarSectionComponent = memberSinceSection.type;
+			}
+			const overlay = Utils.findInTree(
+				returnValue,
+				n => React.isValidElement(n) &&
+					Array.isArray(n.props?.children) &&
+					n.props.children.includes(memberSinceSection),
+				{ walkable: ['props', 'children'] }
+			);
+			if (!overlay) return;
+			const overlayChildren = overlay.props.children;
+			const alreadyInjected = overlayChildren.some(
+				child =>
+					React.isValidElement(child) &&
+					child.key?.startsWith?.('friends-since-sidebar-')
+			);
+			if (alreadyInjected) return;
+			const memberSinceIndex = overlayChildren.indexOf(memberSinceSection);
+			overlayChildren.splice(
+				memberSinceIndex + 1,
+				0,
+				React.createElement(
+					SidebarSectionComponent,
+					{
+						key: `friends-since-sidebar-${userId}`,
+						heading: getHeadingForLocale(getCurrentLocale(LocaleStore)),
+						headingColor: 'text-strong'
+					},
+					React.createElement(BetterFriendsSinceSidebarContent, { userId })
+				)
+			);
+		} catch (err) {
+			Logger.warn(meta.name, "Sidebar body patch failed:", err);
+		}
 	};
 	const handleProfilePatch = (_, [props], returnValue) => {
-		if (!props || !returnValue) return;
-		const body = findProfileBody(returnValue);
-		if (!body || !Array.isArray(body.children)) return;
-		const userId = props?.user?.id;
-		if (!userId) return;
-		if (!Section) {
-			const firstSection = body.children.find(
+		try {
+			if (!props || !returnValue) return;
+			const body = findProfileBody(returnValue);
+			if (!body || !Array.isArray(body.children)) return;
+			const userId = props?.user?.id;
+			if (!userId) return;
+			if (!Section) {
+				const firstSection = body.children.find(
+					child =>
+						React.isValidElement(child) &&
+						child.props?.heading &&
+						child.props?.children
+				);
+				if (firstSection) {
+					Section = firstSection.type;
+				}
+			}
+			if (!Section) {
+				Logger.warn(meta.name, "Section component not resolved; skipping profile injection.");
+				return;
+			}
+			const index = body.children.findIndex(
 				child =>
 					React.isValidElement(child) &&
 					child.props?.heading &&
-					child.props?.children
+					child.props?.children?.props?.userId
 			);
-			if (firstSection) {
-				Section = firstSection.type;
-			}
+			if (index === -1) return;
+			const alreadyInjected = body.children.some(
+				child =>
+					React.isValidElement(child) &&
+					child.type === BetterFriendsSinceProfileSection
+			);
+			if (alreadyInjected) return;
+			body.children.splice(
+				index + 1, 0,
+				React.createElement(BetterFriendsSinceProfileSection, {
+					key: `friends-since-profile-${userId}`,
+					userId
+				})
+			);
+		} catch (err) {
+			Logger.warn(meta.name, "Profile patch failed:", err);
 		}
-		if (!Section) {
-			Logger.warn(meta.name, "Section component not resolved; skipping profile injection.");
-			return;
-		}
-		const index = body.children.findIndex(
-			child =>
-				React.isValidElement(child) &&
-				child.props?.heading &&
-				child.props?.children?.props?.userId
-		);
-		if (index === -1) return;
-		const alreadyInjected = body.children.some(
-			child =>
-				React.isValidElement(child) &&
-				child.type === BetterFriendsSinceProfileSection
-		);
-		if (alreadyInjected) return;
-		body.children.splice(
-			index + 1, 0,
-			React.createElement(BetterFriendsSinceProfileSection, {
-				key: `friends-since-profile-${userId}`,
-				userId
-			})
-		);
 	};
 	const patchSidebar = async (signal) => {
 		try {
+			const sidebarBodyMod = Webpack.getModule(
+				m => m?.Z?.toString?.().includes('UserProfileSidebarBody') &&
+					m?.Z?.toString?.().includes('isProvisional'),
+				{ first: true }
+			);
+			if (signal.aborted) return;
+			if (sidebarBodyMod?.Z) {
+				Patcher.after(meta.name, sidebarBodyMod, 'Z', handleSidebarBodyPatch);
+				return;
+			}
 			const sidebarSectionMod = await tryFilters([
 				{ filter: Filters.bySource('introText:', 'headingClassName:') },
 				{ filter: Filters.bySource('scrollTargetId:', 'headingIcon:', '"text-xs/semibold"') },
 				{ filter: Filters.bySource('scrollTargetId:', 'headingVariant:') }
-			], signal, meta.name);
+			], signal);
 			if (signal.aborted) return;
 			if (!sidebarSectionMod) {
 				Logger.warn(meta.name, "sidebarSectionMod not found by any filter");
@@ -536,12 +602,12 @@ const BetterFriendsSince = meta => {
 				tryFilters([
 					{ filter: Filters.byStrings('.section', 'text-xs/medium', 'headingColor'), options: { searchExports: true } },
 					{ filter: Filters.byStrings('.section', '"currentColor"', 'headingVariant'), options: { searchExports: true } }
-				], signal, meta.name),
+				], signal),
 				tryFilters([
 					{ filter: Filters.bySource('parentComponent:', '"UserProfileModalV2"'), options: { defaultExport: false } },
 					{ filter: Filters.bySource('SHAKE_PROFILE_MODAL', 'profileEffect'), options: { defaultExport: false } },
 					{ filter: Filters.bySource('profileBody', 'profileHeader', 'profileButtons'), options: { defaultExport: false } }
-				], signal, meta.name)
+				], signal)
 			]);
 			if (signal.aborted) return;
 			Section = sectionModule;
