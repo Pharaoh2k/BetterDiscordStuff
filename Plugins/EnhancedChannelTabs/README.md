@@ -1,7 +1,7 @@
 # EnhancedChannelTabs
 A BetterDiscord plugin that brings browser-style tabs and bookmarks to Discord.
 
-![Version](https://img.shields.io/badge/version-4.1.9-blue.svg)
+![Version](https://img.shields.io/badge/version-4.2.0-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Discord](https://img.shields.io/badge/discord-BetterDiscord-7289DA.svg)
 
@@ -26,7 +26,7 @@ EnhancedChannelTabs transforms your Discord experience with a powerful tab syste
 - **⭕ Radial Status Indicators**: Modern circular status borders
 - **📊 Badge System**: Unread counts, mentions, and typing indicators
 - **🖱️ Drag & Drop**: Reorder tabs and favorites by dragging
-- **🔄 Dynamic Layout**: Toggle between single-row scrolling and multi-row wrapping
+- **🔄 Dynamic Layout**: Toggle between single-row scrolling, multi-row wrapping or stacked (Toolbar Top, Tabs Bottom)
 
 ### Navigation
 - **⌨️ Keyboard Shortcuts**: Full keyboard navigation support
