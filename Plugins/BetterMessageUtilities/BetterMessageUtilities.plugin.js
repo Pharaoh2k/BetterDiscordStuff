@@ -1,6 +1,6 @@
 /**
  * @name BetterMessageUtilities
- * @version 1.0.2
+ * @version 1.0.3
  * @description Adds customizable hotkeys for message actions (delete, edit, pin, reply, etc.)
  * @author Pharaoh2k
  * @authorId 874825550408089610
@@ -349,7 +349,7 @@ module.exports = class BetterMessageUtilities {
         if (this.dblClickHandler) document.removeEventListener("dblclick", this.dblClickHandler, true);
     }
     handleMessageInteraction(event, type) {
-        const messageDiv = event.target.closest('li > [class^=message]');
+        const messageDiv = event.target.closest('[role="article"][aria-roledescription="Message"]');
         if (!messageDiv) return;
         if (event.target.closest('button') || event.target.closest('[role="button"]') || event.target.closest('a') || event.target.closest('[class*="toolbar-"]') || event.target.closest('[class*="reactions-"]') || event.target.closest('[class*="buttonContainer-"]')) return;
         const message = this.getMessageFromReact(messageDiv);
