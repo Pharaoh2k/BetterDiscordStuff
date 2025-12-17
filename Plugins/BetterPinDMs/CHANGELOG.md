@@ -1,5 +1,21 @@
 # [BetterPinDMs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterPinDMs "BetterPinDMs") Changelog
 
+### 2.0.0
+- This is a complete rewrite of BetterPinDMs with significant improvements to stability, performance, and user experience.
+- The plugin now integrates directly with Discord's React system instead of manipulating the page after it loads. This means fewer glitches and faster updates!
+- Visual indicators now show exactly where your DM will land when dragging
+- Added clear highlighting for drop targets (top, bottom, or into a category)
+- Improved update checks
+- Improved error reporting
+- Fixed keyboard shortcuts. They no longer trigger repeatedly when holding keys
+- Improved compatibility with Discord's latest updates
+- Fixed potential issues with unread message counts
+- Added security protections against malicious configuration imports
+- Reduced plugin file size
+- Improved code organization
+- Removed the Windows auto-installer popup
+
+
 ### 1.0.0
 - Initial public release
 - Added dedicated 📌 PINNED DMs section above Direct Messages
