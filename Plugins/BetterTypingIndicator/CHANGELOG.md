@@ -1,5 +1,8 @@
 # [BetterTypingIndicator](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterTypingIndicator "BetterTypingIndicator") Changelog
 
+### 2.9.2
+- Updated to match Discord changes
+- 
 ### 2.9.1
 - Updated to match Discord changes
 - Improved update-checker
