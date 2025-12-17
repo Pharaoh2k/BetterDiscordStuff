@@ -1,5 +1,9 @@
 # [BetterFriendsSince](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterFriendsSince "BetterFriendsSince") Changelog
 
+### 1.3.0
+- Improved sidebar patching reliability
+- Added error protection to prevent client crashes
+
 ### 1.2.2
 - Fixed/Updated sidebar to match Discord changes
 
