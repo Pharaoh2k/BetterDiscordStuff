@@ -2,10 +2,10 @@
   "name": "BetterFileViewer",
   "description": "View PDF, office files and other files (stl, 3D models) directly in Discord without downloading.",
   "author": "Pharaoh2k, AGreenPig",
-  "version": "3.0.0",
+  "version": "3.0.2",
   "status": "Active",
   "workingStatus": "Working",
-  "lastUpdated": "2025-09-05",
+  "lastUpdated": "2025-12-17",
   "releaseDate": "2023-09-05",
   "features": [
     "Preview PDF files directly in Discord",
