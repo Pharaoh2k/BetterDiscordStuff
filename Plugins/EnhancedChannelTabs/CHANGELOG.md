@@ -1,5 +1,8 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+### 4.1.9
+- Updated a style to match Discord changes
+
 ### 4.1.8
 - Fixed Tab Layout radio buttons to visually update immediately when clicked
 
