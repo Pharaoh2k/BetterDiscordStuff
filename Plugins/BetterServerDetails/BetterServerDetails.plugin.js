@@ -2,7 +2,7 @@
  * @name BetterServerDetails
  * @author Pharaoh2k
  * @description Shows Server Details (owner, creation/join date, members, etc.) in a custom tooltip on the server list.
- * @version 1.0.2
+ * @version 1.0.3
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
@@ -56,21 +56,28 @@ class UpdateManager {
 		this.version = version;
 		const [user, repo] = github.split('/');
 		this.urls = {
-			plugin: `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main/Plugins/${pluginName}/${pluginName}.plugin.js`,
-			changelog: `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main/Plugins/${pluginName}/CHANGELOG.md`
+			plugin: `https://raw.githubusercontent.com/${user}/${repo}/main/Plugins/${pluginName}/${pluginName}.plugin.js`,
+			changelog: `https://raw.githubusercontent.com/${user}/${repo}/main/Plugins/${pluginName}/CHANGELOG.md`
 		};
 		this.timer = null;
 		this.notification = null;
+		this._initialTimeout = null;
 	}
 	async start(autoUpdate = true) {
+		this.stop();
 		if (autoUpdate) {
-			setTimeout(() => this.check(true), 15000);
+			this._initialTimeout = setTimeout(() => this.check(true), 15000);
 			this.timer = setInterval(() => this.check(true), 24 * 60 * 60 * 1000);
 		}
 		this.showChangelog();
 	}
 	stop() {
+		if (this._initialTimeout) {
+			clearTimeout(this._initialTimeout);
+			this._initialTimeout = null;
+		}
 		clearInterval(this.timer);
+		this.timer = null;
 		if (typeof this.notification === "function") this.notification();
 		else this.notification?.close?.();
 		this.notification = null;
@@ -78,18 +85,19 @@ class UpdateManager {
 	async check(silent = false) {
 		try {
 			const res = await BdApi.Net.fetch(this.urls.plugin);
-			if (res.status !== 200) throw new Error("Failed");
+			if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
 			const text = await res.text();
-			const version = text.match(/@version\s+([\d.]+)/)?.[1];
-			if (!version) throw new Error("No version");
+			const validated = this._validateRemotePluginText(text);
+			if (!validated.ok) throw new Error(`Remote plugin validation failed: ${validated.reason}`);
+			const version = validated.version;
 			if (this.isNewer(version)) {
 				this.showUpdateNotice(version, text);
 			} else if (!silent) {
-				BdApi.UI.showToast(`[${this.name}] You're up to date.`, { type: 'info' });
+				BdApi.UI.showToast(`[${this.name}] You're up to date.`, { type: "info" });
 			}
 		} catch (e) {
 			BdApi.Logger.error(this.name, "Update check failed:", e);
-			if (!silent) BdApi.UI.showToast(`[${this.name}] Update check failed`, { type: 'error' });
+			if (!silent) BdApi.UI.showToast(`[${this.name}] Update check failed`, { type: "error" });
 		}
 	}
 	showUpdateNotice(version, text) {
@@ -146,18 +154,24 @@ class UpdateManager {
 	}
 	applyUpdate(text, version) {
 		try {
-			require('fs').writeFileSync(__filename, text);
-			BdApi.UI.showToast(`Updated to v${version}. Reloading...`, { type: 'success' });
+			const validated = this._validateRemotePluginText(text);
+			if (!validated.ok) {
+				BdApi.UI.showToast(`Update blocked: ${validated.reason}`, { type: "error", timeout: 8000 });
+				return;
+			}
+			const nextVersion = validated.version ?? version;
+			require("fs").writeFileSync(__filename, text);
+			BdApi.UI.showToast(`Updated to v${nextVersion}. Reloading...`, { type: "success" });
 			setTimeout(() => {
 				try {
 					BdApi.Plugins.reload(this.name);
 				} catch {
-					BdApi.UI.showToast('Please reload Discord (Ctrl+R)', { type: 'info', timeout: 0 });
+					BdApi.UI.showToast("Please reload Discord (Ctrl+R)", { type: "info", timeout: 0 });
 				}
 			}, 100);
 		} catch (e) {
 			BdApi.Logger.error(this.name, "Update failed:", e);
-			BdApi.UI.showToast('Update failed', { type: 'error' });
+			BdApi.UI.showToast("Update failed", { type: "error" });
 		}
 	}
 	async showChangelog() {
@@ -251,8 +265,32 @@ class UpdateManager {
 		push();
 		return versions;
 	}
-	isNewer(v1, v2 = this.version) {
-		return Utils.semverCompare(v2, v1) === 1;
+	isNewer(remoteVersion, localVersion = this.version) {
+		return this._compareSemver(remoteVersion, localVersion) > 0;
+	}
+	_compareSemver(a, b) {
+		const pa = String(a ?? "").split(".").map(n => Number.parseInt(n, 10));
+		const pb = String(b ?? "").split(".").map(n => Number.parseInt(n, 10));
+		const len = Math.max(pa.length, pb.length);
+		for (let i = 0; i < len; i++) {
+			const va = Number.isFinite(pa[i]) ? pa[i] : 0;
+			const vb = Number.isFinite(pb[i]) ? pb[i] : 0;
+			if (va > vb) return 1;
+			if (va < vb) return -1;
+		}
+		return 0;
+	}
+	_validateRemotePluginText(text) {
+		if (typeof text !== "string") return { ok: false, reason: "Not a string" };
+		if (text.length < 800) return { ok: false, reason: "File too small" };
+		const remoteName = text.match(/@name\s+([^\n\r]+)/)?.[1]?.trim();
+		if (!remoteName) return { ok: false, reason: "Missing @name" };
+		if (remoteName !== this.name) return { ok: false, reason: `Unexpected @name (${remoteName})` };
+		const remoteVersion = text.match(/@version\s+([\d.]+)/)?.[1];
+		if (!remoteVersion) return { ok: false, reason: "Missing @version" };
+		if (!text.includes("module.exports")) return { ok: false, reason: "Missing module.exports" };
+		if (!text.includes("@updateUrl")) return { ok: false, reason: "Missing @updateUrl header" };
+		return { ok: true, version: remoteVersion };
 	}
 }
 //#endregion Updater
@@ -1086,4 +1124,3 @@ module.exports = class BetterServerDetails {
 	//#endregion Styles
 };
 //#endregion Main Plugin Class
-
