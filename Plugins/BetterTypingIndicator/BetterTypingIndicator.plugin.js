@@ -748,7 +748,8 @@ const BetterTypingIndicatorWrapper = ({ type, targetId, settings, users, tooltip
         )
         : null;
     const effectiveUsers = type === TYPES.CHANNEL ? (channelUsers ?? users) : users;
-    if (!effectiveUsers || Object.keys(effectiveUsers).length === 0) return null;
+    if (!effectiveUsers) return null;
+    if (type === TYPES.CHANNEL && Object.keys(effectiveUsers).length === 0) return null;
     return React.createElement(BetterTypingIndicatorComponent, {
         type,
         users: effectiveUsers,
@@ -1260,7 +1261,7 @@ class BetterTypingIndicator {
         const result = {};
         for (const id of ids) {
             const user = Modules.UserStore.getUser(id);
-            if (user) result[id] = user;
+            result[id] = user ?? { id, username: "", globalName: "" };
         }
         return result;
     }
