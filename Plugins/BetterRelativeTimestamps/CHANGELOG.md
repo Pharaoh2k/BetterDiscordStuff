@@ -1,5 +1,8 @@
 # [BetterRelativeTimestamps](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterRelativeTimestamps "BetterRelativeTimestamps") Changelog
 
+### 1.1.4
+- Improved updates manager reliability
+
 ### 1.1.3
 - Fixes settings save/load (persistence)
 
