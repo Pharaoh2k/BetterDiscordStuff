@@ -2,10 +2,10 @@
   "name": "AudioDownloader",
   "description": "Adds \"Download audio\" to the right-click menu on messages containing voice-notes or audio attachments.",
   "author": "Pharaoh2k",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "status": "Active",
   "workingStatus": "Working",
-  "lastUpdated": "2025-12-15",
+  "lastUpdated": "2025-12-18",
   "releaseDate": "2025-01-01",
   "features": [
     "Download voice messages with right-click menu option",
