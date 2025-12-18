@@ -1,5 +1,8 @@
 # [BetterSplitLargeMessages](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterSplitLargeMessages "BetterSplitLargeMessages") Changelog
 
+# 1.0.2
+- Improved updates manager reliability
+
 ### 1.0.1
 - Improved update manager
 
