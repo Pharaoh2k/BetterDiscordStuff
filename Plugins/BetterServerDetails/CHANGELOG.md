@@ -1,5 +1,8 @@
 # [BetterServerDetails](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterServerDetails "BetterServerDetails") Changelog
 
+### 1.0.3
+- Improved updates manager reliability
+
 ### 1.0.2
 - Updated to match Discord changes
 - Improved update-checker
