@@ -2,7 +2,7 @@
   "name": "ShowAllChannelsAuto",
   "description": "Automatically enables \"Show All Channels\" for every Discord server by clearing the guild flag that disables it.",
   "author": "Pharaoh2k",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "status": "Active",
   "workingStatus": "Working",
   "lastUpdated": "2025-12-15",
@@ -18,3 +18,4 @@
   "downloadUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/refs/heads/main/Plugins/ShowAllChannelsAuto/ShowAllChannelsAuto.plugin.js"
 
 }
+
