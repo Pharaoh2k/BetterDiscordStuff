@@ -1,5 +1,8 @@
 # [AudioDownloader](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=AudioDownloader "AudioDownloader") Changelog
 
+### 1.0.3
+- Improved updates manager reliability
+  
 ### 1.0.2
 - Improved updates manager
 
