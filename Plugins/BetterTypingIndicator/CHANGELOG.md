@@ -1,5 +1,8 @@
 # [BetterTypingIndicator](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterTypingIndicator "BetterTypingIndicator") Changelog
 
+### 2.9.4
+- Improved performance across the board
+
 ### 2.9.3
 - Improved updates manager reliability
 
