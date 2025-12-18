@@ -2,7 +2,7 @@
  * @name BetterFriendsSince
  * @author Pharaoh2k
  * @description Shows the date you and a friend became friends in the profile modal and Friends sidebar.
- * @version 1.3.0
+ * @version 1.3.1
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterFriendsSince/BetterFriendsSince.plugin.js
@@ -41,45 +41,53 @@ align with the project's guidelines and coding standards.
 const { Webpack, Patcher, React, Utils, UI, Logger, Hooks, Data, Net } = BdApi;
 const { Filters } = Webpack;
 class UpdateManager {
-	constructor(pluginName, version, github = "Pharaoh2k/BetterFriendsSince") {
+	constructor(pluginName, version, github = "Pharaoh2k/BetterDiscordStuff") {
 		this.name = pluginName;
 		this.version = version;
 		const [user, repo] = github.split('/');
 		this.urls = {
-			plugin: `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main/Plugins/${pluginName}/${pluginName}.plugin.js`,
-			changelog: `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main/Plugins/${pluginName}/CHANGELOG.md`
+			plugin: `https://raw.githubusercontent.com/${user}/${repo}/main/Plugins/${pluginName}/${pluginName}.plugin.js`,
+			changelog: `https://raw.githubusercontent.com/${user}/${repo}/main/Plugins/${pluginName}/CHANGELOG.md`
 		};
 		this.timer = null;
 		this.notification = null;
+		this._initialTimeout = null;
 	}
 	async start(autoUpdate = true) {
+		this.stop();
 		if (autoUpdate) {
-			setTimeout(() => this.check(true), 15000);
+			this._initialTimeout = setTimeout(() => this.check(true), 15000);
 			this.timer = setInterval(() => this.check(true), 24 * 60 * 60 * 1000);
 		}
 		this.showChangelog();
 	}
 	stop() {
+		if (this._initialTimeout) {
+			clearTimeout(this._initialTimeout);
+			this._initialTimeout = null;
+		}
 		clearInterval(this.timer);
+		this.timer = null;
 		if (typeof this.notification === "function") this.notification();
 		else this.notification?.close?.();
 		this.notification = null;
 	}
 	async check(silent = false) {
 		try {
-			const res = await Net.fetch(this.urls.plugin);
-			if (res.status !== 200) throw new Error("Failed to fetch plugin");
+			const res = await BdApi.Net.fetch(this.urls.plugin);
+			if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
 			const text = await res.text();
-			const version = text.match(/@version\s+([\d.]+)/)?.[1];
-			if (!version) throw new Error("No version found in remote file");
+			const validated = this._validateRemotePluginText(text);
+			if (!validated.ok) throw new Error(`Remote plugin validation failed: ${validated.reason}`);
+			const version = validated.version;
 			if (this.isNewer(version)) {
 				this.showUpdateNotice(version, text);
 			} else if (!silent) {
-				UI.showToast(`[${this.name}] You're up to date.`, { type: 'info' });
+				BdApi.UI.showToast(`[${this.name}] You're up to date.`, { type: "info" });
 			}
 		} catch (e) {
-			Logger.error(this.name, "Update check failed:", e);
-			if (!silent) UI.showToast(`[${this.name}] Update check failed`, { type: 'error' });
+			BdApi.Logger.error(this.name, "Update check failed:", e);
+			if (!silent) BdApi.UI.showToast(`[${this.name}] Update check failed`, { type: "error" });
 		}
 	}
 	showUpdateNotice(version, text) {
@@ -90,7 +98,7 @@ class UpdateManager {
 			if (typeof handle === "function") handle();
 			else handle?.close?.();
 		};
-		handle = UI.showNotification?.({
+		handle = BdApi.UI.showNotification?.({
 			id: `bd-plugin-update:${this.name}`,
 			title: `${this.name}`,
 			content: `v${version} is available`,
@@ -112,7 +120,7 @@ class UpdateManager {
 			onClose: () => {
 				if (this.notification === handle) this.notification = null;
 			},
-		}) ?? UI.showNotice(`${this.name} v${version} is available`, {
+		}) ?? BdApi.UI.showNotice(`${this.name} v${version} is available`, {
 			type: "info",
 			buttons: [
 				{
@@ -136,53 +144,56 @@ class UpdateManager {
 	}
 	applyUpdate(text, version) {
 		try {
-			require('fs').writeFileSync(__filename, text);
-			UI.showToast(`Updated to v${version}. Reloading...`, { type: 'success' });
+			const validated = this._validateRemotePluginText(text);
+			if (!validated.ok) {
+				BdApi.UI.showToast(`Update blocked: ${validated.reason}`, { type: "error", timeout: 8000 });
+				return;
+			}
+			const nextVersion = validated.version ?? version;
+			require("fs").writeFileSync(__filename, text);
+			BdApi.UI.showToast(`Updated to v${nextVersion}. Reloading...`, { type: "success" });
 			setTimeout(() => {
 				try {
 					BdApi.Plugins.reload(this.name);
 				} catch {
-					UI.showToast('Please reload Discord (Ctrl+R)', { type: 'info', timeout: 0 });
+					BdApi.UI.showToast("Please reload Discord (Ctrl+R)", { type: "info", timeout: 0 });
 				}
 			}, 100);
 		} catch (e) {
-			Logger.error(this.name, "Update failed:", e);
-			UI.showToast('Update failed', { type: 'error' });
+			BdApi.Logger.error(this.name, "Update failed:", e);
+			BdApi.UI.showToast("Update failed", { type: "error" });
 		}
 	}
 	async showChangelog() {
-		const last = Data.load(this.name, 'version');
-		if (last === this.version) return;
-		Data.save(this.name, 'version', this.version);
-		if (!last) return;
+		const last = BdApi.Data.load(this.name, 'version');
+		console.log(`[${this.name}] showChangelog: last=${last}, current=${this.version}`);
+		if (last === this.version) { console.log(`[${this.name}] Skipping: versions match`); return; }
+		BdApi.Data.save(this.name, 'version', this.version);
+		if (!last) { console.log(`[${this.name}] Skipping: fresh install`); return; }
 		try {
-			const res = await Net.fetch(this.urls.changelog);
+			const res = await BdApi.Net.fetch(this.urls.changelog);
+			console.log(`[${this.name}] Changelog fetch status: ${res.status}`);
 			if (res.status !== 200) return;
 			const md = await res.text();
 			const changes = this.parseChangelog(md, last, this.version);
+			console.log(`[${this.name}] Parsed changes:`, changes);
 			if (changes.length === 0) return;
-			UI.showChangelogModal({
-				title: this.name,
-				subtitle: `Version ${this.version}`,
-				changes
-			});
-		} catch (e) {
-			Logger.warn(this.name, "Changelog fetch failed:", e);
-		}
+			BdApi.UI.showChangelogModal({ title: this.name, subtitle: `Version ${this.version}`, changes });
+		} catch (e) { console.error(`[${this.name}] Changelog error:`, e); }
 	}
 	async showFullChangelog() {
 		try {
-			const res = await Net.fetch(this.urls.changelog);
+			const res = await BdApi.Net.fetch(this.urls.changelog);
 			if (res.status !== 200) throw new Error("Failed to fetch changelog");
 			const md = await res.text();
 			const changes = this.parseChangelog(md, "0.0.0", this.version);
-			UI.showChangelogModal({
+			BdApi.UI.showChangelogModal({
 				title: this.name,
 				subtitle: `All Changes`,
 				changes: changes.length ? changes : [{ title: "No changes found", items: [] }]
 			});
 		} catch {
-			UI.showToast("Could not fetch changelog", { type: "error" });
+			BdApi.UI.showToast("Could not fetch changelog", { type: "error" });
 		}
 	}
 	parseChangelog(md, from, to) {
@@ -244,8 +255,32 @@ class UpdateManager {
 		push();
 		return versions;
 	}
-	isNewer(v1, v2 = this.version) {
-		return Utils.semverCompare(v2, v1) === 1;
+	isNewer(remoteVersion, localVersion = this.version) {
+		return this._compareSemver(remoteVersion, localVersion) > 0;
+	}
+	_compareSemver(a, b) {
+		const pa = String(a ?? "").split(".").map(n => Number.parseInt(n, 10));
+		const pb = String(b ?? "").split(".").map(n => Number.parseInt(n, 10));
+		const len = Math.max(pa.length, pb.length);
+		for (let i = 0; i < len; i++) {
+			const va = Number.isFinite(pa[i]) ? pa[i] : 0;
+			const vb = Number.isFinite(pb[i]) ? pb[i] : 0;
+			if (va > vb) return 1;
+			if (va < vb) return -1;
+		}
+		return 0;
+	}
+	_validateRemotePluginText(text) {
+		if (typeof text !== "string") return { ok: false, reason: "Not a string" };
+		if (text.length < 800) return { ok: false, reason: "File too small" };
+		const remoteName = text.match(/@name\s+([^\n\r]+)/)?.[1]?.trim();
+		if (!remoteName) return { ok: false, reason: "Missing @name" };
+		if (remoteName !== this.name) return { ok: false, reason: `Unexpected @name (${remoteName})` };
+		const remoteVersion = text.match(/@version\s+([\d.]+)/)?.[1];
+		if (!remoteVersion) return { ok: false, reason: "Missing @version" };
+		if (!text.includes("module.exports")) return { ok: false, reason: "Missing module.exports" };
+		if (!text.includes("@updateUrl")) return { ok: false, reason: "Missing @updateUrl header" };
+		return { ok: true, version: remoteVersion };
 	}
 }
 const HEADING_BY_LOCALE = Object.freeze({
