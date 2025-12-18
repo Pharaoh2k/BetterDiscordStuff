@@ -1,5 +1,8 @@
 # [BetterFileViewer](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterFileViewer "BetterFileViewer") Changelog
 
+### 3.0.3
+- Improved updates manager reliability
+
 ### 3.0.2
 - Updated to match Discord changes
   
