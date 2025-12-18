@@ -492,7 +492,6 @@ body[data-bti-hidden="true"] .bti-dot, body[data-bti-hidden="true"] [data-animat
 .typing-avatar-container { transition: transform 0.2s ease; }
 .typing-avatar-container:hover { transform: scale(1.1); z-index: 1; }
 .typing-avatar-container + .typing-avatar-container { margin-left: -4px; }
-.typing-status-dot { box-shadow: 0 0 0 2px var(--modal-background); }
 .bti-tooltip-container img { border-radius: inherit !important; clip-path: inherit !important; }
 @media (prefers-reduced-motion: reduce) { .bti-dot, [data-animation] { animation: none !important; } }
 `;
@@ -1275,7 +1274,7 @@ class BetterTypingIndicator {
                 if (type === TYPES.CHANNEL) {
                     this.scheduleUnmount(rootKey, root, indicator);
                 } else {
-                    root.render(null);
+                    if (indicator) indicator.style.display = 'none';
                     this.scheduleUnmount(rootKey, root, indicator);
                 }
             } else {
@@ -1296,6 +1295,7 @@ class BetterTypingIndicator {
             }
             containerEl.appendChild(indicator);
         }
+        indicator.style.display = '';
         let root = this._roots.get(rootKey);
         const rootExists = !!root;
         if (!root) {
