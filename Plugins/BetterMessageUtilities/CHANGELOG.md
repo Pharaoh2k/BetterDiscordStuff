@@ -1,5 +1,8 @@
 # [BetterMessageUtilities](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterMessageUtilities "BetterMessageUtilities") Changelog
 
+### 1.0.5
+- Improved updates manager reliability
+
 ### 1.0.4
 - Improved class selector
 
