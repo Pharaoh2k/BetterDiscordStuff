@@ -2557,17 +2557,15 @@ module.exports = class BetterPinDMs {
 	_injectStyles() {
 		DOM.addStyle(CONFIG.cssId, `
 			/* --- Layout & Animation --- */
-			.betterpindms-virtual-header { padding: 0 8px; box-sizing: border-box; position: relative; /* Needed for drop indicators */ }
+			.betterpindms-virtual-header { padding: 0 8px; box-sizing: border-box; position: relative; }
 			.betterpindms-group-content { display: flex; flex-direction: column; }
 			.betterpindms-group-content.collapsed { max-height: 0; opacity: 0; }
 			.betterpindms-group-content.expanded { opacity: 1; }
 			/* --- Drag & Drop Wrappers --- */
-			/* This allows DMs to have borders/pseudo-elements for drag indicators */
 			.betterpindms-draggable-wrapper { display: block; position: relative;  }
 			/* --- Sidebar Pin Icon --- */
 			.betterpindms-recent-pinned { 
 				position: relative; 
-				/* We cannot use overflow: visible here because the parent SVG mask controls the clipping */
 			}
 			.betterpindms-recent-pinned::after { content: "📌"; position: absolute; top: 2px; right: 2px; font-size: 10px; line-height: 1; z-index: 10; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8)); pointer-events: none; background: rgba(0, 0, 0, 0.6); border-radius: 4px; padding: 1px; }
 			/* Clean up old class */
@@ -2631,4 +2629,5 @@ module.exports = class BetterPinDMs {
 	//#endregion Styles
 };
 //#endregion Main Plugin
+
 
