@@ -9,6 +9,11 @@
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BetterPinDMs/BetterPinDMs.plugin.js
  */
 /* BdApi based, BDFDB-free feature-packed plugin. Inspired by mwittrien / Devilbro's "PinDMs" */
+/*
+Copyright © 2025-present Pharaoh2k. All rights reserved.
+Unauthorized copying, modification, or redistribution of this code is prohibited without prior written consent from the author.
+Contributions are welcome via GitHub pull requests. Please ensure submissions align with the project's guidelines and coding standards.
+*/
 "use strict";
 //#region Configuration
 const CONFIG = {
@@ -2626,3 +2631,4 @@ module.exports = class BetterPinDMs {
 	//#endregion Styles
 };
 //#endregion Main Plugin
+
