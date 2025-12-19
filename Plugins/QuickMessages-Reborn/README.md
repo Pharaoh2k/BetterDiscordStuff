@@ -1,5 +1,7 @@
 # QuickMessages-Reborn
 
+![QuickMessages-Reborn](https://github.com/user-attachments/assets/6c5717ef-c57b-461e-b50f-6a2e7f72b85d)
+
 A BetterDiscord plugin that allows you to save and quickly reuse messages. Organize your frequently used text with categories and send them instantly with a right-click.
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
