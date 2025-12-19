@@ -1,0 +1,29 @@
+{
+  "name": "QuickMessages-Reborn",
+  "description": "Save messages to quickly send them later. Right-click the chat bar to save or send messages. Hold Shift while clicking a message to delete it.",
+  "author": "Pharaoh2k",
+  "version": "1.0.0",
+  "status": "Active",
+  "workingStatus": "Working",
+  "lastUpdated": "2025-12-19",
+  "releaseDate": "2025-12-19",
+  "features": [
+    "Save frequently used messages for instant reuse",
+    "Organize messages into custom categories",
+    "Right-click context menu integration",
+    "Save selected text or entire messages",
+    "Shift+Click to delete messages or categories",
+    "Uncategorized messages support",
+    "Create and manage custom categories",
+    "Insert saved messages into chat instantly",
+    "Settings panel to view and manage all saved items",
+    "Automatic update checking with changelog display",
+    "Discord theme integration for seamless UI",
+    "Support for Discord formatting and emojis",
+    "Text truncation for long messages in menu",
+    "Delete all data option in settings"
+  ],
+  "sourceUrl": "https://github.com/Pharaoh2k/BetterDiscordStuff/tree/main/Plugins/QuickMessages-Reborn",
+  "changelogUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/QuickMessages-Reborn/CHANGELOG.md",
+  "downloadUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/QuickMessages-Reborn/QuickMessages-Reborn.plugin.js"
+}
