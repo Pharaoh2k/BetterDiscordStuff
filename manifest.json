@@ -55,6 +55,11 @@
       "id": "Show All Channels Automatically",
       "name": "ShowAllChannelsAuto",
       "enabled": true
+    },
+    {
+      "id": "Quick Messages Reborn",
+      "name": "QuickMessages-Reborn",
+      "enabled": true
     }
   ]
 }
