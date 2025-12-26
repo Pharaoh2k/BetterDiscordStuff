@@ -1,6 +1,6 @@
 /**
  * @name BetterTypingIndicator
- * @version 2.9.4
+ * @version 2.9.5
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/edit/main/Plugins/BetterTypingIndicator/BetterTypingIndicator.plugin.js
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BetterTypingIndicator/BetterTypingIndicator.plugin.js
@@ -1046,7 +1046,7 @@ class BetterTypingIndicator {
         if (el) {
             this._elCache.set(key, el);
         } else if (!this._warnedSelectorMiss.has(key)) {
-            console.warn('[BetterTypingIndicator] Could not locate list item for', type, targetId);
+          /*  console.warn('[BetterTypingIndicator] Could not locate list item for', type, targetId); */ /* shut up */
             this._warnedSelectorMiss.add(key);
         }
         return el;
