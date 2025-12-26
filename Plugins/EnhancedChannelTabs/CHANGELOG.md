@@ -1,5 +1,9 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+### 4.3.0
+- Added Fixed Tab Width Mode
+- Fixed "Reopen Last Channel on Startup"
+
 ### 4.2.1
 - Improved updates manager reliability
 
