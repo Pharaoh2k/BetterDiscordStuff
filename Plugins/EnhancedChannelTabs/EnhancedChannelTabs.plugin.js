@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 4.2.1
+ * @version 4.3.0
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
  */
@@ -497,6 +497,12 @@ class StyleManager {
 		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-tab { flex: 1 1 var(--enhancedChannelTabs-tabWidthMin); }
 		`;
 	}
+	static getFixedWidthStyles() {
+		return `
+		.enhancedChannelTabs-tabContainer[data-tab-width-mode="fixed"] .enhancedChannelTabs-tab { flex: 0 0 var(--enhancedChannelTabs-tabWidthMin) !important; min-width: var(--enhancedChannelTabs-tabWidthMin) !important; max-width: var(--enhancedChannelTabs-tabWidthMin) !important; }
+		.enhancedChannelTabs-tabContainer[data-tab-width-mode="fixed"] .enhancedChannelTabs-tabWrapper { flex-shrink: 0 !important; }
+		`;
+	}
 	static getTabListMenuStyle() {
 		return `
 			[id^="popout_"] [role="menu"] { min-width: 300px !important; max-width: 420px !important; }
@@ -566,6 +572,7 @@ TabStateStore.state = {
 	closedTabs: [],
 	selectedTabIndex: 0,
 	tabLayoutMode: "single",
+	tabWidthMode: "flexible",
 	showTabBar: true,
 	showFavBar: true,
 	showFavUnreadBadges: true,
@@ -638,6 +645,7 @@ const STORE_SETTING_KEYS = [
 	"showTabBar",
 	"showFavBar",
 	"tabLayoutMode",
+	"tabWidthMode",
 	"folderDropStyle",
 	"showFavUnreadBadges",
 	"showFavMentionBadges",
@@ -2809,31 +2817,65 @@ CTRL + Mouse Scroll - Switch Tab Layout
 										type: "separator",
 									},
 									{
-										label: "Minimum Tab Width",
-										style: { pointerEvents: "none" },
-									},
-									{
-										id: "tabWidthMin",
-										render: () => {
-											return /* @__PURE__ */ React.createElement(
-												"div",
-												{ className: "enhancedChannelTabs-sliderContainer" },
-												/* @__PURE__ */ React.createElement(Slider, {
-													"aria-label": "Minimum Tab Width",
-													className: "enhancedChannelTabs-slider",
-													mini: true,
-													orientation: "horizontal",
-													disabled: false,
-													initialValue:
-														getSetting("tabWidthMin", instance.props.plugin.settings.tabWidthMin),
-													minValue: 50,
-													maxValue: 220,
-													onValueRender: (value) =>
-														Math.floor(value / 10) * 10 + "px",
-													onValueChange: handleTabWidthChange,
-												}),
-											);
-										},
+										type: "submenu",
+										id: "tabWidth",
+										label: "Tab Width",
+										items: [
+											{
+												type: "radio",
+												id: "tabWidthMode_flexible",
+												group: "tabWidthMode",
+												label: "Flexible",
+												checked: getSetting("tabWidthMode", "flexible") === "flexible",
+												action: () => {
+													if (getSetting("tabWidthMode", "flexible") !== "flexible") {
+														setSetting("tabWidthMode", "flexible");
+													}
+												},
+											},
+											{
+												type: "radio",
+												id: "tabWidthMode_fixed",
+												group: "tabWidthMode",
+												label: "Fixed",
+												checked: getSetting("tabWidthMode", "flexible") === "fixed",
+												action: () => {
+													if (getSetting("tabWidthMode", "flexible") !== "fixed") {
+														setSetting("tabWidthMode", "fixed");
+													}
+												},
+											},
+											{
+												type: "separator",
+											},
+											{
+												label: getSetting("tabWidthMode", "flexible") === "fixed" ? "Fixed Width" : "Minimum Width",
+												style: { pointerEvents: "none" },
+											},
+											{
+												id: "tabWidthMin",
+												render: () => {
+													return /* @__PURE__ */ React.createElement(
+														"div",
+														{ className: "enhancedChannelTabs-sliderContainer" },
+														/* @__PURE__ */ React.createElement(Slider, {
+															"aria-label": getSetting("tabWidthMode", "flexible") === "fixed" ? "Fixed Tab Width" : "Minimum Tab Width",
+															className: "enhancedChannelTabs-slider",
+															mini: true,
+															orientation: "horizontal",
+															disabled: false,
+															initialValue:
+																getSetting("tabWidthMin", instance.props.plugin.settings.tabWidthMin),
+															minValue: 50,
+															maxValue: 220,
+															onValueRender: (value) =>
+																Math.floor(value / 10) * 10 + "px",
+															onValueChange: handleTabWidthChange,
+														}),
+													);
+												},
+											},
+										],
 									},
 									{
 										type: "separator",
@@ -4812,6 +4854,7 @@ const TabBar = React.forwardRef((props, ref) => {
 			"data-tab-count": props.tabs.length,
 			"data-multiline": isMultiRow,
 			"data-tab-layout": props.tabLayoutMode,
+			"data-tab-width-mode": props.tabWidthMode || "flexible",
 			onDoubleClick: (e) => {
 				e.preventDefault();
 				e.stopPropagation();
@@ -4965,6 +5008,7 @@ const TopBar = (props) => {
 		favGroups = props.favGroups,
 		selectedTabIndex = Math.max((props.tabs || []).findIndex((tab) => tab.selected), 0),
 		tabLayoutMode = props.tabLayoutMode || "single",
+		tabWidthMode = props.tabWidthMode || "flexible",
 		showTabBar = props.showTabBar,
 		showFavBar = props.showFavBar,
 		showFavUnreadBadges = props.showFavUnreadBadges,
@@ -5043,6 +5087,7 @@ const TopBar = (props) => {
 				trailing,
 				tabs,
 				tabLayoutMode,
+				tabWidthMode,
 				toggleTabLayoutMode,
 				closeCurrentTab: () => tabs.length ? TabActions.closeTab(selectedTabIndex) : null,
 				nextTab: () => tabs.length ? TabActions.switchToTab((selectedTabIndex + 1) % tabs.length) : null,
@@ -5151,10 +5196,10 @@ module.exports = class EnhancedChannelTabs {
 		};
 		this.saveSettings = this.saveSettings.bind(this);
 		this.keybindHandler = this.keybindHandler.bind(this);
+		this.ifReopenLastChannelDefault();
 		this.onSwitch();
 		this.patchTitleBar(this.promises.state);
 		this.patchContextMenus();
-		this.ifReopenLastChannelDefault();
 		document.addEventListener("keydown", this.keybindHandler);
 		document.addEventListener("click", this.clickHandler);
 	}
@@ -5205,6 +5250,9 @@ module.exports = class EnhancedChannelTabs {
 		if (!styleId || styleId === "enhancedChannelTabs-style-stacked") {
 				DOM.addStyle("enhancedChannelTabs-style-stacked", StyleManager.getStackedStyles());
 		}
+		if (!styleId || styleId === "enhancedChannelTabs-style-fixedwidth") {
+			DOM.addStyle("enhancedChannelTabs-style-fixedwidth", StyleManager.getFixedWidthStyles());
+		}
 	}
 	removeStyle() {
 		DOM.removeStyle("enhancedChannelTabs-style-compact");
@@ -5215,6 +5263,8 @@ module.exports = class EnhancedChannelTabs {
 		DOM.removeStyle("enhancedChannelTabs-style-constants");
 		DOM.removeStyle("enhancedChannelTabs-style");
 		DOM.removeStyle("enhancedChannelTabs-style-multirow");
+		DOM.removeStyle("enhancedChannelTabs-style-stacked");
+		DOM.removeStyle("enhancedChannelTabs-style-fixedwidth");
 	}
 	//#region Init/Default Functions
 	ifNoTabsExist() {
@@ -5279,6 +5329,7 @@ module.exports = class EnhancedChannelTabs {
 					showTabBar: this.settings.showTabBar,
 					showFavBar: this.settings.showFavBar,
 					tabLayoutMode: this.settings.tabLayoutMode || "single",
+					tabWidthMode: this.settings.tabWidthMode || "flexible",
 					showFavUnreadBadges: this.settings.showFavUnreadBadges,
 					showFavMentionBadges: this.settings.showFavMentionBadges,
 					showFavTypingBadge: this.settings.showFavTypingBadge,
@@ -5560,6 +5611,7 @@ module.exports = class EnhancedChannelTabs {
 			privacyMode: false,
 			radialStatusMode: false,
 			tabWidthMin: 100,
+			tabWidthMode: "flexible",
 			showFavGroupUnreadBadges: true,
 			showFavGroupMentionBadges: true,
 			showFavGroupTypingBadge: true,
@@ -5800,10 +5852,24 @@ module.exports = class EnhancedChannelTabs {
 							},
 						},
 						{
+							id: "tabWidthMode",
+							type: "radio",
+							name: "Tab Width Mode",
+							note: "Choose whether tabs have flexible or fixed width",
+							value: this.settings.tabWidthMode || "flexible",
+							options: [
+								{ label: "Flexible (tabs resize between minimum and maximum)", name: "Flexible", value: "flexible" },
+								{ label: "Fixed (all tabs have the same width)", name: "Fixed", value: "fixed" },
+							],
+							onChange: (value) => this.updateSettings({ tabWidthMode: value }),
+						},
+						{
 							id: "tabWidthMin",
 							type: "slider",
-							name: "Minimum Tab Width",
-							note: "Set the limit on how small a tab can be before overflowing to a new row",
+							name: this.settings.tabWidthMode === "fixed" ? "Fixed Tab Width" : "Minimum Tab Width",
+							note: this.settings.tabWidthMode === "fixed" 
+								? "Set the exact width for all tabs"
+								: "Set the limit on how small a tab can be before overflowing to a new row",
 							min: 58,
 							max: 220,
 							value: this.settings.tabWidthMin,
