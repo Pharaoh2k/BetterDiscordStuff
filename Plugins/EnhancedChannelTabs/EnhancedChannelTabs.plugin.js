@@ -11,7 +11,7 @@
   Copyright (C) 2025-present Pharaoh2k
   This file is part of EnhancedChannelTabs and is licensed under the
   GNU General Public License version 3 only.
-  This program is free software: you can redistribute it and/or modify it
+  This program is free software: you can redistribute it and/or modify it 
   under the terms of the GNU General Public License as published by the
   Free Software Foundation, version 3.
   This program is distributed in the hope that it will be useful,
