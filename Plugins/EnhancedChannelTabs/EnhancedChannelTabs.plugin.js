@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 4.3.1
+ * @version 5.0.0
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
  */
@@ -285,17 +285,17 @@ class UpdateManager {
 class StyleManager {
 	static getCompactVariables() {
 		return `
-			:root { --enhancedChannelTabs-tabHeight: 22px; --enhancedChannelTabs-favHeight: 22px; --enhancedChannelTabs-tabNameFontSize: 12px; --enhancedChannelTabs-openTabSize: 18px; }
+			:root { --enhancedChannelTabs-tabHeight: 1.375rem; --enhancedChannelTabs-favHeight: 1.375rem; --enhancedChannelTabs-tabNameFontSize: 0.75rem; --enhancedChannelTabs-openTabSize: 1.125rem; }
 		`;
 	}
 	static getCozyVariables() {
 		return `
-			:root { --enhancedChannelTabs-tabHeight: 32px; --enhancedChannelTabs-favHeight: 28px; --enhancedChannelTabs-tabNameFontSize: 13px; --enhancedChannelTabs-openTabSize: 24px; }
+			:root { --enhancedChannelTabs-tabHeight: 2rem; --enhancedChannelTabs-favHeight: 1.75rem; --enhancedChannelTabs-tabNameFontSize: 0.8125rem; --enhancedChannelTabs-openTabSize: 1.5rem; }
 		`;
 	}
 	static getConstantVariables(tabWidthMin) {
 		return `
-			:root { --enhancedChannelTabs-tabWidth: 220px; --enhancedChannelTabs-tabWidthMin: ${tabWidthMin}px; }
+			:root { --enhancedChannelTabs-tabWidth: 13.75rem; --enhancedChannelTabs-tabWidthMin: ${tabWidthMin / 16}rem; }
 		`;
 	}
 	static getPrivacyStyle() {
@@ -312,7 +312,7 @@ class StyleManager {
 			.enhancedChannelTabs-tabIconWrapper img[src*="com/avatars/"],
 			.enhancedChannelTabs-favIconWrapper img[src*="com/avatars/"] { -webkit-clip-path: inset(1px round 50%); clip-path: inset(2px round 50%); }
 			.enhancedChannelTabs-tabIconWrapper rect,
-			.enhancedChannelTabs-favIconWrapper rect { x: 0; y: 0; rx: 50%; ry: 50%; -webkit-mask: none; mask: none; fill: none; height: 20px; width: 20px; stroke-width: 2px; }
+			.enhancedChannelTabs-favIconWrapper rect { x: 0; y: 0; rx: 50%; ry: 50%; -webkit-mask: none; mask: none; fill: none; height: 1.25rem; width: 1.25rem; stroke-width: 2px; }
 			.enhancedChannelTabs-onlineIcon { stroke: var(--status-online); }
 			.enhancedChannelTabs-idleIcon { stroke: var(--icon-status-idle); }
 			.enhancedChannelTabs-doNotDisturbIcon { stroke: var(--status-danger); }
@@ -328,7 +328,7 @@ class StyleManager {
 			.enhancedChannelTabs-tabContainer .enhancedChannelTabs-tabNav>div:hover { color: var(--interactive-text-hover); background-color: var(--background-mod-subtle); }
 			.enhancedChannelTabs-tabContainer .enhancedChannelTabs-tabNav>div:active { color: var(--interactive-text-active); background-color: var(--background-mod-normal); }
 			.enhancedChannelTabs-tabContainer[data-tab-count="1"] .enhancedChannelTabs-tabNav>.enhancedChannelTabs-tabNavClose { color: var(--interactive-muted); background: none; }
-			.enhancedChannelTabs-tabNav>div { display: flex; align-items: center; justify-content: center; height: var(--enhancedChannelTabs-tabHeight); width: 32px; border-radius: var(--radius-xs); color: var(--interactive-text-default); }
+			.enhancedChannelTabs-tabNav>div { display: flex; align-items: center; justify-content: center; height: var(--enhancedChannelTabs-tabHeight); width: 2rem; border-radius: var(--radius-xs); color: var(--interactive-text-default); }
 		`;
 	}
 	static getBaseStyle(noDragClasses, systemBarClasses) {
@@ -337,7 +337,7 @@ class StyleManager {
 			.enhancedChannelTabs-tabNav { display:none; }
 			div:has(> div > #enhancedChannelTabs-container) { grid-template-rows: [top] auto [titleBarEnd] min-content [noticeEnd] 1fr [end]; }
 			${noDragClasses.map((x) => `.${x}`).join(", ")} { -webkit-app-region: no-drag; }
-			.${systemBarClasses.systemBar}, .enhancedChannelTabs-trailing { --custom-app-top-bar-height: 32px; }
+			.${systemBarClasses.systemBar}, .enhancedChannelTabs-trailing { --custom-app-top-bar-height: 2rem; }
 			#enhancedChannelTabs-container { z-index: 1000; background: none; flex: 1; max-width: 100vw; }
 			.enhancedChannelTabs-tabContainer { display: flex; align-items: center; }
 			.enhancedChannelTabs-trailing { display: flex; align-items: center; gap: var(--space-12); margin-left: auto; }
@@ -346,7 +346,7 @@ class StyleManager {
 			/* Tabs */
 			.enhancedChannelTabs-tab { position: relative; display: flex; align-items: center; height: var(--enhancedChannelTabs-tabHeight); background: none; border-radius: var(--radius-xs); max-width: var(--enhancedChannelTabs-tabWidth); min-width: var(--enhancedChannelTabs-tabWidthMin); flex: 1 1 var(--enhancedChannelTabs-tabWidthMin); margin-bottom: 3px; }
 			.enhancedChannelTabs-tab:focus-visible { box-shadow: 0 0 0 2px var(--text-link); outline: none; }
-			.enhancedChannelTabs-tab>div:first-child { display: flex; width: calc(100% - 16px); align-items: center; }
+			.enhancedChannelTabs-tab>div:first-child { display: flex; width: calc(100% - 1rem); align-items: center; }
 			.enhancedChannelTabs-tab:not(.enhancedChannelTabs-selected):hover { background: var(--background-mod-subtle); }
 			.enhancedChannelTabs-tab:not(.enhancedChannelTabs-selected):active { background: var(--background-mod-normal); }
 			.enhancedChannelTabs-tab.enhancedChannelTabs-selected { background: var(--background-mod-strong); }
@@ -360,35 +360,35 @@ class StyleManager {
 			.enhancedChannelTabs-drop-before::before { left: 0; }
 			.enhancedChannelTabs-drop-after::before { right: 0; }
 			html:not(.platform-win) #enhancedChannelTabs-settingsMenu { margin-right: 0; }
-			#enhancedChannelTabs-settingsMenu { display: flex; justify-content: center; align-items: center; width: 32px; height: 32px; z-index: 1000; cursor: pointer; border-radius: var(--radius-xs); }
+			#enhancedChannelTabs-settingsMenu { display: flex; justify-content: center; align-items: center; width: 2rem; height: 2rem; z-index: 1000; cursor: pointer; border-radius: var(--radius-xs); }
 			#enhancedChannelTabs-settingsMenu:hover { background: var(--background-mod-subtle); }
-			.enhancedChannelTabs-settingsIcon { width: 20px; height: 20px; }
+			.enhancedChannelTabs-settingsIcon { width: 1.25rem; height: 1.25rem; }
 			.enhancedChannelTabs-tab .enhancedChannelTabs-tabName { margin-right: var(--space-6); font-size: var(--enhancedChannelTabs-tabNameFontSize); line-height: normal; color: var(--interactive-text-default); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 			.enhancedChannelTabs-tab:not(.enhancedChannelTabs-selected):hover .enhancedChannelTabs-tabName { color: var(--interactive-text-hover); }
 			.enhancedChannelTabs-tab:not(.enhancedChannelTabs-selected):active .enhancedChannelTabs-tabName,
 			.enhancedChannelTabs-tab.enhancedChannelTabs-selected .enhancedChannelTabs-tabName { color: var(--interactive-text-active); }
 			/* Icons */
-			.enhancedChannelTabs-tabIcon { height: 20px; border-radius: 50%; -webkit-user-drag: none; }
+			.enhancedChannelTabs-tabIcon { height: 1.25rem; border-radius: 50%; -webkit-user-drag: none; }
 			.enhancedChannelTabs-tabIconWrapper { margin: 0 var(--space-6); flex-shrink: 0; }
 			.enhancedChannelTabs-onlineIcon { fill: var(--status-online); mask: url(#svg-mask-status-online); }
 			.enhancedChannelTabs-idleIcon { fill: var(--icon-status-idle); mask: url(#svg-mask-status-idle); }
 			.enhancedChannelTabs-doNotDisturbIcon { fill: var(--status-danger); mask: url(#svg-mask-status-dnd); }
 			.enhancedChannelTabs-offlineIcon { fill: var(--icon-status-offline); mask: url(#svg-mask-status-offline); }
-			.enhancedChannelTabs-closeTab { position: relative; height: 16px; width: 16px; flex-shrink: 0; right: 6px; border-radius: var(--radius-xs); color: var(--interactive-text-default); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+			.enhancedChannelTabs-closeTab { position: relative; height: 1rem; width: 1rem; flex-shrink: 0; right: 0.375rem; border-radius: var(--radius-xs); color: var(--interactive-text-default); cursor: pointer; display: flex; align-items: center; justify-content: center; }
 			.enhancedChannelTabs-closeTab svg { height: 100%; width: 100%; transform: scale(0.85); }
 			.enhancedChannelTabs-closeTab:hover { background: var(--status-danger); color: var(--white-100); }
-			.enhancedChannelTabs-newTab { display: flex; align-items: center; justify-content: center; flex-shrink: 0; height: var(--enhancedChannelTabs-openTabSize); width: 24px; margin: 0 var(--space-6) 3px var(--space-6); border-radius: var(--radius-xs); cursor: pointer; color: var(--interactive-text-default); margin-right: var(--space-6); }
+			.enhancedChannelTabs-newTab { display: flex; align-items: center; justify-content: center; flex-shrink: 0; height: var(--enhancedChannelTabs-openTabSize); width: 1.5rem; margin: 0 var(--space-6) 3px var(--space-6); border-radius: var(--radius-xs); cursor: pointer; color: var(--interactive-text-default); margin-right: var(--space-6); }
 			.enhancedChannelTabs-newTab:hover { background: var(--background-mod-subtle); color: var(--interactive-text-hover); }
 			.enhancedChannelTabs-newTab:active { background: var(--background-mod-normal); color: var(--interactive-text-active); }
-			.enhancedChannelTabs-tabListDropdown { display: flex; align-items: center; justify-content: center; flex-shrink: 0; height: var(--enhancedChannelTabs-openTabSize); width: 24px; margin: 0 64px 3px 0; border-radius: var(--radius-xs); cursor: pointer; color: var(--interactive-text-default); }
+			.enhancedChannelTabs-tabListDropdown { display: flex; align-items: center; justify-content: center; flex-shrink: 0; height: var(--enhancedChannelTabs-openTabSize); width: 1.5rem; margin: 0 4rem 3px 0; border-radius: var(--radius-xs); cursor: pointer; color: var(--interactive-text-default); }
 			.enhancedChannelTabs-tabListDropdown:hover { background: var(--background-mod-subtle); color: var(--interactive-text-hover); }
 			.enhancedChannelTabs-tabListDropdown:active { background: var(--background-mod-normal); color: var(--interactive-text-active); }
-			.enhancedChannelTabs-tabListDropdown svg { width: 16px; height: 16px; }
+			.enhancedChannelTabs-tabListDropdown svg { width: 1rem; height: 1rem; }
 			/* Badges */
 			.enhancedChannelTabs-gridContainer { display: flex; margin-right: var(--space-6); gap: var(--space-4); align-items: center; }
 			.enhancedChannelTabs-mentionBadge,
-			.enhancedChannelTabs-unreadBadge { border-radius: var(--radius-sm); padding: 0 4px; min-width: 8px; width: fit-content; height: 16px; font-size: 12px; line-height: 16px; font-weight: 600; text-align: center; color: var(--white-100); }
-			.enhancedChannelTabs-typingBadge { border-radius: var(--radius-sm); padding-left: 4px; padding-right: 4px; min-width: 8px; width: fit-content; height: 16px; font-size: 12px; line-height: 16px; font-weight: 600; text-align: center; color: var(--white-100); }
+			.enhancedChannelTabs-unreadBadge { border-radius: var(--radius-sm); padding: 0 0.25rem; min-width: 0.5rem; width: fit-content; height: 1rem; font-size: 0.75rem; line-height: 1.334; font-weight: 600; text-align: center; color: var(--white-100); }
+			.enhancedChannelTabs-typingBadge { border-radius: var(--radius-sm); padding-left: 0.25rem; padding-right: 0.25rem; min-width: 0.5rem; width: fit-content; height: 1rem; font-size: 0.75rem; line-height: 1.334; font-weight: 600; text-align: center; color: var(--white-100); }
 			.enhancedChannelTabs-mentionBadge { background-color: var(--status-danger); }
 			.enhancedChannelTabs-unreadBadge { background-color: var(--badge-background-default); color: var(--badge-text-default); }
 			/* Legacy alignment classes - now flex order */
@@ -397,7 +397,7 @@ class StyleManager {
 			.enhancedChannelTabs-badgeAlignRight { order: 1; }
 			.enhancedChannelTabs-tab .enhancedChannelTabs-mentionBadge,
 			.enhancedChannelTabs-tab .enhancedChannelTabs-unreadBadge,
-			.enhancedChannelTabs-tab .enhancedChannelTabs-typingBadge { height: 16px; }
+			.enhancedChannelTabs-tab .enhancedChannelTabs-typingBadge { height: 1rem; }
 			/* Empty State Badges */
 			.enhancedChannelTabs-tab .enhancedChannelTabs-noMention,
 			.enhancedChannelTabs-tab .enhancedChannelTabs-noUnread,
@@ -408,25 +408,25 @@ class StyleManager {
 			.enhancedChannelTabs-fav .enhancedChannelTabs-mentionBadge,
 			.enhancedChannelTabs-fav .enhancedChannelTabs-unreadBadge,
 			.enhancedChannelTabs-favGroupBtn .enhancedChannelTabs-mentionBadge,
-			.enhancedChannelTabs-favGroupBtn .enhancedChannelTabs-unreadBadge { display: inline-block; vertical-align: bottom; margin-left: 5px; }
+			.enhancedChannelTabs-favGroupBtn .enhancedChannelTabs-unreadBadge { display: inline-block; vertical-align: bottom; margin-left: 0.3125rem; }
 			.enhancedChannelTabs-fav .enhancedChannelTabs-typingBadge,
-			.enhancedChannelTabs-favGroupBtn .enhancedChannelTabs-typingBadge { display: inline-flex; vertical-align: bottom; margin-left: 5px; }
+			.enhancedChannelTabs-favGroupBtn .enhancedChannelTabs-typingBadge { display: inline-flex; vertical-align: bottom; margin-left: 0.3125rem; }
 			.enhancedChannelTabs-fav .enhancedChannelTabs-noTyping,
 			.enhancedChannelTabs-favGroupBtn .enhancedChannelTabs-noTyping { display: none; }
 			/* Favorites */
 			.enhancedChannelTabs-fav .enhancedChannelTabs-favName + div { margin-left: var(--space-6); }
-			.enhancedChannelTabs-favStar { display: flex; align-items: center; justify-content: flex-end; width: 28px; height: var(--enhancedChannelTabs-favHeight); flex-shrink: 0; color: var(--interactive-text-default); }
-			.enhancedChannelTabs-favStarIcon { width: 20px; height: 20px; opacity: 0.9; }
+			.enhancedChannelTabs-favStar { display: flex; align-items: center; justify-content: flex-end; width: 1.75rem; height: var(--enhancedChannelTabs-favHeight); flex-shrink: 0; color: var(--interactive-text-default); }
+			.enhancedChannelTabs-favStarIcon { width: 1.25rem; height: 1.25rem; opacity: 0.9; }
 			.enhancedChannelTabs-favContainer { display: flex; align-items: center; flex-wrap: wrap; -webkit-app-region: drag; }
 			.enhancedChannelTabs-fav { position: relative; display: flex; align-items: center; min-width: 0; border-radius: var(--radius-xs); height: var(--enhancedChannelTabs-favHeight); background: none; flex: 0 0 1; max-width: var(--enhancedChannelTabs-tabWidth); margin-bottom: 3px; padding-left: var(--space-6); padding-right: var(--space-6); }
 			.enhancedChannelTabs-fav:hover { background: var(--background-mod-subtle); }
 			.enhancedChannelTabs-fav:active { background: var(--background-mod-normal); }
-			.enhancedChannelTabs-favIcon { height: 20px; border-radius: 50%; -webkit-user-drag: none; }
+			.enhancedChannelTabs-favIcon { height: 1.25rem; border-radius: 50%; -webkit-user-drag: none; }
 			.enhancedChannelTabs-favName { margin-left: var(--space-6); font-size: var(--enhancedChannelTabs-tabNameFontSize); line-height: normal; color: var(--interactive-text-default); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 			.enhancedChannelTabs-fav:hover .enhancedChannelTabs-favName { color: var(--interactive-text-hover); }
 			.enhancedChannelTabs-fav:active .enhancedChannelTabs-favName { color: var(--interactive-text-active); }
-			.enhancedChannelTabs-noFavNotice { color: var(--text-muted); font-size: 14px; padding: 3px; }
-			.enhancedChannelTabs-favGroupBtn { display: flex; align-items: center; min-width: 0; border-radius: var(--radius-xs); height: var(--enhancedChannelTabs-favHeight); max-width: var(--enhancedChannelTabs-tabWidth); padding: 0 var(--space-6); font-size: 12px; color: var(--interactive-text-default); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin-bottom: 3px; }
+			.enhancedChannelTabs-noFavNotice { color: var(--text-muted); font-size: 0.875rem; padding: 3px; }
+			.enhancedChannelTabs-favGroupBtn { display: flex; align-items: center; min-width: 0; border-radius: var(--radius-xs); height: var(--enhancedChannelTabs-favHeight); max-width: var(--enhancedChannelTabs-tabWidth); padding: 0 var(--space-6); font-size: 0.75rem; color: var(--interactive-text-default); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin-bottom: 3px; }
 			.enhancedChannelTabs-favGroupBtn>:first-child { margin-left: var(--space-6); }
 			.enhancedChannelTabs-favGroup { position: relative; }
 			.enhancedChannelTabs-favGroup:hover .enhancedChannelTabs-favGroupBtn { background: var(--background-mod-subtle); }
@@ -443,31 +443,31 @@ class StyleManager {
 			@media (prefers-reduced-motion: no-preference) {
 				@keyframes enhancedChannelTabs-pulse { from { filter: drop-shadow(0 0 0 rgba(88,101,242,0)); opacity: 0.9; } to { filter: drop-shadow(0 0 6px rgba(88,101,242,0.45)); opacity: 1; } }
 			}
-			.enhancedChannelTabs-sliderContainer { display: flex; justify-content: center; padding: 4px 8px; margin: 2px 6px 12px 6px; border-radius: var(--radius-sm); }
-			.enhancedChannelTabs-slider { position: relative; top: -14px; }
+			.enhancedChannelTabs-sliderContainer { display: flex; justify-content: center; padding: 0.25rem 0.5rem; margin: 2px 0.375rem 0.75rem 0.375rem; border-radius: var(--radius-sm); }
+			.enhancedChannelTabs-slider { position: relative; top: -0.875rem; }
 			.enhancedChannelTabs-minimized { --enhancedChannelTabs-tabWidth: fit-content; --enhancedChannelTabs-tabWidthMin: fit-content; }
 			.enhancedChannelTabs-tab.enhancedChannelTabs-minimized>div>:first-child~*,
 			.enhancedChannelTabs-fav.enhancedChannelTabs-minimized>svg:first-child~*,
 			.enhancedChannelTabs-tab.enhancedChannelTabs-minimized>.enhancedChannelTabs-closeTab { display: none; }
 			[aria-label="Open Quick Switcher"] { pointer-events: none !important; position: absolute !important; z-index: -1 !important; }
 			/* Tab List Menu Items (De-inlined) */
-			.enhancedChannelTabs-tabListMenuItem { display: flex; align-items: center; width: 100%; min-height: 26px; cursor: pointer; position: relative; z-index: 1000; border-radius: var(--radius-xs); padding: var(--space-4); }
+			.enhancedChannelTabs-tabListMenuItem { display: flex; align-items: center; width: 100%; min-height: 1.625rem; cursor: pointer; position: relative; z-index: 1000; border-radius: var(--radius-xs); padding: var(--space-4); }
 			.enhancedChannelTabs-tabListMenuItem:hover { background-color: var(--background-mod-subtle); }
-			.enhancedChannelTabs-tabListMenuIcon { width: 18px; height: 18px; margin-right: 10px; border-radius: 50%; flex-shrink: 0; }
-			.enhancedChannelTabs-tabListMenuName { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; padding-right: 8px; }
+			.enhancedChannelTabs-tabListMenuIcon { width: 1.125rem; height: 1.125rem; margin-right: 0.625rem; border-radius: 50%; flex-shrink: 0; }
+			.enhancedChannelTabs-tabListMenuName { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.875rem; padding-right: 0.5rem; }
 			.enhancedChannelTabs-tabListBadgeContainer { display: flex; gap: var(--space-4); flex-shrink: 0; margin-right: 4px; }
 			/* Closed Tabs Modal (De-inlined) */
-			.enhancedChannelTabs-closedTabsContainer { max-height: 400px; overflow-y: auto; padding: var(--space-10); }
-			.enhancedChannelTabs-closedTabsEmpty { text-align: center; color: var(--text-muted); padding: 20px; }
-			.enhancedChannelTabs-closedTabItem { padding: var(--space-10); border-bottom: 1px solid var(--border-subtle); cursor: pointer; display: flex; align-items: center; gap: 10px; border-radius: var(--radius-xs); }
+			.enhancedChannelTabs-closedTabsContainer { max-height: 25rem; overflow-y: auto; padding: var(--space-10); }
+			.enhancedChannelTabs-closedTabsEmpty { text-align: center; color: var(--text-muted); padding: 1.25rem; }
+			.enhancedChannelTabs-closedTabItem { padding: var(--space-10); border-bottom: 1px solid var(--border-subtle); cursor: pointer; display: flex; align-items: center; gap: 0.625rem; border-radius: var(--radius-xs); }
 			.enhancedChannelTabs-closedTabItem:hover { background-color: var(--background-mod-subtle); }
-			.enhancedChannelTabs-closedTabIcon { width: 20px; height: 20px; border-radius: 50%; }
+			.enhancedChannelTabs-closedTabIcon { width: 1.25rem; height: 1.25rem; border-radius: 50%; }
 			.enhancedChannelTabs-closedTabInfo { flex: 1; }
 			.enhancedChannelTabs-closedTabName { font-weight: 500; }
-			.enhancedChannelTabs-closedTabMeta { font-size: 12px; color: var(--text-muted); }
-			.enhancedChannelTabs-closedTabButton { padding: 4px 12px; border-radius: var(--radius-xs); border: none; background: var(--badge-background-default); color: var(--white-100); cursor: pointer; font-size: 13px; }
+			.enhancedChannelTabs-closedTabMeta { font-size: 0.75rem; color: var(--text-muted); }
+			.enhancedChannelTabs-closedTabButton { padding: 0.25rem 0.75rem; border-radius: var(--radius-xs); border: none; background: var(--badge-background-default); color: var(--white-100); cursor: pointer; font-size: 0.8125rem; }
 			/* Utility Classes */
-			.enhancedChannelTabs-shortcutLabelKeys { color: var(--text-muted); padding: 8px; font-size: 12px; white-space: pre-wrap; }
+			.enhancedChannelTabs-shortcutLabelKeys { color: var(--text-muted); padding: 0.5rem; font-size: 0.75rem; white-space: pre-wrap; }
 			.enhancedChannelTabs-minimumTabWidthLabel { pointer-events: none; }
 			.enhancedChannelTabs-menuSeparator { margin: 2px 0; height: 1px; background-color: var(--background-accent); }
 			.enhancedChannelTabs-typingBadgeAlignment { opacity: 0.7; }
@@ -477,7 +477,7 @@ class StyleManager {
 		return `
 			.enhancedChannelTabs-tabContainer[data-multiline="true"] .enhancedChannelTabs-tabWrap { display: flex !important; flex-wrap: wrap !important; align-content: flex-start; row-gap: var(--enhancedChannelTabs-rowGap, 3px); column-gap: 0; overflow: visible !important; transition: height 0.3s ease, opacity 0.3s ease; contain: layout paint; }
 			.enhancedChannelTabs-tabContainer[data-multiline="true"] .enhancedChannelTabs-tabWrapper { flex-shrink: 1 !important; }
-			.enhancedChannelTabs-tabContainer[data-multiline="true"] .enhancedChannelTabs-tab { flex: 1 1 clamp(var(--enhancedChannelTabs-tabWidthMin, 100px), 20vw, var(--enhancedChannelTabs-tabWidth, 220px)); min-width: var(--enhancedChannelTabs-tabWidthMin, 100px); }
+			.enhancedChannelTabs-tabContainer[data-multiline="true"] .enhancedChannelTabs-tab { flex: 1 1 clamp(var(--enhancedChannelTabs-tabWidthMin, 6.25rem), 20vw, var(--enhancedChannelTabs-tabWidth, 13.75rem)); min-width: var(--enhancedChannelTabs-tabWidthMin, 6.25rem); }
 			.enhancedChannelTabs-tabContainer:not([data-multiline="true"]) .enhancedChannelTabs-tabWrap { flex-wrap: nowrap !important; overflow-x: auto !important; overflow-y: hidden !important; scrollbar-width: none; }
 			.enhancedChannelTabs-tabContainer:not([data-multiline="true"]) .enhancedChannelTabs-tabWrap::-webkit-scrollbar { display: none; }
 			.enhancedChannelTabs-tabContainer { transition: margin 0.3s ease, padding 0.3s ease; }
@@ -485,15 +485,15 @@ class StyleManager {
 	}
 	static getStackedStyles() {
 		return `
-		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] { display: flex !important; flex-wrap: wrap !important; align-items: center !important; width: 100% !important; padding-bottom: 5px; }
+		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] { display: flex !important; flex-wrap: wrap !important; align-items: center !important; width: 100% !important; padding-bottom: 0.3125rem; }
 		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-tabNav { order: 1 !important; margin-right: auto !important; display: flex !important; }
 		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-leading { order: 2 !important; margin-left: auto !important; margin-right: auto !important; display: flex; justify-content: center; pointer-events: none; }
 		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-newTab,
 		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-tabListDropdown,
 		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-trailing { order: 3 !important; margin-left: 0 !important; margin-bottom: 0 !important; }
-		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-tabListDropdown { margin-right: 4px !important; }
+		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-tabListDropdown { margin-right: 0.25rem !important; }
 		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-newTab { margin-left: auto !important; margin-right: 2px !important; }
-		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-tabWrap { order: 10 !important; flex-basis: 100% !important; width: 100% !important; margin-top: 4px !important; border-top: 1px solid var(--background-modifier-accent); display: flex !important; flex-wrap: wrap !important; max-height: 30vh; overflow-y: auto !important; }
+		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-tabWrap { order: 10 !important; flex-basis: 100% !important; width: 100% !important; margin-top: 0.25rem !important; border-top: 1px solid var(--background-modifier-accent); display: flex !important; flex-wrap: wrap !important; max-height: 30vh; overflow-y: auto !important; }
 		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-tab { flex: 1 1 var(--enhancedChannelTabs-tabWidthMin); }
 		`;
 	}
@@ -503,11 +503,84 @@ class StyleManager {
 		.enhancedChannelTabs-tabContainer[data-tab-width-mode="fixed"] .enhancedChannelTabs-tabWrapper { flex-shrink: 0 !important; }
 		`;
 	}
+	static getTabPeekStyle() {
+		return `
+			.enhancedChannelTabs-peekPopout {
+				position: fixed;
+				z-index: 10000;
+				pointer-events: none;
+				background-color: var(--bg-overlay-chat, var(--background-base-lower)) !important;
+				border-radius: 0.625rem;
+				min-height: 9.375rem;
+				width: 50vw;
+				min-width: 21.875rem;
+				overflow: hidden;
+			}
+			.enhancedChannelTabs-peekPopout * {
+				pointer-events: none !important;
+			}
+			.enhancedChannelTabs-peekScroller {
+				display: flex;
+				flex-direction: column-reverse;
+				overflow-anchor: auto;
+			}
+			.enhancedChannelTabs-peekContainer {
+				padding-bottom: 1.5625rem;
+			}
+			.enhancedChannelTabs-peekContainer > * {
+				list-style: none;
+			}
+			.enhancedChannelTabs-peekHeader {
+				padding: 0.75rem 1rem;
+				border-bottom: 1px solid var(--border-subtle);
+				font-weight: 600;
+				color: var(--text-strong);
+				display: flex;
+				align-items: center;
+				gap: 0.5rem;
+			}
+			.enhancedChannelTabs-peekHeaderIcon {
+				width: 1.25rem;
+				height: 1.25rem;
+				border-radius: 50%;
+			}
+			.enhancedChannelTabs-peekDividerCut {
+				margin-top: 2.5rem !important;
+				border-style: dashed;
+			}
+			.enhancedChannelTabs-peekDividerCut > span {
+				font-weight: 400;
+			}
+			.enhancedChannelTabs-peekBackdrop {
+				position: fixed;
+				top: 0;
+				left: 0;
+				right: 0;
+				bottom: 0;
+				background: #000;
+				z-index: 9999;
+				pointer-events: none;
+				opacity: 0;
+				transition: .3s opacity;
+			}
+			.enhancedChannelTabs-peekBackdrop.enhancedChannelTabs-peekBackdropVisible {
+				/* opacity is now set dynamically via inline style */
+			}
+		`;
+	}
 	static getTabListMenuStyle() {
 		return `
-			[id^="popout_"] [role="menu"] { min-width: 300px !important; max-width: 420px !important; }
+			[id^="popout_"] [role="menu"] { min-width: 18.75rem !important; max-width: 26.25rem !important; }
 			[id^="popout_"] [role="separator"] { margin: 2px 0; height: 1px; }
 			[id^="popout_"] [role="menuitem"] { pointer-events: auto; position: relative; z-index: 1; }
+		`;
+	}
+	static getSettingsModalStyle() {
+		return `
+			.bd-modal-root:has(.enhancedChannelTabs-settingsModalContent) {
+				width: 43.75rem !important;
+				max-width: 90vw !important;
+			}
 		`;
 	}
 	static getTabListMenuNameStyle(isSelected) {
@@ -527,7 +600,7 @@ class StyleManager {
 	}
 }
 let pluginMeta;
-const { ContextMenu, Patcher, Webpack, React, DOM, ReactUtils, UI, Hooks, Utils } = new BdApi(
+const { ContextMenu, Patcher, Webpack, React, ReactDOM, DOM, ReactUtils, UI, Hooks, Utils } = new BdApi(
 	"EnhancedChannelTabs",
 );
 const Store = Utils?.Store ?? class {
@@ -601,6 +674,7 @@ TabStateStore.state = {
 	useStandardNav: false,
 	reopenLastChannel: false,
 	folderDropStyle: "accentGlow",
+	openTabShortcut: "ctrlClick",
 };
 TabStateStore.getState = () => TabStateStore.state;
 TabStateStore.setState = (partial) => {
@@ -641,6 +715,37 @@ const updateClosedTabs = (updater) => {
 	TabStateStore.setState((state) => ({ closedTabs: updater(state.closedTabs || [], state) }));
 };
 const updateStoreValues = (patch) => TabStateStore.setState(patch);
+const TabPreviewStore = new Store();
+TabPreviewStore.state = {
+	activePreview: null,
+	hoverTimeout: null,
+	scrollerRef: null,
+};
+TabPreviewStore.getState = () => TabPreviewStore.state;
+TabPreviewStore.setState = (partial) => {
+	const patch = typeof partial === "function" ? partial(TabPreviewStore.state) : partial;
+	TabPreviewStore.state = { ...TabPreviewStore.state, ...patch };
+	TabPreviewStore.emitChange();
+};
+TabPreviewStore.showPreview = (previewData) => {
+	TabPreviewStore.setState({ activePreview: previewData });
+};
+TabPreviewStore.hidePreview = () => {
+	if (TabPreviewStore.state.hoverTimeout) {
+		clearTimeout(TabPreviewStore.state.hoverTimeout);
+	}
+	TabPreviewStore.setState({ activePreview: null, hoverTimeout: null, scrollerRef: null });
+};
+TabPreviewStore.setHoverTimeout = (timeout) => {
+	TabPreviewStore.setState({ hoverTimeout: timeout });
+};
+TabPreviewStore.setScrollerRef = (ref) => {
+	TabPreviewStore.state.scrollerRef = ref;
+};
+TabPreviewStore.getScrollerRef = () => {
+	return TabPreviewStore.state.scrollerRef;
+};
+const TabPeekContext = React.createContext({ channel: null });
 const STORE_SETTING_KEYS = [
 	"showTabBar",
 	"showFavBar",
@@ -672,6 +777,19 @@ const STORE_SETTING_KEYS = [
 	"alwaysFocusNewTabs",
 	"useStandardNav",
 	"reopenLastChannel",
+	"enableTabPeek",
+	"tabPeekTrigger",
+	"tabPeekDelay",
+	"tabPeekHeight",
+	"tabPeekMessageCount",
+	"tabPeekShowTyping",
+	"tabPeekNsfw",
+	"tabPeekDisplayMode",
+	"tabPeekGroupSpacingSync",
+	"tabPeekGroupSpacing",
+	"tabPeekDarkenLevel",
+	"tabPeekScrollBehavior",
+	"openTabShortcut",
 ];
 const debounce = (fn, wait = 250) => {
 	let timeout;
@@ -1532,6 +1650,8 @@ for (const [key, value] of Object.entries(Webpack.Filters)) {
 const { byKeys, byStrings, byStoreName } = Filters;
 const bulkModules = Webpack.getBulkKeyed({
 	transitionToGuild: { filter: byKeys("transitionToGuildSync") },
+	MessageStore: { filter: byStoreName("MessageStore") },
+	MessageActions: { filter: byKeys("jumpToMessage", "_sendMessage") },
 	transitionTo: {
 		filter: byStrings(`"transitionTo - Transitioning to "`),
 		searchExports: true,
@@ -1568,6 +1688,11 @@ const bulkModules = Webpack.getBulkKeyed({
 	scrimClasses: { filter: byKeys("scrim") },
 	PlusIcon: { filter: (m) => m.toString?.().includes("M13 6a1 1") },
 	ChevronDownIcon: { filter: (m) => m.toString?.().includes("M5.3 9.3a1") },
+	ReadStateStore: { filter: byStoreName("ReadStateStore") },
+	AppearanceSettingsStore: { filter: byStoreName("AppearanceSettingsStore") },
+	ChannelStreamItemTypes: { filter: byKeys("MESSAGE", "DIVIDER"), searchExports: true },
+	ChatSelectors: { filter: byKeys("messagesWrapper", "scrollerContent") },
+	PopoutSelectors: { filter: byKeys("messagesPopoutWrap") },
 });
 const warnModule = (value, name, options = {}) => {
 	if (value) return value;
@@ -1667,6 +1792,41 @@ const UserStatusStore = warnModule(
 	bulkModules.UserStatusStore,
 	"UserStatusStore",
 );
+const MessageStore = warnModule(
+	bulkModules.MessageStore,
+	"MessageStore",
+);
+const MessageActions = warnModule(
+	bulkModules.MessageActions,
+	"MessageActions",
+);
+const ReadStateStore = warnModule(
+	bulkModules.ReadStateStore,
+	"ReadStateStore",
+);
+const ChannelStreamItemTypes = warnModule(
+	bulkModules.ChannelStreamItemTypes,
+	"ChannelStreamItemTypes",
+);
+const ChatSelectors = bulkModules.ChatSelectors || {};
+const PopoutSelectors = bulkModules.PopoutSelectors || {};
+const PinToBottomScrollerAuto = (() => {
+	const mod = Webpack.getBySource?.('disableScrollAnchor', 'ResizeObserver');
+	return mod ? Object.values(mod)[0] : null;
+})();
+const MessageComponent = Webpack.getModule?.(m =>
+	Filters.byStrings('must not be a thread starter message')(m?.type),
+	{ searchExports: true }
+);
+const FluxTypingUsers = Webpack.getByStrings?.('typingUsers', 'isThreadCreation');
+const generateChannelStream = Webpack.getByStrings?.('oldestUnreadMessageId', 'THREAD_STARTER_MESSAGE');
+const MessageDivider = Webpack.getModule?.(m =>
+	Filters.byStrings('divider', 'isBeforeGroup')(m?.type?.render)
+);
+const AppearanceSettingsStore = bulkModules.AppearanceSettingsStore;
+const EmptyMessage = Webpack.getByStrings?.('parseTopic', 'buttonContainer');
+const [AttachmentModule, AttachmentKey] = Webpack.getWithKey?.(Filters.byStrings('getObscureReason', 'mosaicItemContent')) || [null, null];
+const Embed = Webpack.getByPrototypeKeys?.('renderAuthor', 'renderMedia');
 const Spinner =
 	warnModule(bulkModules.Spinner, "Spinner", {
 		feature: "Typing Indicators",
@@ -2662,6 +2822,26 @@ CTRL + Mouse Scroll - Switch Tab Layout
 									`,
 									);
 								},
+							},
+							{
+								type: "text",
+								label: "Open Full Settings",
+								action: () => {
+									BdApi.UI.showConfirmationModal(
+										"EnhancedChannelTabs Settings",
+										React.createElement("div", {
+											className: "enhancedChannelTabs-settingsModalContent"
+										}, instance.props.plugin.getSettingsPanel()),
+										{
+											confirmText: "Close",
+											cancelText: null,
+											size: "large"
+										}
+									);
+								},
+							},
+							{
+								type: "separator",
 							},
 							{
 								type: "submenu",
@@ -3758,9 +3938,304 @@ const CompactTab = (props) => {
 		renderTabMentionBadge(props, "classic"),
 	);
 };
+const isGroupStarter = (channelStreamItem) => {
+	return channelStreamItem?.type === ChannelStreamItemTypes?.MESSAGE
+		&& channelStreamItem.content.id === channelStreamItem.groupId;
+};
+const TabPeekPopout = ({ tabUrl, channelId, tabName, position }) => {
+	const [messages, setMessages] = React.useState(null);
+	const [loading, setLoading] = React.useState(true);
+	const scrollerRef = React.useRef(null);
+	const settings = TabActions.plugin?.settings || {};
+	const messageCount = settings.tabPeekMessageCount || 20;
+	const peekHeight = settings.tabPeekHeight || 30;
+	const showTyping = settings.tabPeekShowTyping !== false;
+	const displayMode = settings.tabPeekDisplayMode || "cozy";
+	const groupSpacingSync = settings.tabPeekGroupSpacingSync !== false;
+	const customGroupSpacing = settings.tabPeekGroupSpacing ?? 16;
+	const messageGroupSpacing = groupSpacingSync
+		? (AppearanceSettingsStore?.messageGroupSpacing ?? 16)
+		: customGroupSpacing;
+	const channel = ChannelStore?.getChannel?.(channelId);
+	React.useEffect(() => {
+		TabPreviewStore.setScrollerRef(scrollerRef);
+		return () => TabPreviewStore.setScrollerRef(null);
+	}, []);
+	React.useEffect(() => {
+		if (!channelId || !MessageStore) {
+			setLoading(false);
+			return;
+		}
+		const cachedMessages = MessageStore.getMessages?.(channelId);
+		if (cachedMessages && cachedMessages.length > 0) {
+			setMessages(cachedMessages);
+			setLoading(false);
+		}
+		if (MessageActions?.fetchMessages) {
+			MessageActions.fetchMessages({ channelId, limit: messageCount })
+				.then(() => {
+					const fetched = MessageStore.getMessages?.(channelId);
+					if (fetched) {
+						setMessages(fetched);
+					}
+					setLoading(false);
+				})
+				.catch(() => setLoading(false));
+		} else {
+			setLoading(false);
+		}
+	}, [channelId, messageCount]);
+	const margin = 10;
+	const popoutWidth = Math.max(350, window.innerWidth * 0.5);
+	const popoutHeight = Math.max(150, window.innerHeight * peekHeight / 100);
+	let adjustedLeft = position.left;
+	let adjustedTop = position.top;
+	let adjustedWidth = popoutWidth;
+	let adjustedHeight = popoutHeight;
+	if (adjustedLeft + adjustedWidth > window.innerWidth - margin) {
+		adjustedLeft = window.innerWidth - adjustedWidth - margin;
+	}
+	if (adjustedLeft < margin) {
+		adjustedLeft = margin;
+		if (adjustedWidth > window.innerWidth - 2 * margin) {
+			adjustedWidth = window.innerWidth - 2 * margin;
+		}
+	}
+	if (adjustedTop + adjustedHeight > window.innerHeight - margin) {
+		const availableHeight = window.innerHeight - adjustedTop - margin;
+		if (availableHeight >= 150) {
+			adjustedHeight = availableHeight;
+		} else {
+			const tabTop = position.top - 8;
+			const tabHeight = 32;
+			const spaceAbove = tabTop - tabHeight - margin;
+			if (spaceAbove >= 150) {
+				adjustedHeight = Math.min(popoutHeight, spaceAbove);
+				adjustedTop = tabTop - tabHeight - adjustedHeight - 8;
+			} else if (spaceAbove > availableHeight) {
+				adjustedHeight = Math.max(150, spaceAbove);
+				adjustedTop = tabTop - tabHeight - adjustedHeight - 8;
+			} else {
+				adjustedHeight = Math.max(150, availableHeight);
+			}
+		}
+	}
+	const style = {
+		top: adjustedTop + "px",
+		left: adjustedLeft + "px",
+		height: adjustedHeight + "px",
+		width: adjustedWidth + "px",
+	};
+	let channelStreamMarkup = null;
+	if (!loading && messages && channel && generateChannelStream && ChannelStreamItemTypes && MessageComponent) {
+		const oldestUnreadMessageId = ReadStateStore?.getOldestUnreadMessageId?.(channelId);
+		const messagesArray = messages.toArray();
+		const isEmptyChannel = !messages.hasMoreBefore && messagesArray.length === 0;
+		const displayedMessages = messagesArray.slice(-messageCount);
+		const actualCount = displayedMessages.length;
+		const channelStream = [
+			isEmptyChannel && EmptyMessage
+				? { type: 'EMPTY_MESSAGE' }
+				: { type: ChannelStreamItemTypes.DIVIDER, content: `Last ${actualCount} messages`, cut: true }
+		].concat(generateChannelStream({
+			channel,
+			messages: displayedMessages,
+			oldestUnreadMessageId
+		}));
+		channelStreamMarkup = channelStream.map((item, index) => {
+			switch (item.type) {
+				case 'EMPTY_MESSAGE':
+					return React.createElement(EmptyMessage, { key: 'empty', channel });
+				case ChannelStreamItemTypes.DIVIDER: {
+					const dividerKey = `divider-${item.unreadId || item.content || 'cut'}-${item.cut ? 'cut' : 'normal'}`;
+					if (MessageDivider) {
+						return React.createElement(MessageDivider, {
+							key: dividerKey,
+							className: item.cut ? 'enhancedChannelTabs-peekDividerCut' : '',
+							isUnread: !!item.unreadId,
+							isBeforeGroup: !item.content && isGroupStarter(channelStream[index + 1]),
+							children: item.content
+						});
+					}
+					return React.createElement("div", {
+						key: dividerKey,
+						className: "enhancedChannelTabs-peekDivider"
+					}, item.content);
+				}
+				case ChannelStreamItemTypes.MESSAGE:
+				case ChannelStreamItemTypes.THREAD_STARTER_MESSAGE:
+					return React.createElement(MessageComponent, {
+						key: item.content.id,
+						channel,
+						message: item.content,
+						groupId: item.groupId,
+						id: `peek-message-${item.content.id}`,
+						compact: displayMode === "compact"
+					});
+				default:
+					return null;
+			}
+		});
+	}
+	const renderFallbackMessages = () => {
+		if (!messages) return null;
+		return messages.toArray().slice(-messageCount).map((msg, i) =>
+			React.createElement("div", {
+				key: msg.id || i,
+				className: "enhancedChannelTabs-peekMessage"
+			},
+				React.createElement("div", null,
+					React.createElement("span", { className: "enhancedChannelTabs-peekAuthor" },
+						msg.author?.username || "Unknown"
+					),
+					React.createElement("span", { className: "enhancedChannelTabs-peekTimestamp" },
+						new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+					)
+				),
+				React.createElement("div", { className: "enhancedChannelTabs-peekContent" },
+					msg.content || (msg.attachments?.length ? "[Attachment]" : "[No content]")
+				)
+			)
+		);
+	};
+	const scrollerContent = channelStreamMarkup || renderFallbackMessages();
+	const renderScroller = () => {
+		if (PinToBottomScrollerAuto && ChatSelectors?.scrollerContent) {
+			return React.createElement(PinToBottomScrollerAuto, {
+				ref: scrollerRef,
+				className: "enhancedChannelTabs-peekScroller",
+				contentClassName: ChatSelectors.scrollerContent,
+				onResize: () => { },
+				onScroll: () => { },
+				children: React.createElement("div", {
+					className: "enhancedChannelTabs-peekContainer",
+					children: [
+						scrollerContent,
+						showTyping && FluxTypingUsers && channel && React.createElement(FluxTypingUsers, {
+							key: "typing",
+							channel
+						})
+					]
+				})
+			});
+		}
+		const getFallbackContent = () => {
+			if (loading) {
+				return React.createElement("div", { className: "enhancedChannelTabs-peekLoading" }, "Loading messages...");
+			}
+			if (!scrollerContent || (Array.isArray(scrollerContent) && scrollerContent.length === 0)) {
+				return React.createElement("div", { className: "enhancedChannelTabs-peekEmpty" }, "No messages to display");
+			}
+			return scrollerContent;
+		};
+		return React.createElement("div", {
+			className: "enhancedChannelTabs-peekScroller",
+			style: { height: `calc(${peekHeight}vh - 3.125rem)` }
+		},
+			React.createElement("div", { className: "enhancedChannelTabs-peekContainer" },
+				getFallbackContent()
+			)
+		);
+	};
+	return React.createElement(TabPeekContext.Provider, {
+		value: { channel }
+	},
+		React.createElement("div", {
+			className: `enhancedChannelTabs-peekPopout group-spacing-${messageGroupSpacing} ${PopoutSelectors?.messagesPopoutWrap || ''}`,
+			style
+		},
+			React.createElement("div", { className: "enhancedChannelTabs-peekHeader" },
+				React.createElement("img", {
+					className: "enhancedChannelTabs-peekHeaderIcon",
+					src: getCurrentIconUrl(tabUrl)
+				}),
+				React.createElement("span", null, tabName)
+			),
+			renderScroller()
+		)
+	);
+};
+const TabPeekPortal = () => {
+	const [previewState, setPreviewState] = React.useState(TabPreviewStore.getState());
+	React.useEffect(() => {
+		const listener = () => setPreviewState({ ...TabPreviewStore.getState() });
+		TabPreviewStore.addChangeListener(listener);
+		return () => TabPreviewStore.removeChangeListener(listener);
+	}, []);
+	if (!previewState.activePreview) return null;
+	const { tabUrl, channelId, tabName, position } = previewState.activePreview;
+	if (!position) return null;
+	const settings = TabActions.plugin?.settings || {};
+	const darkenLevel = settings.tabPeekDarkenLevel ?? 30;
+	return ReactDOM.createPortal(
+		React.createElement(React.Fragment, null,
+			React.createElement("div", {
+				className: "enhancedChannelTabs-peekBackdrop enhancedChannelTabs-peekBackdropVisible",
+				style: { opacity: darkenLevel / 100 }
+			}),
+			React.createElement(TabPeekPopout, { tabUrl, channelId, tabName, position })
+		),
+		document.body
+	);
+};
 const BaseTab = (props) => {
 	const { isDragging, dragRef, isOver, canDrop, dropRef, draggedIsMe } = props;
 	const [localDropPosition, setLocalDropPosition] = React.useState(null);
+	const tabElementRef = React.useRef(null);
+	const handleMouseEnter = React.useCallback((e) => {
+		if (props.selected) return;
+		const settings = TabActions.plugin?.settings || {};
+		if (!settings.enableTabPeek) return;
+		if (settings.tabPeekTrigger === 'shift-hover' && !e.shiftKey) return;
+		if (settings.tabPeekTrigger === 'mwheel') return;
+		const channel = ChannelStore?.getChannel?.(props.channelId);
+		if (settings.tabPeekNsfw === 'hide' && channel?.nsfw) return;
+		const delay = (settings.tabPeekDelay || 0.4) * 1000;
+		const timeout = setTimeout(() => {
+			const rect = tabElementRef.current?.getBoundingClientRect();
+			if (rect) {
+				TabPreviewStore.showPreview({
+					tabUrl: props.url,
+					channelId: props.channelId,
+					tabName: props.name,
+					position: {
+						top: rect.bottom + 8,
+						left: Math.max(10, rect.left - 100),
+					}
+				});
+			}
+		}, delay);
+		TabPreviewStore.setHoverTimeout(timeout);
+	}, [props.selected, props.url, props.channelId, props.name]);
+	const handleMouseLeave = React.useCallback(() => {
+		TabPreviewStore.hidePreview();
+	}, []);
+	const handleMouseUp = React.useCallback((e) => {
+		if (e.button !== 1) return;
+		e.preventDefault();
+		const settings = TabActions.plugin?.settings || {};
+		if (!settings.enableTabPeek || settings.tabPeekTrigger !== 'mwheel') {
+			props.closeTab(props.tabIndex);
+			return;
+		}
+		const channel = ChannelStore?.getChannel?.(props.channelId);
+		if (settings.tabPeekNsfw === 'hide' && channel?.nsfw) {
+			props.closeTab(props.tabIndex);
+			return;
+		}
+		const rect = tabElementRef.current?.getBoundingClientRect();
+		if (rect) {
+			TabPreviewStore.showPreview({
+				tabUrl: props.url,
+				channelId: props.channelId,
+				tabName: props.name,
+				position: {
+					top: rect.bottom + 8,
+					left: Math.max(10, rect.left - 100),
+				}
+			});
+		}
+	}, [props.url, props.channelId, props.name, props.tabIndex, props.closeTab]);
 	useDragOverPosition(
 		() => tabNodeRefs.get(props.url),
 		[props.url],
@@ -3775,13 +4250,34 @@ const BaseTab = (props) => {
 			tabNodeRefs.delete(props.url);
 		}
 	}, [dragRef, dropRef, props.url]);
+	const fullRef = React.useCallback((node) => {
+		combinedRef(node);
+		tabElementRef.current = node;
+	}, [combinedRef]);
+	React.useEffect(() => {
+		const node = tabElementRef.current;
+		if (!node) return;
+		const onWheel = (e) => {
+			const settings = TabActions.plugin?.settings || {};
+			if (settings.tabPeekScrollBehavior === 'shift' && !e.shiftKey) return;
+			const scrollerRef = TabPreviewStore.getScrollerRef();
+			const scroller = scrollerRef?.current?.getScrollerNode?.();
+			if (!scroller) return;
+			scroller.scrollTop += e.deltaY;
+			e.preventDefault();
+		};
+		node.addEventListener('wheel', onWheel, { passive: false });
+		return () => node.removeEventListener('wheel', onWheel);
+	}, []);
 	return /* @__PURE__ */ React.createElement(
 		"div",
 		{
-			ref: combinedRef,
+			ref: fullRef,
 			role: "tab",
 			"aria-selected": props.selected,
 			tabIndex: props.selected ? 0 : -1,
+			onMouseEnter: handleMouseEnter,
+			onMouseLeave: handleMouseLeave,
 			className:
 				"enhancedChannelTabs-tab" +
 				(props.selected ? " enhancedChannelTabs-selected" : "") +
@@ -3813,11 +4309,7 @@ const BaseTab = (props) => {
 					props.focusTab?.(nextIndex);
 				}
 			},
-			onMouseUp: (e) => {
-				if (e.button !== 1) return;
-				e.preventDefault();
-				props.closeTab(props.tabIndex);
-			},
+			onMouseUp: handleMouseUp,
 			onContextMenu: (e) => {
 				CreateTabContextMenu(props, e);
 			},
@@ -4317,7 +4809,6 @@ const TabListMenuItem = (props) => {
 		(props.minimized ? " enhancedChannelTabs-minimized" : "") +
 		(indicators.hasUnread ? " enhancedChannelTabs-unread" : "") +
 		(indicators.mentionCount > 0 ? " enhancedChannelTabs-mention" : "");
-
 	const renderMenuBadges = () => {
 		if (props.compactStyle) return null;
 		return React.createElement("div", { className: "enhancedChannelTabs-tabListBadgeContainer" },
@@ -4833,7 +5324,6 @@ const TabBar = React.forwardRef((props, ref) => {
 		scrollToTab,
 		tabs: props.tabs
 	};
-
 	const tabWrapStyle = isMultiRow ? {
 		display: "flex",
 		flexWrap: "wrap",
@@ -4860,7 +5350,6 @@ const TabBar = React.forwardRef((props, ref) => {
 				e.stopPropagation();
 			},
 		},
-
 		/* @__PURE__ */ React.createElement("div", { className: "enhancedChannelTabs-leading" }, props.leading),
 		/* @__PURE__ */ React.createElement(
 			"div",
@@ -5081,6 +5570,7 @@ const TopBar = (props) => {
 	return /* @__PURE__ */ React.createElement(
 		"div",
 		{ id: "enhancedChannelTabs-container", ref: containerRef },
+		React.createElement(TabPeekPortal, null),
 		showTabBar
 			? /* @__PURE__ */ React.createElement(TabBar, {
 				leading: props.leading,
@@ -5196,17 +5686,24 @@ module.exports = class EnhancedChannelTabs {
 		};
 		this.saveSettings = this.saveSettings.bind(this);
 		this.keybindHandler = this.keybindHandler.bind(this);
+		this.openTabShortcutHandler = this.openTabShortcutHandler.bind(this);
 		this.ifReopenLastChannelDefault();
 		this.onSwitch();
 		this.patchTitleBar(this.promises.state);
 		this.patchContextMenus();
+		this.patchNsfwMedia();
 		document.addEventListener("keydown", this.keybindHandler);
 		document.addEventListener("click", this.clickHandler);
+		document.addEventListener("click", this.openTabShortcutHandler, true);
+		document.addEventListener("auxclick", this.openTabShortcutHandler, true);
 	}
 	stop() {
 		this.removeStyle();
 		document.removeEventListener("keydown", this.keybindHandler);
 		document.removeEventListener("click", this.clickHandler);
+		document.removeEventListener("click", this.openTabShortcutHandler, true);
+		document.removeEventListener("auxclick", this.openTabShortcutHandler, true);
+		this.cleanupNsfwMedia();
 		Patcher.unpatchAll();
 		this.promises.cancel();
 		TabActions.clearPlugin(this);
@@ -5248,10 +5745,16 @@ module.exports = class EnhancedChannelTabs {
 			DOM.addStyle("enhancedChannelTabs-style-multirow", StyleManager.getMultiRowStyles());
 		}
 		if (!styleId || styleId === "enhancedChannelTabs-style-stacked") {
-				DOM.addStyle("enhancedChannelTabs-style-stacked", StyleManager.getStackedStyles());
+			DOM.addStyle("enhancedChannelTabs-style-stacked", StyleManager.getStackedStyles());
 		}
 		if (!styleId || styleId === "enhancedChannelTabs-style-fixedwidth") {
 			DOM.addStyle("enhancedChannelTabs-style-fixedwidth", StyleManager.getFixedWidthStyles());
+		}
+		if (!styleId || styleId === "enhancedChannelTabs-style-tabpeek") {
+			DOM.addStyle("enhancedChannelTabs-style-tabpeek", StyleManager.getTabPeekStyle());
+		}
+		if (!styleId || styleId === "enhancedChannelTabs-style-settingsmodal") {
+			DOM.addStyle("enhancedChannelTabs-style-settingsmodal", StyleManager.getSettingsModalStyle());
 		}
 	}
 	removeStyle() {
@@ -5265,6 +5768,8 @@ module.exports = class EnhancedChannelTabs {
 		DOM.removeStyle("enhancedChannelTabs-style-multirow");
 		DOM.removeStyle("enhancedChannelTabs-style-stacked");
 		DOM.removeStyle("enhancedChannelTabs-style-fixedwidth");
+		DOM.removeStyle("enhancedChannelTabs-style-tabpeek");
+		DOM.removeStyle("enhancedChannelTabs-style-settingsmodal");
 	}
 	//#region Init/Default Functions
 	ifNoTabsExist() {
@@ -5309,15 +5814,12 @@ module.exports = class EnhancedChannelTabs {
 		if (promiseState.cancelled) return;
 		Patcher.after(TitleBar, TitleBarKey, (thisObject, [props], returnValue) => {
 			if (props.windowKey !== void 0) return;
-
 			const children = React.Children.toArray(returnValue?.props?.children);
-
 			const trailing = children.find(
 				child =>
 					child?.props?.className?.includes("winButton") ||
 					child?.props?.className?.includes("trailing")
 			);
-
 			const leading = children.find(child => child !== trailing);
 			const injected = React.createElement(
 				DragProvider,
@@ -5441,11 +5943,73 @@ module.exports = class EnhancedChannelTabs {
 			}),
 		);
 	}
+	patchNsfwMedia() {
+		const OBSCURE_REASON = 'explicit_content';
+		if (AttachmentModule && AttachmentKey) {
+			Patcher.before(AttachmentModule, AttachmentKey, (self, [props]) => {
+				const context = React.useContext(TabPeekContext);
+				if (this.settings.tabPeekNsfw === 'obscure' && context.channel?.nsfw) {
+					props.getObscureReason = () => OBSCURE_REASON;
+				}
+			});
+		}
+		if (Embed) {
+			Embed.contextType = TabPeekContext;
+			Patcher.before(Embed.prototype, 'render', function () {
+				const context = this.context;
+				const settings = TabActions.plugin?.settings || {};
+				if (settings.tabPeekNsfw === 'obscure' && context?.channel?.nsfw && this.props.embed?.image) {
+					this.props.obscureReason = OBSCURE_REASON;
+				}
+			});
+		}
+	}
+	cleanupNsfwMedia() {
+		if (Embed) {
+			delete Embed.contextType;
+		}
+	}
 	//#endregion
 	//#region Handlers
 	clickHandler(e) {
 		if (!e.target.matches(".enhancedChannelTabs-favGroupBtn")) {
 			closeAllDropdowns();
+		}
+	}
+	openTabShortcutHandler(e) {
+		if (!this.settings.showTabBar) return;
+		const shortcut = this.settings.openTabShortcut || "ctrlClick";
+		if (shortcut === "disabled") return;
+		const isCtrlClick = shortcut === "ctrlClick" && e.type === "click" && e.ctrlKey && e.button === 0;
+		const isMiddleClick = shortcut === "middleClick" && e.type === "auxclick" && e.button === 1;
+		if (!isCtrlClick && !isMiddleClick) return;
+		const guildItem = e.target.closest('[data-list-item-id^="guildsnav___"]');
+		if (guildItem) {
+			const guildId = guildItem.dataset.listItemId?.replace("guildsnav___", "");
+			if (guildId && guildId !== "null") {
+				e.preventDefault();
+				e.stopPropagation();
+				const channelId = SelectedChannelStore.getChannelId(guildId);
+				const channel = channelId ? ChannelStore.getChannel(channelId) : null;
+				if (channel) {
+					TabActions.saveChannel(guildId, channel.id, "#" + channel.name);
+				}
+				return;
+			}
+		}
+		const channelItem = e.target.closest('[data-list-item-id^="channels___"]');
+		if (channelItem) {
+			const channelId = channelItem.dataset.listItemId?.replace("channels___", "");
+			if (channelId && channelId !== "null") {
+				e.preventDefault();
+				e.stopPropagation();
+				const channel = ChannelStore.getChannel(channelId);
+				if (channel) {
+					const guildId = channel.guild_id || "@me";
+					TabActions.saveChannel(guildId, channel.id, "#" + channel.name);
+				}
+				return;
+			}
 		}
 	}
 	keybindHandler(e) {
@@ -5625,6 +6189,19 @@ module.exports = class EnhancedChannelTabs {
 			closedTabs: [],
 			maxClosedTabsDays: 30,
 			maxClosedTabsCount: 100,
+			enableTabPeek: true,
+			tabPeekTrigger: "hover",
+			tabPeekDelay: 0.4,
+			tabPeekHeight: 30,
+			tabPeekMessageCount: 20,
+			tabPeekShowTyping: true,
+			tabPeekNsfw: "show",
+			tabPeekDisplayMode: "cozy",
+			tabPeekGroupSpacingSync: true,
+			tabPeekGroupSpacing: 16,
+			tabPeekDarkenLevel: 30,
+			tabPeekScrollBehavior: "default",
+			openTabShortcut: "ctrlClick",
 		};
 	}
 	getSettingsPath(useOldLocation) {
@@ -5867,7 +6444,7 @@ module.exports = class EnhancedChannelTabs {
 							id: "tabWidthMin",
 							type: "slider",
 							name: this.settings.tabWidthMode === "fixed" ? "Fixed Tab Width" : "Minimum Tab Width",
-							note: this.settings.tabWidthMode === "fixed" 
+							note: this.settings.tabWidthMode === "fixed"
 								? "Set the exact width for all tabs"
 								: "Set the limit on how small a tab can be before overflowing to a new row",
 							min: 58,
@@ -5929,6 +6506,19 @@ module.exports = class EnhancedChannelTabs {
 							onChange: (checked) => {
 								this.updateSettings({ useStandardNav: checked });
 							},
+						},
+						{
+							id: "openTabShortcut",
+							type: "radio",
+							name: "Open in New Tab Shortcut",
+							note: "Choose which mouse shortcut opens guilds/channels in a new tab",
+							value: this.settings.openTabShortcut || "ctrlClick",
+							options: [
+								{ label: "Ctrl + Left Click", name: "Ctrl + Left Click", value: "ctrlClick" },
+								{ label: "Middle Click", name: "Middle Click", value: "middleClick" },
+								{ label: "Disabled", name: "Disabled", value: "disabled" },
+							],
+							onChange: (value) => this.updateSettings({ openTabShortcut: value }),
 						},
 					],
 				},
@@ -6130,6 +6720,167 @@ module.exports = class EnhancedChannelTabs {
 				},
 				//#endregion
 				{
+					id: "tabPeekSettings",
+					type: "category",
+					name: "Tab Peek (Preview)",
+					settings: [
+						{
+							id: "enableTabPeek",
+							type: "switch",
+							name: "Enable Tab Peek",
+							note: "Show a preview of messages when hovering over inactive tabs",
+							value: this.settings.enableTabPeek,
+							onChange: (checked) =>
+								this.updateSettings({ enableTabPeek: checked }),
+						},
+						{
+							id: "tabPeekTrigger",
+							type: "radio",
+							name: "Trigger Method",
+							note: "How to trigger the tab preview",
+							value: this.settings.tabPeekTrigger || "hover",
+							options: [
+								{ label: "Hover", name: "Hover", value: "hover" },
+								{ label: "Shift + Hover", name: "Shift + Hover", value: "shift-hover" },
+								{ label: "Middle Click", name: "Middle Click", value: "mwheel" },
+							],
+							onChange: (value) =>
+								this.updateSettings({ tabPeekTrigger: value }),
+						},
+						{
+							id: "tabPeekDelay",
+							type: "slider",
+							name: "Hover Delay",
+							note: "Time to wait before showing preview (for hover triggers)",
+							min: 0.1,
+							max: 2,
+							step: 0.1,
+							value: this.settings.tabPeekDelay ?? 0.4,
+							onChange: (raw) => {
+								const num = Number.parseFloat(raw);
+								const stepped = Math.min(2, Math.max(0.1, Math.round(num / 0.1) * 0.1));
+								this.updateSettings({ tabPeekDelay: stepped });
+							},
+							markers: [0.1, 0.5, 1, 1.5, 2],
+							stickToMarkers: true,
+							units: "s",
+						},
+						{
+							id: "tabPeekHeight",
+							type: "slider",
+							name: "Preview Height",
+							note: "Height of the preview window (% of screen)",
+							min: 10,
+							max: 60,
+							value: this.settings.tabPeekHeight || 30,
+							onChange: (value) =>
+								this.updateSettings({ tabPeekHeight: Math.round(value) }),
+							markers: [10, 20, 30, 40, 50, 60],
+							units: "%",
+						},
+						{
+							id: "tabPeekMessageCount",
+							type: "slider",
+							name: "Message Count",
+							note: "Number of messages to display in preview",
+							min: 10,
+							max: 100,
+							value: this.settings.tabPeekMessageCount || 20,
+							onChange: (value) =>
+								this.updateSettings({ tabPeekMessageCount: Math.round(value) }),
+							markers: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
+							stickToMarkers: true,
+							units: "",
+						},
+						{
+							id: "tabPeekShowTyping",
+							type: "switch",
+							name: "Show Typing Indicators",
+							note: "Display who is typing in the previewed channel",
+							value: this.settings.tabPeekShowTyping !== false,
+							onChange: (checked) =>
+								this.updateSettings({ tabPeekShowTyping: checked }),
+						},
+						{
+							id: "tabPeekNsfw",
+							type: "radio",
+							name: "NSFW Channels",
+							note: "How to handle previews in NSFW channels",
+							value: this.settings.tabPeekNsfw || "show",
+							options: [
+								{ label: "Show", name: "Show", value: "show" },
+								{ label: "Obscure media", name: "Obscure media", value: "obscure" },
+								{ label: "Don't show", name: "Don't show", value: "hide" },
+							],
+							onChange: (value) =>
+								this.updateSettings({ tabPeekNsfw: value }),
+						},
+						{
+							id: "tabPeekDisplayMode",
+							type: "radio",
+							name: "Message Display",
+							note: "How messages are displayed in the preview",
+							value: this.settings.tabPeekDisplayMode || "cozy",
+							options: [
+								{ label: "Cozy", name: "Cozy", value: "cozy" },
+								{ label: "Compact", name: "Compact", value: "compact" },
+							],
+							onChange: (value) =>
+								this.updateSettings({ tabPeekDisplayMode: value }),
+						},
+						{
+							id: "tabPeekGroupSpacingSync",
+							type: "switch",
+							name: "Sync Group Spacing",
+							note: "Use Discord's message group spacing setting",
+							value: this.settings.tabPeekGroupSpacingSync !== false,
+							onChange: (checked) =>
+								this.updateSettings({ tabPeekGroupSpacingSync: checked }),
+						},
+						{
+							id: "tabPeekGroupSpacing",
+							type: "slider",
+							name: "Custom Group Spacing",
+							note: "Space between message groups (when not synced)",
+							min: 0,
+							max: 24,
+							value: this.settings.tabPeekGroupSpacing ?? 16,
+							onChange: (value) =>
+								this.updateSettings({ tabPeekGroupSpacing: Math.round(value) }),
+							markers: [0, 4, 8, 16, 24],
+							stickToMarkers: true,
+							units: "px",
+						},
+						{
+							id: "tabPeekDarkenLevel",
+							type: "slider",
+							name: "Backdrop Dimming",
+							note: "Opacity of the backdrop behind the preview",
+							min: 10,
+							max: 100,
+							value: this.settings.tabPeekDarkenLevel ?? 30,
+							onChange: (value) =>
+								this.updateSettings({ tabPeekDarkenLevel: Math.round(value) }),
+							markers: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
+							stickToMarkers: true,
+							units: "%",
+						},
+						{
+							id: "tabPeekScrollBehavior",
+							type: "radio",
+							name: "Preview Scrolling",
+							note: "How to scroll the preview content",
+							value: this.settings.tabPeekScrollBehavior || "default",
+							options: [
+								{ label: "Scroll", name: "Scroll", value: "default" },
+								{ label: "Shift + Scroll", name: "Shift + Scroll", value: "shift" },
+							],
+							onChange: (value) =>
+								this.updateSettings({ tabPeekScrollBehavior: value }),
+						},
+					],
+				},
+				{
 					id: "closedTabsSettings",
 					type: "category",
 					name: "Closed Tabs History",
@@ -6147,7 +6898,7 @@ module.exports = class EnhancedChannelTabs {
 								this.saveSettings();
 							},
 							markers: [1, 7, 14, 30, 60, 90],
-							units: " days"
+							units: ""
 						},
 						{
 							id: "maxClosedTabsCount",
@@ -6162,7 +6913,7 @@ module.exports = class EnhancedChannelTabs {
 								this.saveSettings();
 							},
 							markers: [10, 50, 100, 200, 500],
-							units: " tabs"
+							units: ""
 						},
 						{
 							id: "clearClosedTabs",
