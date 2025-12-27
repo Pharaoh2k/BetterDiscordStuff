@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 4.3.0
+ * @version 4.3.1
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
  */
@@ -371,9 +371,9 @@ class StyleManager {
 			.enhancedChannelTabs-tabIcon { height: 20px; border-radius: 50%; -webkit-user-drag: none; }
 			.enhancedChannelTabs-tabIconWrapper { margin: 0 var(--space-6); flex-shrink: 0; }
 			.enhancedChannelTabs-onlineIcon { fill: var(--status-online); mask: url(#svg-mask-status-online); }
-			.enhancedChannelTabs-idleIcon { fill: var(--icon-status-idle); mask: url(#svg-mask-icon-status-idle); }
+			.enhancedChannelTabs-idleIcon { fill: var(--icon-status-idle); mask: url(#svg-mask-status-idle); }
 			.enhancedChannelTabs-doNotDisturbIcon { fill: var(--status-danger); mask: url(#svg-mask-status-dnd); }
-			.enhancedChannelTabs-offlineIcon { fill: var(--icon-status-offline); mask: url(#svg-mask-icon-status-offline); }
+			.enhancedChannelTabs-offlineIcon { fill: var(--icon-status-offline); mask: url(#svg-mask-status-offline); }
 			.enhancedChannelTabs-closeTab { position: relative; height: 16px; width: 16px; flex-shrink: 0; right: 6px; border-radius: var(--radius-xs); color: var(--interactive-text-default); cursor: pointer; display: flex; align-items: center; justify-content: center; }
 			.enhancedChannelTabs-closeTab svg { height: 100%; width: 100%; transform: scale(0.85); }
 			.enhancedChannelTabs-closeTab:hover { background: var(--status-danger); color: var(--white-100); }
