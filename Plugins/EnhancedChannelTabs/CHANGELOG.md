@@ -1,5 +1,8 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+### 4.3.1
+- Updated icons to match Discord changes
+
 ### 4.3.0
 - Added Fixed Tab Width Mode
 - Fixed "Reopen Last Channel on Startup"
