@@ -1,5 +1,28 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+### 5.0.0
+- Added Open in New Tab shortcut setting: Ctrl + Click, Middle Click, or Disabled
+- Added full settings modal accessible from quick settings menu
+- Added Tab Peek feature - hover over inactive tabs to preview channel messages without switching
+- Added Tab Peek trigger options: Hover, Shift + Hover, or Middle Click
+- Added configurable hover delay for Tab Peek (0.1s to 2s)
+- Added adjustable Tab Peek preview height (10% to 60% of screen)
+- Added configurable message count for Tab Peek (10 to 100 messages)
+- Added typing indicator display option in Tab Peek previews
+- Added NSFW channel handling for Tab Peek: Show, Obscure media, or Hide preview
+- Added Tab Peek message display mode: Cozy or Compact
+- Added Tab Peek group spacing sync with Discord's settings
+- Added custom group spacing option when sync is disabled
+- Added backdrop dimming control for Tab Peek (10% to 100%)
+- Added Tab Peek scroll behavior options: Default scroll or Shift + Scroll
+- Added TabPreviewStore for managing tab preview state
+- Added TabPeekContext for NSFW media handling in previews
+- Added TabPeekPortal component for rendering previews
+- Added TabPeekPopout component with message rendering
+- Improved CSS units from px to rem for better accessibility and scaling
+- Improved settings modal styling with proper width constraints
+- Improved slider units display (removed redundant text)
+
 ### 4.3.1
 - Updated icons to match Discord changes
 
