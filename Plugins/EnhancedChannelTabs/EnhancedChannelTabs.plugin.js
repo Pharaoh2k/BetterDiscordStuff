@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 5.0.0
+ * @version 5.0.1
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
  */
@@ -11,7 +11,7 @@
   Copyright (C) 2025-present Pharaoh2k
   This file is part of EnhancedChannelTabs and is licensed under the
   GNU General Public License version 3 only.
-  This program is free software: you can redistribute it and/or modify it 
+  This program is free software: you can redistribute it and/or modify it
   under the terms of the GNU General Public License as published by the
   Free Software Foundation, version 3.
   This program is distributed in the hope that it will be useful,
@@ -5695,14 +5695,14 @@ module.exports = class EnhancedChannelTabs {
 		document.addEventListener("keydown", this.keybindHandler);
 		document.addEventListener("click", this.clickHandler);
 		document.addEventListener("click", this.openTabShortcutHandler, true);
-		document.addEventListener("auxclick", this.openTabShortcutHandler, true);
+		document.addEventListener("mouseup", this.openTabShortcutHandler, true);
 	}
 	stop() {
 		this.removeStyle();
 		document.removeEventListener("keydown", this.keybindHandler);
 		document.removeEventListener("click", this.clickHandler);
 		document.removeEventListener("click", this.openTabShortcutHandler, true);
-		document.removeEventListener("auxclick", this.openTabShortcutHandler, true);
+		document.removeEventListener("mouseup", this.openTabShortcutHandler, true);
 		this.cleanupNsfwMedia();
 		Patcher.unpatchAll();
 		this.promises.cancel();
@@ -5981,9 +5981,14 @@ module.exports = class EnhancedChannelTabs {
 		const shortcut = this.settings.openTabShortcut || "ctrlClick";
 		if (shortcut === "disabled") return;
 		const isCtrlClick = shortcut === "ctrlClick" && e.type === "click" && e.ctrlKey && e.button === 0;
-		const isMiddleClick = shortcut === "middleClick" && e.type === "auxclick" && e.button === 1;
+		const isMiddleClick = shortcut === "middleClick" && e.type === "mouseup" && e.button === 1;
 		if (!isCtrlClick && !isMiddleClick) return;
 		const guildItem = e.target.closest('[data-list-item-id^="guildsnav___"]');
+		const channelItem = e.target.closest('[data-list-item-id^="channels___"]');
+		if (isMiddleClick && (guildItem || channelItem)) {
+			e.preventDefault();
+			e.stopPropagation();
+		}
 		if (guildItem) {
 			const guildId = guildItem.dataset.listItemId?.replace("guildsnav___", "");
 			if (guildId && guildId !== "null") {
@@ -5997,7 +6002,6 @@ module.exports = class EnhancedChannelTabs {
 				return;
 			}
 		}
-		const channelItem = e.target.closest('[data-list-item-id^="channels___"]');
 		if (channelItem) {
 			const channelId = channelItem.dataset.listItemId?.replace("channels___", "");
 			if (channelId && channelId !== "null") {
