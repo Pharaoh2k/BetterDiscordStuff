@@ -1,5 +1,8 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+### 5.0.1
+- Fixed middle-click to open guilds/channels in new tabs now working reliably
+
 ### 5.0.0
 - Added Open in New Tab shortcut setting: Ctrl + Click, Middle Click, or Disabled
 - Added full settings modal accessible from quick settings menu
