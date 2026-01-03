@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 5.0.1
+ * @version 5.0.2
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
  */
@@ -1816,6 +1816,10 @@ const PinToBottomScrollerAuto = (() => {
 })();
 const MessageComponent = Webpack.getModule?.(m =>
 	Filters.byStrings('must not be a thread starter message')(m?.type),
+	{ searchExports: true }
+);
+const ThreadStarterMessage = Webpack.getModule?.(m =>
+	Filters.byStrings('must be a thread starter message')(m?.type),
 	{ searchExports: true }
 );
 const FluxTypingUsers = Webpack.getByStrings?.('typingUsers', 'isThreadCreation');
@@ -4064,14 +4068,17 @@ const TabPeekPopout = ({ tabUrl, channelId, tabName, position }) => {
 				}
 				case ChannelStreamItemTypes.MESSAGE:
 				case ChannelStreamItemTypes.THREAD_STARTER_MESSAGE:
-					return React.createElement(MessageComponent, {
-						key: item.content.id,
-						channel,
-						message: item.content,
-						groupId: item.groupId,
-						id: `peek-message-${item.content.id}`,
-						compact: displayMode === "compact"
-					});
+					return React.createElement(
+						item.type === ChannelStreamItemTypes.THREAD_STARTER_MESSAGE ? ThreadStarterMessage : MessageComponent,
+						{
+							key: item.content.id,
+							channel,
+							message: item.content,
+							groupId: item.groupId,
+							id: `peek-message-${item.content.id}`,
+							compact: displayMode === "compact"
+						}
+					);
 				default:
 					return null;
 			}
