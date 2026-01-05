@@ -2,18 +2,13 @@
  * @name BetterPinDMs
  * @author Pharaoh2k
  * @description Enhanced DM pinning with category headers, drag & drop, unread tracking, hotkeys, import/export (from similar plugins too), and smart categories. Pinned DMs are shown in a separate 📌 PINNED DMs section above "Direct Messages".
- * @version 2.0.0
+ * @version 2.0.1
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterPinDMs/BetterPinDMs.plugin.js
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BetterPinDMs/BetterPinDMs.plugin.js
  */
 /* BdApi based, BDFDB-free feature-packed plugin. Inspired by mwittrien / Devilbro's "PinDMs" */
-/*
-Copyright © 2025-present Pharaoh2k. All rights reserved.
-Unauthorized copying, modification, or redistribution of this code is prohibited without prior written consent from the author.
-Contributions are welcome via GitHub pull requests. Please ensure submissions align with the project's guidelines and coding standards.
-*/
 "use strict";
 //#region Configuration
 const CONFIG = {
@@ -1126,6 +1121,9 @@ module.exports = class BetterPinDMs {
 		this._updatePending = null;
 		this._dmListForceUpdate = null;
 		this._originalGetPrivateChannelIds = null;
+		this._originalScrollToChannel = null;
+		this._DMListClass = null;
+		this._scrollToChannelPatched = false;
 		this._flushUpdatesDebounced = debounce(() => {
 			this._flushPendingUpdates();
 		}, TIMEOUTS.UPDATE_DEBOUNCE);
@@ -1252,6 +1250,13 @@ module.exports = class BetterPinDMs {
 				try { unpatch(); } catch (err) { Logger.warn(this.pluginName, "Failed to unpatch", err); }
 			}
 			this.patches = [];
+			// Restore original scrollToChannel
+			if (this._DMListClass && this._originalScrollToChannel) {
+				this._DMListClass.prototype.scrollToChannel = this._originalScrollToChannel;
+				this._originalScrollToChannel = null;
+				this._DMListClass = null;
+				this._scrollToChannelPatched = false;
+			}
 			this._originalUnreadIds = null;
 			this.storeService?.emitPrivateChannelReadStateChange?.();
 			this.storeService?.emitPrivateChannelSortChange?.();
@@ -1361,6 +1366,83 @@ module.exports = class BetterPinDMs {
 		this.patches.push(unpatch);
 		this._innerClassPatched = true;
 		this.storeService.emitPrivateChannelSortChange();
+		setTimeout(() => this._patchScrollToChannel(), 100);
+	}
+	_patchScrollToChannel() {
+		const dmList = document.querySelector('[class*="privateChannels"]');
+		if (!dmList) return;
+
+		const fiber = BdApi.ReactUtils.getInternalInstance(dmList);
+		if (!fiber) return;
+
+		// Search DOWN the fiber tree with visited set to prevent cycles
+		const findDown = (node, visited = new WeakSet()) => {
+			if (!node || visited.has(node)) return null;
+			visited.add(node);
+			if (node.stateNode?.scrollToChannel) return node.stateNode;
+			return findDown(node.child, visited) || findDown(node.sibling, visited);
+		};
+
+		// Search from fiber, then try from parent levels if not found
+		let instance = null;
+		let start = fiber;
+		for (let i = 0; i < 5 && !instance; i++) {
+			instance = findDown(start);
+			start = start?.return;
+		}
+
+		if (!instance) {
+			Logger.warn(this.pluginName, "Could not find DM list class instance for scrollToChannel patch");
+			return;
+		}
+
+		// Get the class constructor and patch its prototype
+		const DMListClass = instance.constructor;
+		if (this._scrollToChannelPatched) return; // Already patched
+
+		const self = this;
+		const orig = DMListClass.prototype.scrollToChannel;
+		this._originalScrollToChannel = orig;
+		this._DMListClass = DMListClass;
+
+		DMListClass.prototype.scrollToChannel = function(channelId) {
+			const st = self._dmListPatchState;
+
+			// Calculate visual index from plugin's internal state
+			let visualIndex = -1;
+			if (st?.pinnedRows && st?.unpinnedList) {
+				let dmIdx = 0;
+				for (const row of st.pinnedRows) {
+					if (row.type === 'dm') {
+						if (row.dmId === channelId) { visualIndex = dmIdx; break; }
+						dmIdx++;
+					}
+				}
+				if (visualIndex < 0) {
+					const unpinnedIdx = st.unpinnedList.indexOf(channelId);
+					if (unpinnedIdx >= 0) visualIndex = dmIdx + unpinnedIdx;
+				}
+			}
+
+			const origIndex = this.props?.privateChannelIds?.indexOf(channelId) ?? -1;
+
+			if (visualIndex >= 0 && visualIndex !== origIndex) {
+				const { padding = 0 } = this.props;
+				const { preRenderedChildren = 0 } = this.state;
+				const scrollPos = 44 * (visualIndex + preRenderedChildren) + padding;
+				this._list?.scrollIntoViewRect({
+					start: Math.max(scrollPos - 8, 0),
+					end: scrollPos + 44 + 8
+				});
+				return;
+			}
+
+			// Fallback to original behavior
+			return orig.call(this, channelId);
+		};
+
+		this._scrollToChannelPatched = true;
+		Logger.info(this.pluginName, "Patched scrollToChannel prototype for visual index");
 	}
 	_activateDmListFallback(reason) {
 		if (this._dmListFallbackPatched || this._dmListPatched) return;
@@ -2557,15 +2639,17 @@ module.exports = class BetterPinDMs {
 	_injectStyles() {
 		DOM.addStyle(CONFIG.cssId, `
 			/* --- Layout & Animation --- */
-			.betterpindms-virtual-header { padding: 0 8px; box-sizing: border-box; position: relative; }
+			.betterpindms-virtual-header { padding: 0 8px; box-sizing: border-box; position: relative; /* Needed for drop indicators */ }
 			.betterpindms-group-content { display: flex; flex-direction: column; }
 			.betterpindms-group-content.collapsed { max-height: 0; opacity: 0; }
 			.betterpindms-group-content.expanded { opacity: 1; }
 			/* --- Drag & Drop Wrappers --- */
+			/* This allows DMs to have borders/pseudo-elements for drag indicators */
 			.betterpindms-draggable-wrapper { display: block; position: relative;  }
 			/* --- Sidebar Pin Icon --- */
 			.betterpindms-recent-pinned { 
 				position: relative; 
+				/* We cannot use overflow: visible here because the parent SVG mask controls the clipping */
 			}
 			.betterpindms-recent-pinned::after { content: "📌"; position: absolute; top: 2px; right: 2px; font-size: 10px; line-height: 1; z-index: 10; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8)); pointer-events: none; background: rgba(0, 0, 0, 0.6); border-radius: 4px; padding: 1px; }
 			/* Clean up old class */
@@ -2629,5 +2713,3 @@ module.exports = class BetterPinDMs {
 	//#endregion Styles
 };
 //#endregion Main Plugin
-
-
