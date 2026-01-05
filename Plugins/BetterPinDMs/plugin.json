@@ -2,10 +2,10 @@
   "name": "BetterPinDMs",
   "description": "Enhanced DM pinning with category headers, drag & drop, unread tracking, hotkeys, import/export (from similar plugins too), and smart categories. Pinned DMs are shown in a separate 📌 PINNED DMs section above Direct Messages.",
   "author": "Pharaoh2k",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "status": "Active",
   "workingStatus": "Working",
-  "lastUpdated": "2025-12-17",
+  "lastUpdated": "2026-01-05",
   "releaseDate": "2025-11-24",
   "features": [
     "Pin DMs to a dedicated 📌 PINNED DMs section above Direct Messages",
