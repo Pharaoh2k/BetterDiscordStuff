@@ -1,7 +1,10 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+## 5.0.4
+- Fixed an issue where the middle-click auto-scroll circle would get stuck when opening guilds or channels in new tabs.
+
 ## 5.0.3
-- Updated drag and drop getters to match Discord changes 
+- Fixed a critical crash on startup by updating how the plugin detects Discord's internal Drag-and-Drop modules.
 
 ## 5.0.2
 - Fixed crash when previewing tabs in threads that contain the thread starter message
