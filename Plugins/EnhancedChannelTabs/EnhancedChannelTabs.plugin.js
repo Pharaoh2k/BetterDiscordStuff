@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 5.0.3
+ * @version 5.0.4
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
  */
@@ -1739,17 +1739,15 @@ const DiscordConstants = {
 		"DiscordConstants.ChannelTypes",
 	),
 };
-const DragSource = getModule(m => typeof m === "function" && m.toString().includes("DragSource") && m.toString().includes("containerDisplayName"), {
-	searchExports: true
-}) ?? getModule(Filters.byStrings("DecoratedComponent", "createHandler", "registerHandler"), {
-	searchExports: true
-});
-
-const DropTarget = getModule(m => typeof m === "function" && m.toString().includes("DropTarget") && m.toString().includes("containerDisplayName"), {
-	searchExports: true
-}) ?? getModule(Filters.byStrings("createMonitor", "createConnector", "DropTarget"), {
-	searchExports: true
-});
+const DragSource =
+	BdApi.Webpack.getModule(m => typeof m === "function" && m.toString().includes("DragSource") && m.toString().includes("containerDisplayName"), { searchExports: true })
+	?? BdApi.Webpack.getModule(BdApi.Webpack.Filters.byStrings("react-dnd.github.io/react-dnd/docs/api/drag-source", "createConnector"), { searchExports: true })
+	?? BdApi.Webpack.getModule(BdApi.Webpack.Filters.byStrings("returns a string given the current props"), { searchExports: true });
+// DropTarget
+const DropTarget =
+	BdApi.Webpack.getModule(m => typeof m === "function" && m.toString().includes("DropTarget") && m.toString().includes("containerDisplayName"), { searchExports: true })
+	?? BdApi.Webpack.getModule(BdApi.Webpack.Filters.byStrings("react-dnd.github.io/react-dnd/docs/api/drop-target", "createConnector"), { searchExports: true })
+	?? BdApi.Webpack.getModule(BdApi.Webpack.Filters.byStrings("an array of strings, or a function that returns either"), { searchExports: true });
 if (!DragSource) console.error("[EnhancedChannelTabs] DragSource module not found! Drag and drop will not work.");
 if (!DropTarget) console.error("[EnhancedChannelTabs] DropTarget module not found! Drag and drop will not work.");
 const Textbox = (props) =>
@@ -5685,6 +5683,7 @@ module.exports = class EnhancedChannelTabs {
 		this.saveSettings = this.saveSettings.bind(this);
 		this.keybindHandler = this.keybindHandler.bind(this);
 		this.openTabShortcutHandler = this.openTabShortcutHandler.bind(this);
+		this.mouseDownHandler = this.mouseDownHandler.bind(this);
 		this.ifReopenLastChannelDefault();
 		this.onSwitch();
 		this.patchTitleBar(this.promises.state);
@@ -5694,6 +5693,7 @@ module.exports = class EnhancedChannelTabs {
 		document.addEventListener("click", this.clickHandler);
 		document.addEventListener("click", this.openTabShortcutHandler, true);
 		document.addEventListener("mouseup", this.openTabShortcutHandler, true);
+		document.addEventListener("mousedown", this.mouseDownHandler, true);
 	}
 	stop() {
 		this.removeStyle();
@@ -5701,6 +5701,7 @@ module.exports = class EnhancedChannelTabs {
 		document.removeEventListener("click", this.clickHandler);
 		document.removeEventListener("click", this.openTabShortcutHandler, true);
 		document.removeEventListener("mouseup", this.openTabShortcutHandler, true);
+		document.removeEventListener("mousedown", this.mouseDownHandler, true);
 		this.cleanupNsfwMedia();
 		Patcher.unpatchAll();
 		this.promises.cancel();
@@ -5969,6 +5970,16 @@ module.exports = class EnhancedChannelTabs {
 	}
 	//#endregion
 	//#region Handlers
+	mouseDownHandler(e) {
+		if (this.settings.openTabShortcut !== "middleClick" || e.button !== 1) {
+			return;
+		}
+		const guildItem = e.target.closest('[data-list-item-id^="guildsnav___"]');
+		const channelItem = e.target.closest('[data-list-item-id^="channels___"]');
+		if (guildItem || channelItem) {
+			e.preventDefault();
+		}
+	}
 	clickHandler(e) {
 		if (!e.target.matches(".enhancedChannelTabs-favGroupBtn")) {
 			closeAllDropdowns();
