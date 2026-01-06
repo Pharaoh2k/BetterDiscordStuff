@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 5.0.2
+ * @version 5.0.3
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
  */
@@ -1739,22 +1739,13 @@ const DiscordConstants = {
 		"DiscordConstants.ChannelTypes",
 	),
 };
-const DragSource = getModule(m => typeof m === "function" && m.toString().includes("react-dnd.github.io/react-dnd/docs/api/drag-source"), {
-	searchExports: true
-}) ?? getModule(m => typeof m === "function" && m.toString().includes("type, spec, collect[, options]"), {
+const DragSource = getModule(m => typeof m === "function" && m.toString().includes("DragSource") && m.toString().includes("containerDisplayName"), {
 	searchExports: true
 }) ?? getModule(Filters.byStrings("DecoratedComponent", "createHandler", "registerHandler"), {
 	searchExports: true
-}) ?? getModule(m => typeof m === "function" && m.toString().includes("DragSource") && m.toString().includes("containerDisplayName"), {
-	searchExports: true
 });
-const DropTarget = getModule(m => typeof m === "function" && m.toString().includes("react-dnd.github.io/react-dnd/docs/api/drop-target"), {
-	searchExports: true
-}) ?? getModule(m => typeof m === "function" && m.toString().includes("an array of strings, or a function that returns either"), {
-	searchExports: true
-}) ?? getModule(m => typeof m === "function" && m.toString().includes("DropTarget") && m.toString().includes("containerDisplayName"), {
-	searchExports: true
-}) ?? getModule(m => typeof m === "function" && m.toString().includes("type, spec, collect[, options]") && m.toString().includes("DropTarget"), {
+
+const DropTarget = getModule(m => typeof m === "function" && m.toString().includes("DropTarget") && m.toString().includes("containerDisplayName"), {
 	searchExports: true
 }) ?? getModule(Filters.byStrings("createMonitor", "createConnector", "DropTarget"), {
 	searchExports: true
