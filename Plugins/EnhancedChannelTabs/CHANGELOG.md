@@ -1,5 +1,8 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+## 5.0.3
+- Updated drag and drop getters to match Discord changes 
+
 ## 5.0.2
 - Fixed crash when previewing tabs in threads that contain the thread starter message
 
