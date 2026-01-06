@@ -1,8 +1,8 @@
 ---
 name: Feature/Improvement Request
 about: Suggest an idea for this project
-title: "[IMPROVEMENT] - PLUGIN/THEMENAME"
-labels: improvement
+title: "[Feature Request] - PLUGIN/THEMENAME"
+labels: enhancement
 assignees: ''
 
 ---
