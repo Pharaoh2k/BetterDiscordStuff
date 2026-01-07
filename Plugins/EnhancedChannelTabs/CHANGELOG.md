@@ -3,13 +3,13 @@
 ### 5.0.5
 - Updated styles to match Discord changes
 
-## 5.0.4
+### 5.0.4
 - Fixed an issue where the middle-click auto-scroll circle would get stuck when opening guilds or channels in new tabs.
 
-## 5.0.3
+### 5.0.3
 - Fixed a critical crash on startup by updating how the plugin detects Discord's internal Drag-and-Drop modules.
 
-## 5.0.2
+### 5.0.2
 - Fixed crash when previewing tabs in threads that contain the thread starter message
 
 ### 5.0.1
