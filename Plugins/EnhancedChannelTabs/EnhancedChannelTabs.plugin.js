@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 5.0.4
+ * @version 5.0.5
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
  */
@@ -390,7 +390,7 @@ class StyleManager {
 			.enhancedChannelTabs-unreadBadge { border-radius: var(--radius-sm); padding: 0 0.25rem; min-width: 0.5rem; width: fit-content; height: 1rem; font-size: 0.75rem; line-height: 1.334; font-weight: 600; text-align: center; color: var(--white-100); }
 			.enhancedChannelTabs-typingBadge { border-radius: var(--radius-sm); padding-left: 0.25rem; padding-right: 0.25rem; min-width: 0.5rem; width: fit-content; height: 1rem; font-size: 0.75rem; line-height: 1.334; font-weight: 600; text-align: center; color: var(--white-100); }
 			.enhancedChannelTabs-mentionBadge { background-color: var(--status-danger); }
-			.enhancedChannelTabs-unreadBadge { background-color: var(--badge-background-default); color: var(--badge-text-default); }
+			.enhancedChannelTabs-unreadBadge { background-color: var(--badge-background-brand); color: var(--badge-text-brand); }
 			/* Legacy alignment classes - now flex order */
 			.enhancedChannelTabs-classicBadgeAlignment { margin-right: var(--space-6); }
 			.enhancedChannelTabs-badgeAlignLeft { order: -1; }
@@ -465,7 +465,7 @@ class StyleManager {
 			.enhancedChannelTabs-closedTabInfo { flex: 1; }
 			.enhancedChannelTabs-closedTabName { font-weight: 500; }
 			.enhancedChannelTabs-closedTabMeta { font-size: 0.75rem; color: var(--text-muted); }
-			.enhancedChannelTabs-closedTabButton { padding: 0.25rem 0.75rem; border-radius: var(--radius-xs); border: none; background: var(--badge-background-default); color: var(--white-100); cursor: pointer; font-size: 0.8125rem; }
+			.enhancedChannelTabs-closedTabButton { padding: 0.25rem 0.75rem; border-radius: var(--radius-xs); border: none; background: var(--badge-background-brand); color: var(--white-100); cursor: pointer; font-size: 0.8125rem; }
 			/* Utility Classes */
 			.enhancedChannelTabs-shortcutLabelKeys { color: var(--text-muted); padding: 0.5rem; font-size: 0.75rem; white-space: pre-wrap; }
 			.enhancedChannelTabs-minimumTabWidthLabel { pointer-events: none; }
