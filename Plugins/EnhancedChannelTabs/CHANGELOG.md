@@ -1,5 +1,8 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+### 5.0.5
+- Updated styles to match Discord changes
+
 ## 5.0.4
 - Fixed an issue where the middle-click auto-scroll circle would get stuck when opening guilds or channels in new tabs.
 
