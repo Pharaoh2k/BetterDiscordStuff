@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 5.0.5
+ * @version 5.0.6
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
  */
@@ -376,7 +376,7 @@ class StyleManager {
 			.enhancedChannelTabs-offlineIcon { fill: var(--icon-status-offline); mask: url(#svg-mask-status-offline); }
 			.enhancedChannelTabs-closeTab { position: relative; height: 1rem; width: 1rem; flex-shrink: 0; right: 0.375rem; border-radius: var(--radius-xs); color: var(--interactive-text-default); cursor: pointer; display: flex; align-items: center; justify-content: center; }
 			.enhancedChannelTabs-closeTab svg { height: 100%; width: 100%; transform: scale(0.85); }
-			.enhancedChannelTabs-closeTab:hover { background: var(--status-danger); color: var(--white-100); }
+			.enhancedChannelTabs-closeTab:hover { background: var(--status-danger); color: var(--white); }
 			.enhancedChannelTabs-newTab { display: flex; align-items: center; justify-content: center; flex-shrink: 0; height: var(--enhancedChannelTabs-openTabSize); width: 1.5rem; margin: 0 var(--space-6) 3px var(--space-6); border-radius: var(--radius-xs); cursor: pointer; color: var(--interactive-text-default); margin-right: var(--space-6); }
 			.enhancedChannelTabs-newTab:hover { background: var(--background-mod-subtle); color: var(--interactive-text-hover); }
 			.enhancedChannelTabs-newTab:active { background: var(--background-mod-normal); color: var(--interactive-text-active); }
@@ -387,8 +387,8 @@ class StyleManager {
 			/* Badges */
 			.enhancedChannelTabs-gridContainer { display: flex; margin-right: var(--space-6); gap: var(--space-4); align-items: center; }
 			.enhancedChannelTabs-mentionBadge,
-			.enhancedChannelTabs-unreadBadge { border-radius: var(--radius-sm); padding: 0 0.25rem; min-width: 0.5rem; width: fit-content; height: 1rem; font-size: 0.75rem; line-height: 1.334; font-weight: 600; text-align: center; color: var(--white-100); }
-			.enhancedChannelTabs-typingBadge { border-radius: var(--radius-sm); padding-left: 0.25rem; padding-right: 0.25rem; min-width: 0.5rem; width: fit-content; height: 1rem; font-size: 0.75rem; line-height: 1.334; font-weight: 600; text-align: center; color: var(--white-100); }
+			.enhancedChannelTabs-unreadBadge { border-radius: var(--radius-sm); padding: 0 0.25rem; min-width: 0.5rem; width: fit-content; height: 1rem; font-size: 0.75rem; line-height: 1.334; font-weight: 600; text-align: center; color: var(--white); }
+			.enhancedChannelTabs-typingBadge { border-radius: var(--radius-sm); padding-left: 0.25rem; padding-right: 0.25rem; min-width: 0.5rem; width: fit-content; height: 1rem; font-size: 0.75rem; line-height: 1.334; font-weight: 600; text-align: center; color: var(--white); }
 			.enhancedChannelTabs-mentionBadge { background-color: var(--status-danger); }
 			.enhancedChannelTabs-unreadBadge { background-color: var(--badge-background-brand); color: var(--badge-text-brand); }
 			/* Legacy alignment classes - now flex order */
@@ -465,7 +465,7 @@ class StyleManager {
 			.enhancedChannelTabs-closedTabInfo { flex: 1; }
 			.enhancedChannelTabs-closedTabName { font-weight: 500; }
 			.enhancedChannelTabs-closedTabMeta { font-size: 0.75rem; color: var(--text-muted); }
-			.enhancedChannelTabs-closedTabButton { padding: 0.25rem 0.75rem; border-radius: var(--radius-xs); border: none; background: var(--badge-background-brand); color: var(--white-100); cursor: pointer; font-size: 0.8125rem; }
+			.enhancedChannelTabs-closedTabButton { padding: 0.25rem 0.75rem; border-radius: var(--radius-xs); border: none; background: var(--badge-background-brand); color: var(--white); cursor: pointer; font-size: 0.8125rem; }
 			/* Utility Classes */
 			.enhancedChannelTabs-shortcutLabelKeys { color: var(--text-muted); padding: 0.5rem; font-size: 0.75rem; white-space: pre-wrap; }
 			.enhancedChannelTabs-minimumTabWidthLabel { pointer-events: none; }
@@ -475,7 +475,7 @@ class StyleManager {
 	}
 	static getMultiRowStyles() {
 		return `
-			.enhancedChannelTabs-tabContainer[data-multiline="true"] .enhancedChannelTabs-tabWrap { display: flex !important; flex-wrap: wrap !important; align-content: flex-start; row-gap: var(--enhancedChannelTabs-rowGap, 3px); column-gap: 0; overflow: visible !important; transition: height 0.3s ease, opacity 0.3s ease; contain: layout paint; }
+			.enhancedChannelTabs-tabContainer[data-multiline="true"] .enhancedChannelTabs-tabWrap { display: flex !important; flex-wrap: wrap !important; align-content: flex-start; row-gap: 3px; column-gap: 0; overflow: visible !important; transition: height 0.3s ease, opacity 0.3s ease; contain: layout paint; }
 			.enhancedChannelTabs-tabContainer[data-multiline="true"] .enhancedChannelTabs-tabWrapper { flex-shrink: 1 !important; }
 			.enhancedChannelTabs-tabContainer[data-multiline="true"] .enhancedChannelTabs-tab { flex: 1 1 clamp(var(--enhancedChannelTabs-tabWidthMin, 6.25rem), 20vw, var(--enhancedChannelTabs-tabWidth, 13.75rem)); min-width: var(--enhancedChannelTabs-tabWidthMin, 6.25rem); }
 			.enhancedChannelTabs-tabContainer:not([data-multiline="true"]) .enhancedChannelTabs-tabWrap { flex-wrap: nowrap !important; overflow-x: auto !important; overflow-y: hidden !important; scrollbar-width: none; }
@@ -493,7 +493,7 @@ class StyleManager {
 		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-trailing { order: 3 !important; margin-left: 0 !important; margin-bottom: 0 !important; }
 		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-tabListDropdown { margin-right: 0.25rem !important; }
 		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-newTab { margin-left: auto !important; margin-right: 2px !important; }
-		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-tabWrap { order: 10 !important; flex-basis: 100% !important; width: 100% !important; margin-top: 0.25rem !important; border-top: 1px solid var(--background-modifier-accent); display: flex !important; flex-wrap: wrap !important; max-height: 30vh; overflow-y: auto !important; }
+		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-tabWrap { order: 10 !important; flex-basis: 100% !important; width: 100% !important; margin-top: 0.25rem !important; border-top: 1px solid var(--background-accent); display: flex !important; flex-wrap: wrap !important; max-height: 30vh; overflow-y: auto !important; padding-top: 0.3125rem;	}
 		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-tab { flex: 1 1 var(--enhancedChannelTabs-tabWidthMin); }
 		`;
 	}
@@ -509,7 +509,7 @@ class StyleManager {
 				position: fixed;
 				z-index: 10000;
 				pointer-events: none;
-				background-color: var(--bg-overlay-chat, var(--background-base-lower)) !important;
+				background-color: var(--background-base-lower) !important;
 				border-radius: 0.625rem;
 				min-height: 9.375rem;
 				width: 50vw;
