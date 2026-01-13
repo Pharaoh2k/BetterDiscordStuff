@@ -1,5 +1,8 @@
 # [BetterPinDMs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterPinDMs "BetterPinDMs") Changelog
 
+### 2.1.0
+- Improved code quality and performance
+
 ### 2.0.1
 - Fixed DM list auto-scrolling to wrong position when clicking pinned DMs
 
