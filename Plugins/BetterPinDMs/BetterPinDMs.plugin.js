@@ -1,8 +1,8 @@
 /**
  * @name BetterPinDMs
  * @author Pharaoh2k
- * @description Enhanced DM pinning with category headers, drag & drop, unread tracking, hotkeys, import/export (from similar plugins too), and smart categories. Pinned DMs are shown in a separate 📌 PINNED DMs section above "Direct Messages".
- * @version 2.0.1
+ * @description Enhanced DM pinning with category headers, drag & drop, unread tracking, hotkeys, import/export (from similar plugins too), and smart categories. Pinned DMs are shown in a separate PINNED DMs section above "Direct Messages".
+ * @version 2.1.0
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterPinDMs/BetterPinDMs.plugin.js
@@ -36,11 +36,8 @@ const CONFIG = {
 		shortcutJumpCategoryEnabled: true,
 		shortcutJumpCategoryKeys: ["Ctrl"]
 	},
-	info: {
-		name: "BetterPinDMs",
-		github: "Pharaoh2k/BetterDiscordStuff"
-	}
 };
+const GITHUB_REPO = "Pharaoh2k/BetterDiscordStuff";
 const CHANNEL_TYPES = {
 	DM: 1,
 	GROUP_DM: 3
@@ -55,16 +52,22 @@ const CATEGORY_META = {
 	muted: { name: "Muted", color: "#95a5a6" }
 };
 const TIMEOUTS = {
-	INITIAL_HEADER_INJECT: 1000,
-	HEADER_RETRY: 500,
-	DOM_SYNC_DEBOUNCE: 0,
-	UPDATE_DEBOUNCE: 0,
-	DM_LIST_RESYNC: 200,
-	HEADER_HEALTH_INTERVAL: 1000
+	UPDATE_DEBOUNCE: 0
 };
+const DEFAULT_COLOR = "#5865F2";
+const DEFAULT_COLOR_RGBA = [88, 101, 242, 1];
+const DEFAULT_CATEGORY_PREFIX = "Pinned DMs #";
+const DRAG_CLASSES = ["betterpindms-drop-target-top", "betterpindms-drop-target-bottom", "betterpindms-drop-target-center"];
 //#endregion Configuration
+//#region Utility Helpers
+const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
+const getEnableKey = (key) => `enable${capitalize(key)}`;
+const removeDragClasses = (el) => el?.classList?.remove(...DRAG_CLASSES);
+const filterStringArray = (arr) => Array.isArray(arr) ? arr.filter(x => typeof x === "string") : [];
+//#endregion Utility Helpers
 //#region BdApi destructuring & Utils helpers
-const { React, ReactDOM, UI, DOM, Data, Patcher, Webpack, Logger, ContextMenu, Utils, Hooks } = BdApi;
+const { React, ReactDOM, UI, DOM, Data, Patcher, Webpack, Logger, ContextMenu, Utils, Hooks, Net, Plugins, Components, ReactUtils } = BdApi;
+const { Filters } = Webpack;
 const { className, debounce, findInTree } = Utils;
 //#endregion BdApi destructuring
 //#region Update Manager
@@ -96,13 +99,17 @@ class UpdateManager {
 		}
 		clearInterval(this.timer);
 		this.timer = null;
+		this._closeNotification();
+	}
+	_closeNotification() {
+		if (!this.notification) return;
 		if (typeof this.notification === "function") this.notification();
-		else this.notification?.close?.();
+		else if (this.notification.close) this.notification.close();
 		this.notification = null;
 	}
 	async check(silent = false) {
 		try {
-			const res = await BdApi.Net.fetch(this.urls.plugin);
+			const res = await Net.fetch(this.urls.plugin);
 			if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
 			const text = await res.text();
 			const validated = this._validateRemotePluginText(text);
@@ -111,22 +118,16 @@ class UpdateManager {
 			if (this.isNewer(version)) {
 				this.showUpdateNotice(version, text);
 			} else if (!silent) {
-				BdApi.UI.showToast(`[${this.name}] You're up to date.`, { type: "info" });
+				UI.showToast(`[${this.name}] You're up to date.`, { type: "info" });
 			}
 		} catch (e) {
-			BdApi.Logger.error(this.name, "Update check failed:", e);
-			if (!silent) BdApi.UI.showToast(`[${this.name}] Update check failed`, { type: "error" });
+			Logger.error(this.name, "Update check failed:", e);
+			if (!silent) UI.showToast(`[${this.name}] Update check failed`, { type: "error" });
 		}
 	}
 	showUpdateNotice(version, text) {
-		if (typeof this.notification === "function") this.notification();
-		else this.notification?.close?.();
-		let handle = null;
-		const closeHandle = () => {
-			if (typeof handle === "function") handle();
-			else handle?.close?.();
-		};
-		handle = BdApi.UI.showNotification?.({
+		this._closeNotification();
+		const handle = UI.showNotification?.({
 			id: `bd-plugin-update:${this.name}`,
 			title: `${this.name}`,
 			content: `v${version} is available`,
@@ -136,26 +137,26 @@ class UpdateManager {
 				{
 					label: "Update",
 					onClick: () => {
-						closeHandle();
+						this._closeNotification();
 						this.applyUpdate(text, version);
 					},
 				},
 				{
 					label: "Dismiss",
-					onClick: closeHandle,
+					onClick: () => this._closeNotification(),
 				},
 			],
 			onClose: () => {
 				if (this.notification === handle) this.notification = null;
 			},
-		}) ?? BdApi.UI.showNotice(`${this.name} v${version} is available`, {
+		}) ?? UI.showNotice(`${this.name} v${version} is available`, {
 			type: "info",
 			buttons: [
 				{
 					label: "Update",
 					onClick: (closeOrEvent) => {
 						if (typeof closeOrEvent === "function") closeOrEvent();
-						else closeHandle();
+						else this._closeNotification();
 						this.applyUpdate(text, version);
 					},
 				},
@@ -163,7 +164,7 @@ class UpdateManager {
 					label: "Dismiss",
 					onClick: (closeOrEvent) => {
 						if (typeof closeOrEvent === "function") closeOrEvent();
-						else closeHandle();
+						else this._closeNotification();
 					},
 				},
 			],
@@ -174,54 +175,54 @@ class UpdateManager {
 		try {
 			const validated = this._validateRemotePluginText(text);
 			if (!validated.ok) {
-				BdApi.UI.showToast(`Update blocked: ${validated.reason}`, { type: "error", timeout: 8000 });
+				UI.showToast(`Update blocked: ${validated.reason}`, { type: "error", timeout: 8000 });
 				return;
 			}
 			const nextVersion = validated.version ?? version;
 			require("fs").writeFileSync(__filename, text);
-			BdApi.UI.showToast(`Updated to v${nextVersion}. Reloading...`, { type: "success" });
+			UI.showToast(`Updated to v${nextVersion}. Reloading...`, { type: "success" });
 			setTimeout(() => {
 				try {
-					BdApi.Plugins.reload(this.name);
+					Plugins.reload(this.name);
 				} catch {
-					BdApi.UI.showToast("Please reload Discord (Ctrl+R)", { type: "info", timeout: 0 });
+					UI.showToast("Please reload Discord (Ctrl+R)", { type: "info", timeout: 0 });
 				}
 			}, 100);
 		} catch (e) {
-			BdApi.Logger.error(this.name, "Update failed:", e);
-			BdApi.UI.showToast("Update failed", { type: "error" });
+			Logger.error(this.name, "Update failed:", e);
+			UI.showToast("Update failed", { type: "error" });
 		}
 	}
 	async showChangelog() {
-		const last = BdApi.Data.load(this.name, 'version');
-		console.log(`[${this.name}] showChangelog: last=${last}, current=${this.version}`);
-		if (last === this.version) { console.log(`[${this.name}] Skipping: versions match`); return; }
-		BdApi.Data.save(this.name, 'version', this.version);
-		if (!last) { console.log(`[${this.name}] Skipping: fresh install`); return; }
+		const last = Data.load(this.name, 'version');
+		Logger.info(this.name, `showChangelog: last=${last}, current=${this.version}`);
+		if (last === this.version) { Logger.info(this.name, "Skipping: versions match"); return; }
+		Data.save(this.name, 'version', this.version);
+		if (!last) { Logger.info(this.name, "Skipping: fresh install"); return; }
 		try {
-			const res = await BdApi.Net.fetch(this.urls.changelog);
-			console.log(`[${this.name}] Changelog fetch status: ${res.status}`);
+			const res = await Net.fetch(this.urls.changelog);
+			Logger.info(this.name, `Changelog fetch status: ${res.status}`);
 			if (res.status !== 200) return;
 			const md = await res.text();
 			const changes = this.parseChangelog(md, last, this.version);
-			console.log(`[${this.name}] Parsed changes:`, changes);
+			Logger.info(this.name, "Parsed changes:", changes);
 			if (changes.length === 0) return;
-			BdApi.UI.showChangelogModal({ title: this.name, subtitle: `Version ${this.version}`, changes });
-		} catch (e) { console.error(`[${this.name}] Changelog error:`, e); }
+			UI.showChangelogModal({ title: this.name, subtitle: `Version ${this.version}`, changes });
+		} catch (e) { Logger.error(this.name, "Changelog error:", e); }
 	}
 	async showFullChangelog() {
 		try {
-			const res = await BdApi.Net.fetch(this.urls.changelog);
+			const res = await Net.fetch(this.urls.changelog);
 			if (res.status !== 200) throw new Error("Failed to fetch changelog");
 			const md = await res.text();
 			const changes = this.parseChangelog(md, "0.0.0", this.version);
-			BdApi.UI.showChangelogModal({
+			UI.showChangelogModal({
 				title: this.name,
 				subtitle: `All Changes`,
 				changes: changes.length ? changes : [{ title: "No changes found", items: [] }]
 			});
 		} catch {
-			BdApi.UI.showToast("Could not fetch changelog", { type: "error" });
+			UI.showToast("Could not fetch changelog", { type: "error" });
 		}
 	}
 	parseChangelog(md, from, to) {
@@ -284,19 +285,7 @@ class UpdateManager {
 		return versions;
 	}
 	isNewer(remoteVersion, localVersion = this.version) {
-		return this._compareSemver(remoteVersion, localVersion) > 0;
-	}
-	_compareSemver(a, b) {
-		const pa = String(a ?? "").split(".").map(n => Number.parseInt(n, 10));
-		const pb = String(b ?? "").split(".").map(n => Number.parseInt(n, 10));
-		const len = Math.max(pa.length, pb.length);
-		for (let i = 0; i < len; i++) {
-			const va = Number.isFinite(pa[i]) ? pa[i] : 0;
-			const vb = Number.isFinite(pb[i]) ? pb[i] : 0;
-			if (va > vb) return 1;
-			if (va < vb) return -1;
-		}
-		return 0;
+		return Utils.semverCompare(localVersion, remoteVersion) > 0;
 	}
 	_validateRemotePluginText(text) {
 		if (typeof text !== "string") return { ok: false, reason: "Not a string" };
@@ -314,7 +303,8 @@ class UpdateManager {
 //#endregion Update Manager
 //#region Discord Store Service
 class DiscordStoreService {
-	constructor() {
+	constructor(pluginName) {
+		this.pluginName = pluginName;
 		this.stores = {};
 		this._initialized = false;
 	}
@@ -332,9 +322,9 @@ class DiscordStoreService {
 				"UserGuildSettingsStore"
 			];
 			for (const name of storeNames) {
-				this.stores[name] = Webpack.getStore(name);
+				this.stores[name] = Webpack.Stores[name];
 				if (!this.stores[name]) {
-					Logger?.warn?.("BetterPinDMs", `Store not found: ${name}`);
+					Logger.warn(this.pluginName, `Store not found: ${name}`);
 				}
 			}
 			this._initialized = true;
@@ -348,14 +338,7 @@ class DiscordStoreService {
 		return this._getFromStore("UserStore", "getUser", id);
 	}
 	getCurrentUserId() {
-		try {
-			const store = this.stores.UserStore;
-			if (store?.getCurrentUser) {
-				const user = store.getCurrentUser();
-				return user?.id ?? null;
-			}
-		} catch { }
-		return null;
+		return this.stores.UserStore?.getCurrentUser()?.id ?? null;
 	}
 	isFriend(userId) {
 		return this._getFromStore("RelationshipStore", "isFriend", userId);
@@ -401,17 +384,21 @@ class DiscordStoreService {
 			return false;
 		}
 	}
-	emitPrivateChannelSortChange() {
-		const store = this.stores.PrivateChannelSortStore;
+	_emitStoreChange(storeName) {
+		const store = this.stores[storeName];
 		if (store?.emitChange) {
 			store.emitChange();
 		}
 	}
+	emitPrivateChannelSortChange() {
+		this._emitStoreChange("PrivateChannelSortStore");
+	}
 	emitPrivateChannelReadStateChange() {
-		const store = this.stores.PrivateChannelReadStateStore;
-		if (store?.emitChange) {
-			store.emitChange();
-		}
+		this._emitStoreChange("PrivateChannelReadStateStore");
+	}
+	emitAllChanges() {
+		this.emitPrivateChannelReadStateChange();
+		this.emitPrivateChannelSortChange();
 	}
 	getRawStore(name) {
 		return this.stores[name];
@@ -424,7 +411,7 @@ class DiscordStoreService {
 			}
 			return store[methodName](...args);
 		} catch (err) {
-			Logger?.warn?.("BetterPinDMs", `Store call failed: ${storeName}.${methodName}`, err);
+			Logger.warn(this.pluginName, `Store call failed: ${storeName}.${methodName}`, err);
 			return null;
 		}
 	}
@@ -435,12 +422,8 @@ class UIManager {
 	constructor(plugin) {
 		this.plugin = plugin;
 		this.headerRoots = new Map();
-		this._noopStore = new Utils.Store();
-		this.SettingsPanelComponent = this._SettingsPanelComponent.bind(this);
-		this.CategoryHeaderComponent = this._CategoryHeaderComponent.bind(this);
-		this.CustomCategoriesSection = this._CustomCategoriesSection.bind(this);
-		this.ActionsSection = this._ActionsSection.bind(this);
-		this.ColorInput = BdApi.ColorInput || BdApi.Components?.ColorInput || null;
+		this.ColorInput = Components.ColorInput;
+		this.ChevronDown = Webpack.getByRegex(/M5\.3 9\.3a1 1 0 0 1 1\.4 0l5\.3 5\.29/, { searchExports: true });
 	}
 	renderSettingsPanel() {
 		const panel = document.createElement("div");
@@ -449,11 +432,9 @@ class UIManager {
 		root.render(React.createElement(this.SettingsPanelComponent));
 		return panel;
 	}
-	_SettingsPanelComponent() {
+	SettingsPanelComponent = () => {
 		const pluginName = this.plugin.pluginName;
-		const settings =
-			(Hooks?.useData ? Hooks.useData(pluginName, "settings") : null) ??
-			this.plugin.settings;
+		const settings = Hooks.useData(pluginName, "settings") ?? this.plugin.settings;
 		const settingsSchema = [
 			{
 				type: "category",
@@ -505,12 +486,12 @@ class UIManager {
 						value: settings.shortcutQuickPickerKeys,
 						clearable: true
 					},
-					{ type: "switch", id: "shortcutJumpCategoryEnabled", name: "Jump to category 1–9", value: settings.shortcutJumpCategoryEnabled },
+					{ type: "switch", id: "shortcutJumpCategoryEnabled", name: "Jump to category 1\u20139", value: settings.shortcutJumpCategoryEnabled },
 					{
 						type: "keybind",
 						id: "shortcutJumpCategoryKeys",
 						name: "Prefix keys",
-						note: "These modifiers will be combined with number keys 1–9 (e.g. Ctrl → Ctrl+1, Ctrl+2, …).",
+						note: "These modifiers will be combined with number keys 1\u20139 (e.g. Ctrl \u2192 Ctrl+1, Ctrl+2, \u2026).",
 						value: settings.shortcutJumpCategoryKeys,
 						clearable: true
 					}
@@ -524,9 +505,9 @@ class UIManager {
 				shown: false,
 				settings: CATEGORY_KEYS.slice(0, 4).map(key => ({
 					type: "switch",
-					id: `enable${key.charAt(0).toUpperCase() + key.slice(1)}`,
+					id: getEnableKey(key),
 					name: CATEGORY_META[key].name,
-					value: settings[`enable${key.charAt(0).toUpperCase() + key.slice(1)}`]
+					value: settings[getEnableKey(key)]
 				}))
 			},
 			{
@@ -537,9 +518,9 @@ class UIManager {
 				shown: false,
 				settings: CATEGORY_KEYS.slice(4).map(key => ({
 					type: "switch",
-					id: `enable${key.charAt(0).toUpperCase() + key.slice(1)}`,
+					id: getEnableKey(key),
 					name: CATEGORY_META[key].name,
-					value: settings[`enable${key.charAt(0).toUpperCase() + key.slice(1)}`]
+					value: settings[getEnableKey(key)]
 				}))
 			},
 			{
@@ -554,10 +535,10 @@ class UIManager {
 						id: "autoUpdate",
 						name: "Automatic Updates",
 						note: "Check for updates every 24 hours and on Discord startup",
-						value: settings.autoUpdate ?? true
+						value: settings.autoUpdate
 					},
-					{ type: "button", id: "checkUpdate", name: "Check for Updates", note: "Manually check for plugin updates", children: "Check Now", onClick: () => this.plugin.updateManager?.check() },
-					{ type: "button", id: "viewChangelog", name: "View Changelog", note: "View all version changes", children: "View Changelog", onClick: () => this.plugin.updateManager?.showFullChangelog() }
+					{ type: "button", id: "checkUpdate", name: "Check for Updates", note: "Manually check for plugin updates", children: "Check Now", onClick: () => this.plugin.updateManager.check() },
+					{ type: "button", id: "viewChangelog", name: "View Changelog", note: "View all version changes", children: "View Changelog", onClick: () => this.plugin.updateManager.showFullChangelog() }
 				]
 			}
 		];
@@ -570,24 +551,22 @@ class UIManager {
 			React.createElement(this.ActionsSection, { key: "actions" })
 		]);
 	}
-	_CustomCategoriesSection() {
+	CustomCategoriesSection = () => {
 		const pluginName = this.plugin.pluginName;
-		const categoriesData =
-			(Hooks?.useData ? Hooks.useData(pluginName, "categories") : null) ??
-			this.plugin.categories;
+		const categoriesData = Hooks.useData(pluginName, "categories") ?? this.plugin.categories;
 		const categories = Object.values(categoriesData?.custom ?? {}).sort((a, b) => (a.pos || 0) - (b.pos || 0));
 		return React.createElement(
 			"div",
 			{ className: "betterpindms-customcategories" },
 			[
 				React.createElement("div", { key: "header", className: "betterpindms-customcategories-header" }, "Custom Categories"),
-				React.createElement("div", { key: "hint", className: "betterpindms-customcategories-hint" }, "Use arrows to reorder. Click ✕ to delete."),
+				React.createElement("div", { key: "hint", className: "betterpindms-customcategories-hint" }, "Use arrows to reorder. Click \u2715 to delete."),
 				...categories.map((cat, i) => this._createCategoryRow(cat, i, categories.length)),
 				React.createElement(
 					"button",
 					{
 						key: "add",
-						onClick: () => this.plugin.createCategory({ name: `Pinned DMs #${categories.length + 1}`, color: "#5865F2" }),
+						onClick: () => this.plugin.createCategory({ name: `${DEFAULT_CATEGORY_PREFIX}${categories.length + 1}`, color: DEFAULT_COLOR }),
 						className: "betterpindms-customcategories-addbtn"
 					},
 					"Add Category"
@@ -622,7 +601,7 @@ class UIManager {
 						disabled: index === 0,
 						className: "betterpindms-category-movebtn betterpindms-category-movebtn-up"
 					},
-					"↑"
+					"\u2191"
 				),
 				React.createElement(
 					"button",
@@ -632,7 +611,7 @@ class UIManager {
 						disabled: index === total - 1,
 						className: "betterpindms-category-movebtn betterpindms-category-movebtn-down"
 					},
-					"↓"
+					"\u2193"
 				),
 				React.createElement(
 					"button",
@@ -647,12 +626,12 @@ class UIManager {
 						},
 						className: "betterpindms-category-deletebtn"
 					},
-					"✕"
+					"\u2715"
 				)
 			]
 		);
 	}
-	_ActionsSection() {
+	ActionsSection = () => {
 		return React.createElement(
 			"div",
 			{ className: "betterpindms-actions" },
@@ -730,7 +709,7 @@ class UIManager {
 			try {
 				root.unmount();
 			} catch (err) {
-				Logger?.warn?.("BetterPinDMs", "Failed to unmount header:", err);
+				Logger.warn(this.plugin.pluginName, "Failed to unmount header:", err);
 			}
 			this.headerRoots.delete(container);
 		}
@@ -743,23 +722,19 @@ class UIManager {
 		};
 		return React.createElement(this.CategoryHeaderComponent, { category, callbacks });
 	}
-	_CategoryHeaderComponent({ category, callbacks }) {
-		const readStore = this.plugin.storeService?.getRawStore?.("PrivateChannelReadStateStore");
-		const stores = readStore ? [readStore] : [this._noopStore];
-		const unreadIds = Hooks?.useStateFromStores
-			? Hooks.useStateFromStores(stores, () => (
-				this.plugin._originalUnreadIds?.() ??
-				this.plugin.storeService.getUnreadPrivateChannelIds?.() ??
-				[]
-			))
-			: (this.plugin._originalUnreadIds?.() ?? this.plugin.storeService.getUnreadPrivateChannelIds?.() ?? []);
+	CategoryHeaderComponent = ({ category, callbacks }) => {
+		const readStore = this.plugin.storeService.getRawStore("PrivateChannelReadStateStore");
+		const unreadIds = Hooks.useStateFromStores(
+			readStore ? [readStore] : [],
+			() => this.plugin._originalUnreadIds?.() ?? this.plugin.storeService.getUnreadPrivateChannelIds() ?? []
+		);
 		const unreadSet = React.useMemo(() => new Set(Array.isArray(unreadIds) ? unreadIds : []), [unreadIds]);
 		const unreadCount = this._getUnreadCount(category.dms, unreadSet);
 		const showUnread = this.plugin.settings.unreadAmount && unreadCount > 0;
 		const showCount = this.plugin.settings.channelAmount;
 		const onClick = (e) => {
-			e?.preventDefault();
-			e?.stopPropagation();
+			e.preventDefault();
+			e.stopPropagation();
 			callbacks.onToggleCollapse?.(category.id);
 		};
 		const onContextMenu = (e) => {
@@ -771,8 +746,8 @@ class UIManager {
 			"betterpindms-category-header-inner",
 			"betterpindms-category-header-inner-static"
 		);
-		const arrowIconClass = className(
-			"betterpindms-category-arrow-icon",
+		const arrowClasses = className(
+			"betterpindms-category-arrow",
 			category.collapsed ? "betterpindms-category-arrow-collapsed" : "betterpindms-category-arrow-expanded"
 		);
 		return React.createElement(
@@ -780,7 +755,7 @@ class UIManager {
 			{ className: headerClasses, onClick, onContextMenu },
 			[
 				...(this.plugin.settings.pinIcon && !category.predefined ? [
-					React.createElement("span", { key: "pin", className: "betterpindms-category-pin" }, "📌")
+					React.createElement("span", { key: "pin", className: "betterpindms-category-pin" }, "\u{1F4CC}")
 				] : []),
 				React.createElement(
 					"span",
@@ -795,17 +770,10 @@ class UIManager {
 				] : []),
 				React.createElement(
 					"div",
-					{ key: "arrow", className: "betterpindms-category-arrow" },
-					React.createElement(
-						"svg",
-						{ width: 16, height: 16, viewBox: "4 4 16 16", className: arrowIconClass },
-						React.createElement("path", {
-							fill: "currentColor",
-							fillRule: "evenodd",
-							clipRule: "evenodd",
-							d: "M16.59 8.59004L12 13.17L7.41 8.59004L6 10L12 16L18 10L16.59 8.59004Z"
-						})
-					)
+					{ key: "arrow", className: arrowClasses },
+					this.ChevronDown
+						? React.createElement(this.ChevronDown, { size: "sm" })
+						: null
 				)
 			]
 		);
@@ -821,7 +789,7 @@ class UIManager {
 			try {
 				root.unmount();
 			} catch (err) {
-				Logger?.warn?.("BetterPinDMs", "Failed to unmount header:", err);
+				Logger.warn(this.plugin.pluginName, "Failed to unmount header:", err);
 			}
 		}
 		this.headerRoots.clear();
@@ -830,12 +798,12 @@ class UIManager {
 			el.remove();
 		}
 	}
-	showCategoryCreateModal(defaultName, callback) {
-		let newName = defaultName || "";
-		let newColor = "#5865F2";
+	_showCategoryModal(title, confirmText, initialName, initialColor, callback) {
+		let newName = initialName;
+		let newColor = initialColor || DEFAULT_COLOR;
 		const EditorComponent = () => {
-			const [name, setName] = React.useState(defaultName || "");
-			const [color, setColor] = React.useState("#5865F2");
+			const [name, setName] = React.useState(initialName);
+			const [color, setColor] = React.useState(initialColor || DEFAULT_COLOR);
 			return React.createElement(
 				"div",
 				{ className: "betterpindms-modal-editor" },
@@ -846,10 +814,10 @@ class UIManager {
 			);
 		};
 		UI.showConfirmationModal(
-			"Create Category",
+			title,
 			React.createElement(EditorComponent),
 			{
-				confirmText: "Create",
+				confirmText,
 				cancelText: "Cancel",
 				onConfirm: () => {
 					if (newName) callback(newName, newColor);
@@ -857,32 +825,11 @@ class UIManager {
 			}
 		);
 	}
+	showCategoryCreateModal(defaultName, callback) {
+		this._showCategoryModal("Create Category", "Create", defaultName || "", DEFAULT_COLOR, callback);
+	}
 	showCategoryEditModal(category, callback) {
-		let newName = category.name;
-		let newColor = category.color || "#5865F2";
-		const EditorComponent = () => {
-			const [name, setName] = React.useState(category.name);
-			const [color, setColor] = React.useState(category.color || "#5865F2");
-			return React.createElement(
-				"div",
-				{ className: "betterpindms-modal-editor" },
-				[
-					this._createModalInputSection("Category Name", name, setName, (val) => { newName = val; }),
-					this._createModalColorSection(color, setColor, (val) => { newColor = val; })
-				]
-			);
-		};
-		UI.showConfirmationModal(
-			"Edit Category",
-			React.createElement(EditorComponent),
-			{
-				confirmText: "Save",
-				cancelText: "Cancel",
-				onConfirm: () => {
-					if (newName) callback(newName, newColor);
-				}
-			}
-		);
+		this._showCategoryModal("Edit Category", "Save", category.name, category.color || DEFAULT_COLOR, callback);
 	}
 	showQuickCategoryPicker(categories, callback) {
 		if (!categories.length) return;
@@ -1045,9 +992,7 @@ class ShortcutManager {
 		)) {
 			return;
 		}
-		const plugin = this.plugin;
-		if (!plugin || typeof plugin._getShortcutConfig !== "function") return;
-		const shortcuts = plugin._getShortcutConfig();
+		const shortcuts = this.plugin._getShortcutConfig();
 		const parseBinding = (binding) => {
 			if (!binding || !Array.isArray(binding.keys) || !binding.keys.length) return null;
 			const mods = { ctrl: false, shift: false, alt: false, meta: false };
@@ -1105,7 +1050,7 @@ class ShortcutManager {
 module.exports = class BetterPinDMs {
 	constructor(meta) {
 		this.meta = meta;
-		this.pluginName = meta?.name ?? "BetterPinDMs";
+		this.pluginName = meta.name;
 		this.settings = {};
 		this.categories = { custom: {} };
 		this.pins = { channelList: [], guildList: [] };
@@ -1121,21 +1066,19 @@ module.exports = class BetterPinDMs {
 		this._updatePending = null;
 		this._dmListForceUpdate = null;
 		this._originalGetPrivateChannelIds = null;
-		this._originalScrollToChannel = null;
 		this._DMListClass = null;
+		this._scrollPatchTimeout = null;
 		this._scrollToChannelPatched = false;
 		this._flushUpdatesDebounced = debounce(() => {
 			this._flushPendingUpdates();
 		}, TIMEOUTS.UPDATE_DEBOUNCE);
 		this.updateManager = new UpdateManager(
 			this.pluginName,
-			this.meta?.version ?? "1.0.0",
-			CONFIG.info.github
+			this.meta.version,
+			GITHUB_REPO
 		);
 		this._running = false;
 		this._timeouts = new Set();
-		this._dmListPatched = false;
-		this._dmListFallbackPatched = false;
 		this._dragEl = null;
 		this._onDragEnd = this._handleDragEnd.bind(this);
 		this._dmListPatchState = {
@@ -1181,8 +1124,8 @@ module.exports = class BetterPinDMs {
 			const originalRenderSection = st.baseRenderSection;
 			if (typeof originalRenderSection !== "function") return null;
 			const sectionElement = originalRenderSection(args);
-			if (args?.section === 1 && BdApi.React.isValidElement(sectionElement)) {
-				return BdApi.React.cloneElement(sectionElement, {
+			if (args?.section === 1 && React.isValidElement(sectionElement)) {
+				return React.cloneElement(sectionElement, {
 					onDragOver: this._composeHandler(sectionElement.props?.onDragOver, (e) => this._handleDragOver(e, "header-unpin", "unpin")),
 					onDrop: this._composeHandler(sectionElement.props?.onDrop, (e) => this._handleDrop(e, "header-unpin", "unpinned-target")),
 					onDragLeave: this._composeHandler(sectionElement.props?.onDragLeave, (e) => this._handleDragLeave(e))
@@ -1204,16 +1147,12 @@ module.exports = class BetterPinDMs {
 			this._innerClassPatched = false;
 			this._dmListFallbackPatched = false;
 			this._guildDmPatched = false;
-			if (!Webpack?.getModule || !Patcher) {
-				UI.showToast(`${this.meta.name}: BdApi outdated`, { type: "error" });
-				return;
-			}
 			this._running = true;
 			Logger.info(this.pluginName, `Starting v${this.meta.version} (React Injection Mode)`);
 			this.loadSettings();
 			this.loadCategories();
 			this.loadPins();
-			this.storeService = new DiscordStoreService();
+			this.storeService = new DiscordStoreService(this.pluginName);
 			this.storeService.init();
 			this.uiManager = new UIManager(this);
 			this.shortcutManager = new ShortcutManager(this);
@@ -1224,10 +1163,9 @@ module.exports = class BetterPinDMs {
 			this._patchPrivateChannelsList();
 			this._guildDmPatched = false;
 			this._patchGuildDmComponent();
-			this.storeService?.emitPrivateChannelReadStateChange?.();
-			this.storeService?.emitPrivateChannelSortChange?.();
+			this.storeService.emitAllChanges();
 			this.shortcutManager.start();
-			this.updateManager.start(this.settings.autoUpdate ?? true);
+			this.updateManager.start(this.settings.autoUpdate);
 			this.forceUpdate({ immediate: true });
 		} catch (err) {
 			Logger.error(this.pluginName, "Failed to start", err);
@@ -1238,10 +1176,17 @@ module.exports = class BetterPinDMs {
 		try {
 			Logger.info(this.pluginName, "Stopping");
 			this._running = false;
+			if (this._scrollPatchTimeout) {
+				clearTimeout(this._scrollPatchTimeout);
+				this._scrollPatchTimeout = null;
+			}
+			if (this._flushUpdatesDebounced?.cancel) {
+				this._flushUpdatesDebounced.cancel();
+			}
 			document.removeEventListener("dragend", this._onDragEnd, true);
 			this._handleDragEnd();
 			if (this.shortcutManager) this.shortcutManager.stop();
-			if (this.uiManager) this.uiManager?.removeAllCategoryHeaders?.();
+			if (this.uiManager) this.uiManager.removeAllCategoryHeaders();
 			if (this._settingsRoot) {
 				try { this._settingsRoot.unmount(); } catch { }
 				this._settingsRoot = null;
@@ -1250,16 +1195,10 @@ module.exports = class BetterPinDMs {
 				try { unpatch(); } catch (err) { Logger.warn(this.pluginName, "Failed to unpatch", err); }
 			}
 			this.patches = [];
-			// Restore original scrollToChannel
-			if (this._DMListClass && this._originalScrollToChannel) {
-				this._DMListClass.prototype.scrollToChannel = this._originalScrollToChannel;
-				this._originalScrollToChannel = null;
-				this._DMListClass = null;
-				this._scrollToChannelPatched = false;
-			}
+			this._DMListClass = null;
+			this._scrollToChannelPatched = false;
 			this._originalUnreadIds = null;
-			this.storeService?.emitPrivateChannelReadStateChange?.();
-			this.storeService?.emitPrivateChannelSortChange?.();
+			this.storeService?.emitAllChanges?.();
 			DOM.removeStyle(CONFIG.cssId);
 			this.updateManager.stop();
 			if (this._dmListForceUpdate) this._dmListForceUpdate();
@@ -1268,60 +1207,56 @@ module.exports = class BetterPinDMs {
 		}
 	}
 	//#endregion Lifecycle
-	//#region Patching - The React Fix
+	//#region Patching
 	_patchPrivateChannelsList() {
 		if (this._dmListPatched && this._innerClassPatched) return;
 		const hasPrivateIdsProp = (node) => {
 			const ids = node?.props?.privateChannelIds;
 			return ids != null && (Array.isArray(ids) || typeof ids[Symbol.iterator] === 'function');
 		};
-		const filters = [
-			() => Webpack.getByStrings("private-channels-", "getMutablePrivateChannels", { defaultExport: false }),
-			() => Webpack.getByStrings("private-channels-", "getPrivateChannelIds", { defaultExport: false }),
-			() => Webpack.getByStrings("private-channels-", "privateChannelIds", { defaultExport: false }),
-			() => Webpack.getByStrings("listScrollerRef", "showDMHeader", { defaultExport: false })
+		const filterCandidates = [
+			Filters.byStrings("private-channels-", "getMutablePrivateChannels"),
+			Filters.byStrings("private-channels-", "getPrivateChannelIds"),
+			Filters.byStrings("private-channels-", "privateChannelIds"),
+			Filters.byStrings("listScrollerRef", "showDMHeader")
 		];
-		let PrivateChannelsModule = null;
-		for (const filter of filters) {
+		let moduleWithKey = null;
+		for (const filter of filterCandidates) {
 			try {
-				const m = filter();
-				if (m) {
-					PrivateChannelsModule = m;
+				const result = Webpack.getWithKey(filter);
+				if (result) {
+					moduleWithKey = result;
 					break;
 				}
-			} catch {}
+			} catch { }
 		}
-		if (PrivateChannelsModule) {
-			let exportKey = null;
-			if (PrivateChannelsModule.Z) exportKey = "Z";
-			else if (PrivateChannelsModule.default) exportKey = "default";
-			if (exportKey) {
-				Logger.info(this.pluginName, "Found PrivateChannelsList module via Webpack! Patching wrapper...");
-				const unpatchWrapper = Patcher.after(
-					this.pluginName,
-					PrivateChannelsModule,
-					exportKey,
-					(_, __, returnValue) => {
-						try {
-							if (!this._innerClassPatched) {
-								const inner = Utils.findInTree(
-									returnValue,
-									n => n?.type?.prototype?.render && hasPrivateIdsProp(n),
-									{ walkable: ["props", "children"] }
-								);
-								if (inner?.type) this._patchInnerListClass(inner.type);
-							}
-						} catch (err) {
-							Logger.error(this.pluginName, "Error finding inner DM List Class", err);
+		if (moduleWithKey) {
+			const [PrivateChannelsModule, exportKey] = moduleWithKey;
+			Logger.info(this.pluginName, `Found PrivateChannelsList module via Webpack.getWithKey()! Key: ${exportKey}`);
+			const unpatchWrapper = Patcher.after(
+				this.pluginName,
+				PrivateChannelsModule,
+				exportKey,
+				(_, __, returnValue) => {
+					try {
+						if (!this._innerClassPatched) {
+							const inner = findInTree(
+								returnValue,
+								n => n?.type?.prototype?.render && hasPrivateIdsProp(n),
+								{ walkable: ["props", "children"] }
+							);
+							if (inner?.type) this._patchInnerListClass(inner.type);
 						}
-						return returnValue;
+					} catch (err) {
+						Logger.error(this.pluginName, "Error finding inner DM List Class", err);
 					}
-				);
-				this.patches.push(unpatchWrapper);
-				this._dmListPatched = true;
-			}
+					return returnValue;
+				}
+			);
+			this.patches.push(unpatchWrapper);
+			this._dmListPatched = true;
 		}
-		if (!this._innerClassPatched && BdApi.ReactUtils?.getInternalInstance) {
+		if (!this._innerClassPatched && ReactUtils?.getInternalInstance) {
 			const selectors = ["[data-list-id^='private-channels-uid']", "[class^='privateChannels'] [data-list-id]"];
 			let domList = null;
 			for (const s of selectors) {
@@ -1331,8 +1266,8 @@ module.exports = class BetterPinDMs {
 			if (domList) {
 				try {
 					Logger.info(this.pluginName, "Attempting Fiber Hot-Patch...");
-					const fiber = BdApi.ReactUtils.getInternalInstance(domList);
-					const found = Utils.findInTree(
+					const fiber = ReactUtils.getInternalInstance(domList);
+					const found = findInTree(
 						fiber,
 						n => n?.type?.prototype?.render && n?.memoizedProps?.privateChannelIds != null,
 						{ walkable: ["return"] }
@@ -1366,83 +1301,71 @@ module.exports = class BetterPinDMs {
 		this.patches.push(unpatch);
 		this._innerClassPatched = true;
 		this.storeService.emitPrivateChannelSortChange();
-		setTimeout(() => this._patchScrollToChannel(), 100);
+		this._scrollPatchTimeout = setTimeout(() => this._patchScrollToChannel(), 100);
 	}
 	_patchScrollToChannel() {
+		if (!this._running) return;
 		const dmList = document.querySelector('[class*="privateChannels"]');
 		if (!dmList) return;
-
-		const fiber = BdApi.ReactUtils.getInternalInstance(dmList);
+		const fiber = ReactUtils.getInternalInstance(dmList);
 		if (!fiber) return;
-
-		// Search DOWN the fiber tree with visited set to prevent cycles
 		const findDown = (node, visited = new WeakSet()) => {
 			if (!node || visited.has(node)) return null;
 			visited.add(node);
 			if (node.stateNode?.scrollToChannel) return node.stateNode;
 			return findDown(node.child, visited) || findDown(node.sibling, visited);
 		};
-
-		// Search from fiber, then try from parent levels if not found
 		let instance = null;
 		let start = fiber;
 		for (let i = 0; i < 5 && !instance; i++) {
 			instance = findDown(start);
 			start = start?.return;
 		}
-
 		if (!instance) {
 			Logger.warn(this.pluginName, "Could not find DM list class instance for scrollToChannel patch");
 			return;
 		}
-
-		// Get the class constructor and patch its prototype
 		const DMListClass = instance.constructor;
-		if (this._scrollToChannelPatched) return; // Already patched
-
-		const self = this;
-		const orig = DMListClass.prototype.scrollToChannel;
-		this._originalScrollToChannel = orig;
+		if (this._scrollToChannelPatched) return;
+		const getPluginState = () => this._dmListPatchState;
 		this._DMListClass = DMListClass;
-
-		DMListClass.prototype.scrollToChannel = function(channelId) {
-			const st = self._dmListPatchState;
-
-			// Calculate visual index from plugin's internal state
-			let visualIndex = -1;
-			if (st?.pinnedRows && st?.unpinnedList) {
-				let dmIdx = 0;
-				for (const row of st.pinnedRows) {
-					if (row.type === 'dm') {
-						if (row.dmId === channelId) { visualIndex = dmIdx; break; }
-						dmIdx++;
+		const unpatch = Patcher.instead(
+			this.pluginName,
+			DMListClass.prototype,
+			"scrollToChannel",
+			(thisObj, [channelId], original) => {
+				const st = getPluginState();
+				let visualIndex = -1;
+				if (st?.pinnedRows && st?.unpinnedList) {
+					let dmIdx = 0;
+					for (const row of st.pinnedRows) {
+						if (row.type === 'dm') {
+							if (row.dmId === channelId) { visualIndex = dmIdx; break; }
+							dmIdx++;
+						}
+					}
+					if (visualIndex < 0) {
+						const unpinnedIdx = st.unpinnedList.indexOf(channelId);
+						if (unpinnedIdx >= 0) visualIndex = dmIdx + unpinnedIdx;
 					}
 				}
-				if (visualIndex < 0) {
-					const unpinnedIdx = st.unpinnedList.indexOf(channelId);
-					if (unpinnedIdx >= 0) visualIndex = dmIdx + unpinnedIdx;
+				const origIndex = thisObj.props?.privateChannelIds?.indexOf(channelId) ?? -1;
+				if (visualIndex >= 0 && visualIndex !== origIndex) {
+					const { padding = 0 } = thisObj.props;
+					const { preRenderedChildren = 0 } = thisObj.state;
+					const scrollPos = 44 * (visualIndex + preRenderedChildren) + padding;
+					thisObj._list?.scrollIntoViewRect({
+						start: Math.max(scrollPos - 8, 0),
+						end: scrollPos + 44 + 8
+					});
+					return;
 				}
+				return original.call(thisObj, channelId);
 			}
-
-			const origIndex = this.props?.privateChannelIds?.indexOf(channelId) ?? -1;
-
-			if (visualIndex >= 0 && visualIndex !== origIndex) {
-				const { padding = 0 } = this.props;
-				const { preRenderedChildren = 0 } = this.state;
-				const scrollPos = 44 * (visualIndex + preRenderedChildren) + padding;
-				this._list?.scrollIntoViewRect({
-					start: Math.max(scrollPos - 8, 0),
-					end: scrollPos + 44 + 8
-				});
-				return;
-			}
-
-			// Fallback to original behavior
-			return orig.call(this, channelId);
-		};
-
+		);
+		this.patches.push(unpatch);
 		this._scrollToChannelPatched = true;
-		Logger.info(this.pluginName, "Patched scrollToChannel prototype for visual index");
+		Logger.info(this.pluginName, "Patched scrollToChannel via BdApi.Patcher");
 	}
 	_activateDmListFallback(reason) {
 		if (this._dmListFallbackPatched || this._dmListPatched) return;
@@ -1505,23 +1428,23 @@ module.exports = class BetterPinDMs {
 		const originalProps = componentInstance.props;
 		const originalIds = originalProps.privateChannelIds;
 		if (!originalIds?.length) return returnValue;
-		const { pinnedRows, pinnedSet, unpinnedList } = this._calculateSortedList(originalIds);
-		if (!BdApi.React.isValidElement(returnValue) || typeof returnValue.props.children !== "function") {
+		const { pinnedRows, unpinnedList } = this._calculateSortedList(originalIds);
+		if (!React.isValidElement(returnValue) || typeof returnValue.props.children !== "function") {
 			return returnValue;
 		}
 		const originalLevel1 = returnValue.props.children;
-		return BdApi.React.cloneElement(returnValue, {
+		return React.cloneElement(returnValue, {
 			children: (...args1) => {
 				const level1Result = originalLevel1(...args1);
-				if (!BdApi.React.isValidElement(level1Result) || typeof level1Result.props.children !== "function") {
+				if (!React.isValidElement(level1Result) || typeof level1Result.props.children !== "function") {
 					return level1Result;
 				}
 				const originalLevel2 = level1Result.props.children;
-				return BdApi.React.cloneElement(level1Result, {
+				return React.cloneElement(level1Result, {
 					children: (...args2) => {
 						let finalResult = originalLevel2(...args2);
-						if (BdApi.React.isValidElement(finalResult)) {
-							finalResult = this._applyListPatch(finalResult, originalIds, pinnedRows, pinnedSet, unpinnedList);
+						if (React.isValidElement(finalResult)) {
+							finalResult = this._applyListPatch(finalResult, originalIds, pinnedRows, unpinnedList);
 						}
 						return finalResult;
 					}
@@ -1529,8 +1452,8 @@ module.exports = class BetterPinDMs {
 			}
 		});
 	}
-	_applyListPatch(listElement, originalIds, pinnedRows, _pinnedSet, unpinnedList) {
-		if (!BdApi.React.isValidElement(listElement)) return listElement;
+	_applyListPatch(listElement, originalIds, pinnedRows, unpinnedList) {
+		if (!React.isValidElement(listElement)) return listElement;
 		const props = listElement.props;
 		if (!props?.sections || props.sections.length < 2) return listElement;
 		if (typeof props.renderRow !== "function") return listElement;
@@ -1554,7 +1477,7 @@ module.exports = class BetterPinDMs {
 			st.indexOfId = indexOfId;
 			st.lastOriginalIds = originalIds;
 		}
-		return BdApi.React.cloneElement(listElement, {
+		return React.cloneElement(listElement, {
 			sections: newSections,
 			numRows: props.numRows === undefined ? props.numRows : totalNewCount,
 			rowCount: props.rowCount === undefined ? props.rowCount : totalNewCount,
@@ -1563,7 +1486,7 @@ module.exports = class BetterPinDMs {
 		});
 	}
 	_renderCategoryHeaderRow(category, rowArgs) {
-		return BdApi.React.createElement(
+		return React.createElement(
 			"div",
 			{
 				key: `header:${category.id}`,
@@ -1611,10 +1534,11 @@ module.exports = class BetterPinDMs {
 			nextProps.key = stableKey;
 			try {
 				return React.cloneElement(el, nextProps);
-			} catch {
+			} catch (err) {
+				Logger.warn(this.pluginName, "Failed to clone element, using wrapper fallback", err);
 			}
 		}
-		return BdApi.React.createElement(
+		return React.createElement(
 			"div",
 			{
 				key: stableKey,
@@ -1628,8 +1552,9 @@ module.exports = class BetterPinDMs {
 	_composeHandler(existing, added) {
 		if (typeof existing !== "function") return added;
 		if (typeof added !== "function") return existing;
+		const pluginName = this.pluginName;
 		return function composed(e) {
-			try { existing(e); } catch { }
+			try { existing(e); } catch (err) { Logger.warn(pluginName, "Composed handler error", err); }
 			return added(e);
 		};
 	}
@@ -1645,15 +1570,9 @@ module.exports = class BetterPinDMs {
 	_cleanupDragVisuals() {
 		if (this._dragEl?.style) this._dragEl.style.opacity = "";
 		this._dragEl = null;
-		const els = document.querySelectorAll(
-			".betterpindms-drop-target-top, .betterpindms-drop-target-bottom, .betterpindms-drop-target-center"
-		);
-		for (const el of els) {
-			el.classList.remove(
-				"betterpindms-drop-target-top",
-				"betterpindms-drop-target-bottom",
-				"betterpindms-drop-target-center"
-			);
+		const selector = DRAG_CLASSES.map(c => `.${c}`).join(", ");
+		for (const el of document.querySelectorAll(selector)) {
+			removeDragClasses(el);
 		}
 	}
 	_handleDragOver(e, targetType, targetId) {
@@ -1664,7 +1583,7 @@ module.exports = class BetterPinDMs {
 		const rect = target.getBoundingClientRect();
 		const offsetY = e.clientY - rect.top;
 		const height = rect.height;
-		target.classList.remove("betterpindms-drop-target-top", "betterpindms-drop-target-bottom", "betterpindms-drop-target-center");
+		removeDragClasses(target);
 		if (targetType === "category") {
 			if (this._dragInfo.type === "dm") {
 				target.classList.add("betterpindms-drop-target-center");
@@ -1688,12 +1607,12 @@ module.exports = class BetterPinDMs {
 		}
 	}
 	_handleDragLeave(e) {
-		e.currentTarget.classList.remove("betterpindms-drop-target-top", "betterpindms-drop-target-bottom", "betterpindms-drop-target-center");
+		removeDragClasses(e.currentTarget);
 	}
 	_handleDrop(e, targetType, targetId) {
 		e.preventDefault();
 		e.stopPropagation();
-		e.currentTarget.classList.remove("betterpindms-drop-target-top", "betterpindms-drop-target-bottom", "betterpindms-drop-target-center");
+		removeDragClasses(e.currentTarget);
 		this._cleanupDragVisuals();
 		if (!this._dragInfo) return;
 		const { type: dragType, id: dragId } = this._dragInfo;
@@ -1707,7 +1626,7 @@ module.exports = class BetterPinDMs {
 		}
 		if (dragType === "dm" && targetType === "category") {
 			this.addDmToCategory(dragId, targetId);
-			BdApi.UI.showToast("DM Pinned", { type: "success" });
+			UI.showToast("DM Pinned", { type: "success" });
 			return;
 		}
 		if (dragType === "dm" && targetType === "dm") {
@@ -1733,20 +1652,23 @@ module.exports = class BetterPinDMs {
 		if (!insertBefore) newTargetIdx++;
 		cats.splice(newTargetIdx, 0, item);
 		cats.forEach((c, i) => c.pos = i);
-		this.saveCategories();
-		this.forceUpdate({ dmList: true });
+		this._saveCategoriesAndRefresh();
+	}
+	_confirmUnpin(dmId) {
+		const doUnpin = () => {
+			this.removeDmFromAnyCategory(dmId);
+			UI.showToast("DM Unpinned", { type: "success" });
+		};
+		if (this.settings.confirmDragActions) {
+			UI.showConfirmationModal("Unpin DM", "Unpin this DM?", { confirmText: "Unpin", danger: true, onConfirm: doUnpin });
+		} else {
+			doUnpin();
+		}
 	}
 	_reorderDm(dragId, targetId, insertBefore = true) {
 		if (targetId === "unpinned-target") {
-			const dragCat = this.getCategoryForDm(dragId);
-			if (dragCat) {
-				const doUnpin = () => {
-					this.removeDmFromAnyCategory(dragId);
-					BdApi.UI.showToast("DM Unpinned", { type: "success" });
-				};
-				if (this.settings.confirmDragActions) {
-					BdApi.UI.showConfirmationModal("Unpin DM", "Unpin this DM?", { confirmText: "Unpin", danger: true, onConfirm: doUnpin });
-				} else { doUnpin(); }
+			if (this.getCategoryForDm(dragId)) {
+				this._confirmUnpin(dragId);
 			}
 			return;
 		}
@@ -1754,18 +1676,12 @@ module.exports = class BetterPinDMs {
 		const dragCat = this.getCategoryForDm(dragId);
 		const targetCat = this.getCategoryForDm(targetId);
 		if (dragCat && !targetCat) {
-			const doUnpin = () => {
-				this.removeDmFromAnyCategory(dragId);
-				BdApi.UI.showToast("DM Unpinned", { type: "success" });
-			};
-			if (this.settings.confirmDragActions) {
-				BdApi.UI.showConfirmationModal("Unpin DM", "Unpin this DM?", { confirmText: "Unpin", danger: true, onConfirm: doUnpin });
-			} else { doUnpin(); }
+			this._confirmUnpin(dragId);
 			return;
 		}
 		if (!dragCat && targetCat) {
 			this.addDmToCategory(dragId, targetCat.id);
-			BdApi.UI.showToast("DM Pinned", { type: "success" });
+			UI.showToast("DM Pinned", { type: "success" });
 			return;
 		}
 		if (dragCat && targetCat) {
@@ -1778,8 +1694,7 @@ module.exports = class BetterPinDMs {
 					if (fromIdx < toIdx) toIdx--;
 					if (!insertBefore) toIdx++;
 					dms.splice(toIdx, 0, dragId);
-					this.saveCategories();
-					this.forceUpdate({ dmList: true });
+					this._saveCategoriesAndRefresh();
 				}
 			}
 			else {
@@ -1787,8 +1702,7 @@ module.exports = class BetterPinDMs {
 				let toIdx = targetCat.dms.indexOf(targetId);
 				if (!insertBefore) toIdx++;
 				targetCat.dms.splice(toIdx, 0, dragId);
-				this.saveCategories();
-				this.forceUpdate({ dmList: true });
+				this._saveCategoriesAndRefresh();
 			}
 		}
 	}
@@ -1819,12 +1733,6 @@ module.exports = class BetterPinDMs {
 			const src = Function.prototype.toString.call(v.render);
 			return want.every((s) => src.includes(s));
 		};
-		const scanForGuildItem = (x, d = 0) => {
-			if (!x || d > 2) return false;
-			if (isGuildItem(x)) return true;
-			if (typeof x === "object") return Object.values(x).some((v) => scanForGuildItem(v, d + 1));
-			return false;
-		};
 		const pickGuildItem = (mod) => {
 			if (!mod) return null;
 			if (isGuildItem(mod)) return mod;
@@ -1838,7 +1746,7 @@ module.exports = class BetterPinDMs {
 		};
 		const patch = (GuildItem) => {
 			if (!this._running || this._guildDmPatched || !GuildItem) return;
-			Logger.info(this.pluginName, "Found Guild DM item via Webpack (module-first). Patching...");
+			Logger.info(this.pluginName, "Found Guild DM item via Webpack. Patching...");
 			const unpatch = Patcher.after(this.pluginName, GuildItem, "render", (_t, args, ret) => {
 				try {
 					if (ret) return this._processGuildDirectMessage({ props: args?.[0] }, ret);
@@ -1849,10 +1757,9 @@ module.exports = class BetterPinDMs {
 			});
 			this.patches.push(unpatch);
 			this._guildDmPatched = true;
-			this.storeService?.emitPrivateChannelReadStateChange?.();
-			this.storeService?.emitPrivateChannelSortChange?.();
+			this.storeService.emitAllChanges();
 		};
-		const filter = (m) => scanForGuildItem(m);
+		const filter = Filters.bySource(...want);
 		const immediateMod = Webpack.getModule(filter, { searchExports: true });
 		const immediate = pickGuildItem(immediateMod);
 		if (immediate) {
@@ -1900,7 +1807,7 @@ module.exports = class BetterPinDMs {
 			if (value) this.updateManager.start(true);
 			else this.updateManager.stop();
 		}
-		this.forceUpdate({ dmList: true });
+		this.forceUpdate({ immediate: true, dmList: true });
 	}
 	_migrateSettings(saved) {
 		const defaults = structuredClone(CONFIG.defaultSettings);
@@ -1965,10 +1872,10 @@ module.exports = class BetterPinDMs {
 				custom[id] = {
 					id,
 					name: typeof cat.name === "string" ? cat.name : `Category ${id}`,
-					color: typeof cat.color === "string" ? cat.color : "#5865F2",
+					color: typeof cat.color === "string" ? cat.color : DEFAULT_COLOR,
 					pos: typeof cat.pos === "number" ? cat.pos : 0,
 					collapsed: !!cat.collapsed,
-					dms: Array.isArray(cat.dms) ? cat.dms.filter(x => typeof x === "string") : []
+					dms: filterStringArray(cat.dms)
 				};
 			}
 		}
@@ -1976,6 +1883,10 @@ module.exports = class BetterPinDMs {
 	}
 	saveCategories() {
 		Data.save(this.pluginName, "categories", this.categories);
+	}
+	_saveCategoriesAndRefresh() {
+		this.saveCategories();
+		this.forceUpdate({ dmList: true });
 	}
 	loadPins() {
 		const saved = Data.load(this.pluginName, "pinned") || {};
@@ -2001,21 +1912,18 @@ module.exports = class BetterPinDMs {
 		const pos = existing.length ? Math.max(...existing.map(c => c.pos || 0)) + 1 : 0;
 		const category = { id, name, color, pos, collapsed: false, dms: [] };
 		this.categories.custom[id] = category;
-		this.saveCategories();
-		this.forceUpdate({ dmList: true });
+		this._saveCategoriesAndRefresh();
 		return category;
 	}
 	deleteCategory(categoryId) {
 		delete this.categories.custom[categoryId];
-		this.saveCategories();
-		this.forceUpdate({ dmList: true });
+		this._saveCategoriesAndRefresh();
 	}
 	updateCategory(categoryId, updates) {
 		const cat = this.categories.custom[categoryId];
 		if (!cat) return;
 		Object.assign(cat, updates);
-		this.saveCategories();
-		this.forceUpdate({ dmList: true });
+		this._saveCategoriesAndRefresh();
 	}
 	moveCategory(categoryId, direction) {
 		const list = this.getCustomCategoriesSorted();
@@ -2024,8 +1932,7 @@ module.exports = class BetterPinDMs {
 		const swapIndex = index + (direction === "up" ? -1 : 1);
 		if (swapIndex < 0 || swapIndex >= list.length) return;
 		[list[index].pos, list[swapIndex].pos] = [list[swapIndex].pos, list[index].pos];
-		this.saveCategories();
-		this.forceUpdate({ dmList: true });
+		this._saveCategoriesAndRefresh();
 	}
 	getCategoryForDm(dmId) {
 		if (!dmId) return null;
@@ -2040,8 +1947,7 @@ module.exports = class BetterPinDMs {
 		if (!cat) return;
 		this.removeDmFromAnyCategory(dmId);
 		cat.dms.unshift(dmId);
-		this.saveCategories();
-		this.forceUpdate({ dmList: true });
+		this._saveCategoriesAndRefresh();
 	}
 	removeDmFromAnyCategory(dmId) {
 		let changed = false;
@@ -2054,8 +1960,7 @@ module.exports = class BetterPinDMs {
 			}
 		}
 		if (changed) {
-			this.saveCategories();
-			this.forceUpdate({ dmList: true });
+			this._saveCategoriesAndRefresh();
 		}
 	}
 	toggleCategoryCollapse(categoryId) {
@@ -2085,7 +1990,7 @@ module.exports = class BetterPinDMs {
 	_categorizeDms(channelIds) {
 		const buckets = {};
 		for (const key of CATEGORY_KEYS) {
-			if (this.settings[`enable${key.charAt(0).toUpperCase() + key.slice(1)}`]) {
+			if (this.settings[getEnableKey(key)]) {
 				buckets[key] = [];
 			}
 		}
@@ -2162,15 +2067,13 @@ module.exports = class BetterPinDMs {
 	}
 	//#endregion Category Logic
 	//#region Server List Pins
-	isPinnedInGuildList(id) { return this.pins.guildList?.includes(id); }
+	isPinnedInGuildList(id) { return this.pins.guildList.includes(id); }
 	pinInGuildList(id) {
-		if (!this.pins.guildList) this.pins.guildList = [];
 		if (!this.pins.guildList.includes(id)) this.pins.guildList.unshift(id);
 		this.savePins();
 		this.storeService.emitPrivateChannelReadStateChange();
 	}
 	unpinInGuildList(id) {
-		if (!this.pins.guildList) return;
 		const idx = this.pins.guildList.indexOf(id);
 		if (idx !== -1) {
 			this.pins.guildList.splice(idx, 1);
@@ -2216,7 +2119,7 @@ module.exports = class BetterPinDMs {
 				type: "text",
 				label: "Add to new category...",
 				action: () => {
-					this.uiManager.showCategoryCreateModal(`Pinned DMs #${categories.length + 1}`, (n, c) => {
+					this.uiManager.showCategoryCreateModal(`${DEFAULT_CATEGORY_PREFIX}${categories.length + 1}`, (n, c) => {
 						const cat = this.createCategory({ name: n, color: c });
 						this.addDmToCategory(channelId, cat.id);
 						UI.showToast(`Added to "${n}"`, { type: "success" });
@@ -2230,7 +2133,7 @@ module.exports = class BetterPinDMs {
 				const isCurrent = currentCategory?.id === cat.id;
 				categoryItems.push({
 					type: "text",
-					label: isCurrent ? `● ${cat.name}` : cat.name,
+					label: isCurrent ? `\u25CF ${cat.name}` : cat.name,
 					disabled: isCurrent,
 					action: () => {
 						this.addDmToCategory(channelId, cat.id);
@@ -2269,8 +2172,7 @@ module.exports = class BetterPinDMs {
 					type: "text",
 					label: "Disable Category",
 					action: () => {
-						const key = `enable${category.id.charAt(0).toUpperCase() + category.id.slice(1)}`;
-						this.updateSetting(key, false);
+						this.updateSetting(getEnableKey(category.id), false);
 					}
 				});
 			} else {
@@ -2377,26 +2279,26 @@ module.exports = class BetterPinDMs {
 			if (Array.isArray(fallback) && fallback.length) return fallback;
 			return [];
 		};
+		const buildShortcut = (name) => ({
+			enabled: s[`shortcut${name}Enabled`] ?? d[`shortcut${name}Enabled`],
+			keys: normalizeKeys(s[`shortcut${name}Keys`], d[`shortcut${name}Keys`])
+		});
 		return {
-			togglePin: {
-				enabled: s.shortcutTogglePinEnabled ?? d.shortcutTogglePinEnabled,
-				keys: normalizeKeys(s.shortcutTogglePinKeys, d.shortcutTogglePinKeys)
-			},
-			quickPicker: {
-				enabled: s.shortcutQuickPickerEnabled ?? d.shortcutQuickPickerEnabled,
-				keys: normalizeKeys(s.shortcutQuickPickerKeys, d.shortcutQuickPickerKeys)
-			},
-			jumpCategory: {
-				enabled: s.shortcutJumpCategoryEnabled ?? d.shortcutJumpCategoryEnabled,
-				keys: normalizeKeys(s.shortcutJumpCategoryKeys, d.shortcutJumpCategoryKeys)
-			}
+			togglePin: buildShortcut("TogglePin"),
+			quickPicker: buildShortcut("QuickPicker"),
+			jumpCategory: buildShortcut("JumpCategory")
 		};
 	}
-	toggleCurrentDmPin() {
+	_getSelectedDmChannelId() {
 		const channelId = this.storeService.getSelectedChannelId();
-		if (!channelId) return;
+		if (!channelId) return null;
 		const channel = this.storeService.getChannel(channelId);
-		if (!channel || ![CHANNEL_TYPES.DM, CHANNEL_TYPES.GROUP_DM].includes(channel.type)) return;
+		if (!channel || ![CHANNEL_TYPES.DM, CHANNEL_TYPES.GROUP_DM].includes(channel.type)) return null;
+		return channelId;
+	}
+	toggleCurrentDmPin() {
+		const channelId = this._getSelectedDmChannelId();
+		if (!channelId) return;
 		const currentCat = this.getCategoryForDm(channelId);
 		if (currentCat) {
 			this.removeDmFromAnyCategory(channelId);
@@ -2412,10 +2314,8 @@ module.exports = class BetterPinDMs {
 		}
 	}
 	showQuickCategoryPicker() {
-		const channelId = this.storeService.getSelectedChannelId();
+		const channelId = this._getSelectedDmChannelId();
 		if (!channelId) return;
-		const channel = this.storeService.getChannel(channelId);
-		if (!channel || ![CHANNEL_TYPES.DM, CHANNEL_TYPES.GROUP_DM].includes(channel.type)) return;
 		const categories = this.getCustomCategoriesSorted();
 		if (!categories.length) {
 			UI.showToast("No categories available", { type: "info" });
@@ -2443,7 +2343,7 @@ module.exports = class BetterPinDMs {
 			hex = "#" + (hex & 0xffffff).toString(16).padStart(6, "0");
 		}
 		if (typeof hex !== "string") {
-			return [88, 101, 242, 1];
+			return DEFAULT_COLOR_RGBA;
 		}
 		hex = hex.trim();
 		if (hex.startsWith("#")) hex = hex.slice(1);
@@ -2451,10 +2351,10 @@ module.exports = class BetterPinDMs {
 			hex = hex.split("").map(c => c + c).join("");
 		}
 		if (hex.length < 6) {
-			return [88, 101, 242, 1];
+			return DEFAULT_COLOR_RGBA;
 		}
 		const int = Number.parseInt(hex.slice(0, 6), 16);
-		if (Number.isNaN(int)) return [88, 101, 242, 1];
+		if (Number.isNaN(int)) return DEFAULT_COLOR_RGBA;
 		const r = (int >> 16) & 0xff;
 		const g = (int >> 8) & 0xff;
 		const b = int & 0xff;
@@ -2468,7 +2368,7 @@ module.exports = class BetterPinDMs {
 			return "#" + (color & 0xffffff).toString(16).padStart(6, "0");
 		}
 		if (!Array.isArray(color) || color.length < 3) {
-			return "#5865F2";
+			return DEFAULT_COLOR;
 		}
 		const clamp = v => Math.max(0, Math.min(255, Math.round(v)));
 		const [r, g, b] = color;
@@ -2500,7 +2400,7 @@ module.exports = class BetterPinDMs {
 		};
 	}
 	_buildPinDmsPinnedObject() {
-		const userId = this.storeService?.getCurrentUserId?.() || "0";
+		const userId = this.storeService.getCurrentUserId() || "0";
 		const channelList = {};
 		for (const cat of this.getCustomCategoriesSorted()) {
 			channelList[cat.id] = {
@@ -2509,10 +2409,10 @@ module.exports = class BetterPinDMs {
 				dms: Array.isArray(cat.dms) ? [...cat.dms] : [],
 				pos: typeof cat.pos === "number" ? cat.pos : 0,
 				collapsed: !!cat.collapsed,
-				color: this._hexToRgbaArray(cat.color || "#5865F2")
+				color: this._hexToRgbaArray(cat.color || DEFAULT_COLOR)
 			};
 		}
-		const guildList = Array.isArray(this.pins?.guildList) ? [...this.pins.guildList].filter(x => typeof x === "string") : [];
+		const guildList = filterStringArray(this.pins?.guildList);
 		const pinnedForUser = { channelList, guildList };
 		return { [userId]: pinnedForUser };
 	}
@@ -2520,7 +2420,7 @@ module.exports = class BetterPinDMs {
 		const all = config.all || {};
 		this.settings = this._migrateSettings(all);
 		const pinnedRoot = all.pinned || {};
-		const currentUserId = this.storeService?.getCurrentUserId?.();
+		const currentUserId = this.storeService.getCurrentUserId();
 		let pinnedForUser = currentUserId ? pinnedRoot[currentUserId] : null;
 		if (!pinnedForUser) {
 			const firstKey = Object.keys(pinnedRoot)[0];
@@ -2534,19 +2434,18 @@ module.exports = class BetterPinDMs {
 			if (!cat || typeof cat !== "object") continue;
 			const id = (typeof cat.id === "string" && !this._isUnsafeKey(cat.id)) ? cat.id : rawId;
 			const hex = this._rgbaToHex(cat.color);
-			const dms = Array.isArray(cat.dms) ? cat.dms.filter(x => typeof x === "string") : [];
+			const dms = filterStringArray(cat.dms);
 			custom[id] = {
 				id,
-				name: typeof cat.name === "string" ? cat.name : `Pinned DMs #${fallbackPos + 1}`,
+				name: typeof cat.name === "string" ? cat.name : `${DEFAULT_CATEGORY_PREFIX}${fallbackPos + 1}`,
 				color: hex,
 				pos: typeof cat.pos === "number" ? cat.pos : fallbackPos++,
 				collapsed: !!cat.collapsed,
 				dms
 			};
 		}
-		const guildList = Array.isArray(pinnedForUser?.guildList) ? pinnedForUser.guildList.filter(x => typeof x === "string") : [];
 		this.categories = { custom };
-		this.pins = { channelList: [], guildList };
+		this.pins = { channelList: [], guildList: filterStringArray(pinnedForUser?.guildList) };
 	}
 	_importFromLegacyConfig(config) {
 		if (!config.version || !config.categories || !config.settings) {
@@ -2571,18 +2470,18 @@ module.exports = class BetterPinDMs {
 				custom[id] = {
 					id,
 					name: typeof cat.name === "string" ? cat.name : `Category ${id}`,
-					color: typeof cat.color === "string" ? cat.color : "#5865F2",
+					color: typeof cat.color === "string" ? cat.color : DEFAULT_COLOR,
 					pos: typeof cat.pos === "number" ? cat.pos : 0,
 					collapsed: !!cat.collapsed,
-					dms: Array.isArray(cat.dms) ? cat.dms.filter(x => typeof x === "string") : []
+					dms: filterStringArray(cat.dms)
 				};
 			}
 		}
 		this.categories = { custom };
 		const pins = config.pins || {};
 		this.pins = {
-			channelList: Array.isArray(pins.channelList) ? pins.channelList.filter(x => typeof x === "string") : [],
-			guildList: Array.isArray(pins.guildList) ? pins.guildList.filter(x => typeof x === "string") : []
+			channelList: filterStringArray(pins.channelList),
+			guildList: filterStringArray(pins.guildList)
 		};
 	}
 	_isUnsafeKey(key) {
@@ -2649,9 +2548,8 @@ module.exports = class BetterPinDMs {
 			/* --- Sidebar Pin Icon --- */
 			.betterpindms-recent-pinned { 
 				position: relative; 
-				/* We cannot use overflow: visible here because the parent SVG mask controls the clipping */
 			}
-			.betterpindms-recent-pinned::after { content: "📌"; position: absolute; top: 2px; right: 2px; font-size: 10px; line-height: 1; z-index: 10; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8)); pointer-events: none; background: rgba(0, 0, 0, 0.6); border-radius: 4px; padding: 1px; }
+			.betterpindms-recent-pinned::after { content: "\\1F4CC"; position: absolute; top: 2px; right: 2px; font-size: 10px; line-height: 1; z-index: 10; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8)); pointer-events: none; background: rgba(0, 0, 0, 0.6); border-radius: 4px; padding: 1px; }
 			/* Clean up old class */
 			.betterpindms-pinbadge { display: none; }
 			/* --- Drop Indicators --- */
@@ -2696,9 +2594,7 @@ module.exports = class BetterPinDMs {
 			/* --- Category Header (Inner) --- */
 			.betterpindms-category-header-inner { display: flex; align-items: center; gap: 4px; user-select: none; border-radius: 4px; margin: 0; padding: 6px 0px; cursor: pointer; position: relative; }
 			.betterpindms-category-header-inner:hover { background-color: var(--background-mod-subtle); }
-			.betterpindms-category-arrow { margin-left: auto; display: flex; align-items: center; justify-content: center; width: 16px; height: 16px; color: var(--icon-muted); pointer-events: none; }
-			/* Smoothly rotates the arrow */
-			.betterpindms-category-arrow-icon { transition: transform 0.2s ease; }
+			.betterpindms-category-arrow { transition: transform 0.2s ease; }
 			.betterpindms-category-arrow-collapsed { transform: rotate(-90deg); }
 			.betterpindms-category-arrow-expanded { transform: rotate(0deg); }
 			.betterpindms-category-pin { font-size: 12px; margin-right: -2px; opacity: 0.7; }
