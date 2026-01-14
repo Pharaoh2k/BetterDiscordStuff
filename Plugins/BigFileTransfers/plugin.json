@@ -1,0 +1,34 @@
+{
+  "name": "BigFileTransfers",
+  "description": "Upload and download very large files (up to ~2GB) by seamlessly splitting them into smaller chunks and merging them back together. BOTH sender and receiver must have this plugin installed.",
+  "author": "Pharaoh2k",
+  "version": "1.0.0",
+  "status": "Active",
+  "workingStatus": "Working",
+  "lastUpdated": "2026-01-15",
+  "releaseDate": "2025-31-12",
+  "features": [
+    "Upload files up to ~2GB by automatically splitting into chunks",
+    "Automatic chunk sending with configurable delays",
+    "Seamless reassembly on download with progress tracking",
+    "Low memory mode - stream downloads directly to disk",
+    "Smart chunk detection and management",
+    "Context menu integration for downloads and fragment deletion",
+    "Customizable chunk deletion delay",
+    "Copy all chunk URLs to clipboard",
+    "Automatic updates with changelog display",
+    "Works within Discord's upload limits (doesn't bypass)",
+    "Real-time progress indicators for uploads and downloads",
+    "Support for up to 200 chunks per file",
+    "Automatic message backfill for missing chunks",
+    "Discord theme integration for seamless UI"
+  ],
+  "requirements": [
+    "Both sender and receiver must have the plugin installed",
+    "All chunk messages must be loaded in the channel",
+    "Desktop Discord recommended for Low Memory Mode"
+  ],
+  "sourceUrl": "https://github.com/Pharaoh2k/BetterDiscordStuff/tree/main/Plugins/BigFileTransfers",
+  "changelogUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BigFileTransfers/CHANGELOG.md",
+  "downloadUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BigFileTransfers/BigFileTransfers.plugin.js"
+}
