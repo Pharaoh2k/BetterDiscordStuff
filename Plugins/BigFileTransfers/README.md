@@ -1,5 +1,7 @@
 # BigFileTransfers
 
+![BigFileTransfers](https://github.com/user-attachments/assets/bc07fef3-ea41-4e98-9bc9-e7b39eaf933d)
+
 A BetterDiscord plugin that allows you to upload and download very large files (up to ~2GB) by seamlessly splitting them into smaller chunks and merging them back together.
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
