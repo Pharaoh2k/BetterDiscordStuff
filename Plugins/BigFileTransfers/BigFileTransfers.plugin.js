@@ -2,7 +2,7 @@
  * @name BigFileTransfers
  * @author Pharaoh2k
  * @authorId 874825550408089610
- * @description Allows you to upload and download very large files (up to ~2GB) by seamlessly splitting them into smaller chunks and merging them back together. BOTH sender and receiver must have this plugin installed. Supports automatic sending of all chunks, low memory mode and more. Similarly to my BetterSplitLargeMessages plugin, the plugin does NOT bypass Discord's upload limits (or Nitro), but instead works within them to enable large file transfers.
+ * @description Enables uploading and downloading very large files (up to ~2GB) by splitting them into chunks and reassembling them automatically. Both sender and receiver need the plugin. Includes automatic chunk sending, low‑memory mode, and other conveniences. Like BetterSplitLargeMessages, it doesn’t bypass Discord’s limits or Nitro, it simply works within them to make large transfers possible.
  * @version 1.0.0
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BigFileTransfers/BigFileTransfers.plugin.js
@@ -2136,4 +2136,5 @@ module.exports = class BigFileTransfers {
             <path d="M24,50 L48,80 M48,50 L24,80" style="fill:none;stroke:rgb(220,60,60);stroke-width:6;stroke-linecap:round;"/>
         </svg>`;
     }
+
 };
