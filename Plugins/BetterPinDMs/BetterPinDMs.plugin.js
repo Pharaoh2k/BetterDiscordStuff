@@ -255,7 +255,7 @@ class UpdateManager {
             for (const item of v.items) {
                 grouped[getType(item.toLowerCase())].push(item);
             }
-            result.push({ title: `Version ${v.version}`, type: "progress", items: [] });
+            result.push({ title: `Version ${v.version}`, type: "", items: [] });
             for (const [title, key, type] of sections) {
                 if (grouped[key].length) {
                     result.push({ title, type, items: grouped[key] });
