@@ -3,7 +3,8 @@
  * @author Pharaoh2k
  * @authorId 874825550408089610
  * @description Enables uploading and downloading very large files (up to ~2GB) by splitting them into chunks and reassembling them automatically. Both sender and receiver need the plugin. Includes automatic chunk sending, low‑memory mode, and other conveniences. Like BetterSplitLargeMessages, it doesn’t bypass Discord’s limits or Nitro, it simply works within them to make large transfers possible.
- * @version 1.0.0
+
+ * @version 1.0.1
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BigFileTransfers/BigFileTransfers.plugin.js
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BigFileTransfers/BigFileTransfers.plugin.js
@@ -534,20 +535,13 @@ module.exports = class BigFileTransfers {
             Webpack.getModule(Filters.combine(Filters.bySource("Message must be a thread starter message"), m => !m.$$typeof), { searchExports: true }) ||
             Webpack.getModule(Filters.combine(Filters.bySource("quotedChatMessage", "bg-flash-"), m => !m.$$typeof), { searchExports: true }) ||
             Webpack.getModule(Filters.combine(Filters.bySource("messageListItem", "hasThread", "isSystemMessage"), m => !m.$$typeof), { searchExports: true });
-        const uploadModule = Webpack.getModule(m => {
-            try {
-                const fn = m?.c;
-                if (typeof fn !== 'function') return false;
-                const str = fn.toString();
-                return str.includes('UPLOAD_START') && str.includes('uploadFiles') && !str.includes('EMOJI');
-            } catch { return false; }
-        });
-        this._discordModules.uploadWithProgress = uploadModule?.c;
-        const cloudUploadModule = Webpack.getModule(m => {
-            try { return m?.nH?.prototype?.uploadFileToCloud; }
-            catch { return false; }
-        });
-        this._discordModules.CloudUpload = cloudUploadModule?.nH;
+        const uploadExports = Webpack.getMangled('shouldUploadFailureSendNot', { uploadWithProgress: Filters.byStrings('UPLOAD_START') }
+        );
+        this._discordModules.uploadWithProgress = uploadExports?.uploadWithProgress;
+
+        const cloudExports = Webpack.getMangled('uploadFileToCloud', { CloudUpload: Filters.byPrototypeKeys('uploadFileToCloud') }
+        );
+        this._discordModules.CloudUpload = cloudExports?.CloudUpload;
         const failed = Object.keys(this._discordModules).filter(k => !this._discordModules[k]);
         if (failed.length) Logger.warn(this.name, "Modules not found:", failed);
         if (!this._discordModules.MessageAttachmentManager) throw new Error("MessageAttachmentManager not found");
@@ -2136,5 +2130,4 @@ module.exports = class BigFileTransfers {
             <path d="M24,50 L48,80 M48,50 L24,80" style="fill:none;stroke:rgb(220,60,60);stroke-width:6;stroke-linecap:round;"/>
         </svg>`;
     }
-
 };
