@@ -1,5 +1,8 @@
 # [BetterFriendsSince](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterFriendsSince "BetterFriendsSince") Changelog
 
+### 1.3.2
+- Improved code quality (minor)
+
 ### 1.3.1
 - Improved updates manager reliability
 
