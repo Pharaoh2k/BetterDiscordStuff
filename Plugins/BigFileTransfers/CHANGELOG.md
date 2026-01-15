@@ -1,5 +1,8 @@
 # [BigFileTransfers](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BigFileTransfers "BigFileTransfers") Changelog
 
+### 1.0.1
+- Improved code quality (minor change)
+
 ### 1.0.0
 - Initial public release
 - Added automatic file splitting for large uploads (up to ~2GB)
