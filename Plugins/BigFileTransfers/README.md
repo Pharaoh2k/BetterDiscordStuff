@@ -13,6 +13,8 @@ A BetterDiscord plugin that allows you to upload and download very large files (
 BigFileTransfers enhances your Discord experience by enabling the transfer of very large files that exceed Discord's normal upload limits. The plugin intelligently splits large files into smaller chunks that fit within your upload limit, then automatically reassembles them on download. This allows you to transfer files up to approximately 2GB in size, regardless of your Discord plan.
 
 **⚠️ IMPORTANT:** Both the sender and receiver must have this plugin installed for file transfers to work properly.
+If you are unable to install BetterDiscord or Split Large Files and you want to merge a set of chunk files someone sent you, you can easily do that here:
+https://pharaoh2k.github.io/BetterDiscordStuff/Merger/
 
 ## ✨ Features
 
