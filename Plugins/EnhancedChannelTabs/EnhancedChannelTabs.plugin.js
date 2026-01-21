@@ -2,8 +2,9 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 5.0.6
+ * @version 5.0.7
  * @authorId 874825550408089610
+ * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
  */
 // SPDX-License-Identifier: GPL-3.0-only AND MIT
@@ -39,8 +40,10 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ---- end MIT notice ---- */
+const { ContextMenu, Patcher, Webpack, React, ReactDOM, DOM, ReactUtils, UI, Hooks, Utils, Net, Logger, Plugins, Components, Data } = new BdApi("EnhancedChannelTabs",);
 class UpdateManager {
-	constructor(pluginName, version, github = "Pharaoh2k/BetterDiscordStuff") {
+	/* using Net, UI, Logger, Data, Plugins, Utils from BdApi */
+	constructor(pluginName, version, github = GITHUB_REPO) {
 		this.name = pluginName;
 		this.version = version;
 		const [user, repo] = github.split('/');
@@ -67,13 +70,17 @@ class UpdateManager {
 		}
 		clearInterval(this.timer);
 		this.timer = null;
+		this._closeNotification();
+	}
+	_closeNotification() {
+		if (!this.notification) return;
 		if (typeof this.notification === "function") this.notification();
-		else this.notification?.close?.();
+		else if (this.notification.close) this.notification.close();
 		this.notification = null;
 	}
 	async check(silent = false) {
 		try {
-			const res = await BdApi.Net.fetch(this.urls.plugin);
+			const res = await Net.fetch(this.urls.plugin);
 			if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
 			const text = await res.text();
 			const validated = this._validateRemotePluginText(text);
@@ -82,22 +89,16 @@ class UpdateManager {
 			if (this.isNewer(version)) {
 				this.showUpdateNotice(version, text);
 			} else if (!silent) {
-				BdApi.UI.showToast(`[${this.name}] You're up to date.`, { type: "info" });
+				UI.showToast(`[${this.name}] You're up to date.`, { type: "info" });
 			}
 		} catch (e) {
-			BdApi.Logger.error(this.name, "Update check failed:", e);
-			if (!silent) BdApi.UI.showToast(`[${this.name}] Update check failed`, { type: "error" });
+			Logger.error("Update check failed:", e);
+			if (!silent) UI.showToast(`[${this.name}] Update check failed`, { type: "error" });
 		}
 	}
 	showUpdateNotice(version, text) {
-		if (typeof this.notification === "function") this.notification();
-		else this.notification?.close?.();
-		let handle = null;
-		const closeHandle = () => {
-			if (typeof handle === "function") handle();
-			else handle?.close?.();
-		};
-		handle = BdApi.UI.showNotification?.({
+		this._closeNotification();
+		const handle = UI.showNotification?.({
 			id: `bd-plugin-update:${this.name}`,
 			title: `${this.name}`,
 			content: `v${version} is available`,
@@ -107,26 +108,26 @@ class UpdateManager {
 				{
 					label: "Update",
 					onClick: () => {
-						closeHandle();
+						this._closeNotification();
 						this.applyUpdate(text, version);
 					},
 				},
 				{
 					label: "Dismiss",
-					onClick: closeHandle,
+					onClick: () => this._closeNotification(),
 				},
 			],
 			onClose: () => {
 				if (this.notification === handle) this.notification = null;
 			},
-		}) ?? BdApi.UI.showNotice(`${this.name} v${version} is available`, {
+		}) ?? UI.showNotice(`${this.name} v${version} is available`, {
 			type: "info",
 			buttons: [
 				{
 					label: "Update",
 					onClick: (closeOrEvent) => {
 						if (typeof closeOrEvent === "function") closeOrEvent();
-						else closeHandle();
+						else this._closeNotification();
 						this.applyUpdate(text, version);
 					},
 				},
@@ -134,7 +135,7 @@ class UpdateManager {
 					label: "Dismiss",
 					onClick: (closeOrEvent) => {
 						if (typeof closeOrEvent === "function") closeOrEvent();
-						else closeHandle();
+						else this._closeNotification();
 					},
 				},
 			],
@@ -145,54 +146,54 @@ class UpdateManager {
 		try {
 			const validated = this._validateRemotePluginText(text);
 			if (!validated.ok) {
-				BdApi.UI.showToast(`Update blocked: ${validated.reason}`, { type: "error", timeout: 8000 });
+				UI.showToast(`Update blocked: ${validated.reason}`, { type: "error", timeout: 8000 });
 				return;
 			}
 			const nextVersion = validated.version ?? version;
 			require("fs").writeFileSync(__filename, text);
-			BdApi.UI.showToast(`Updated to v${nextVersion}. Reloading...`, { type: "success" });
+			UI.showToast(`Updated to v${nextVersion}. Reloading...`, { type: "success" });
 			setTimeout(() => {
 				try {
-					BdApi.Plugins.reload(this.name);
+					Plugins.reload(this.name);
 				} catch {
-					BdApi.UI.showToast("Please reload Discord (Ctrl+R)", { type: "info", timeout: 0 });
+					UI.showToast("Please reload Discord (Ctrl+R)", { type: "info", timeout: 0 });
 				}
 			}, 100);
 		} catch (e) {
-			BdApi.Logger.error(this.name, "Update failed:", e);
-			BdApi.UI.showToast("Update failed", { type: "error" });
+			Logger.error("Update failed:", e);
+			UI.showToast("Update failed", { type: "error" });
 		}
 	}
 	async showChangelog() {
-		const last = BdApi.Data.load(this.name, 'version');
-		console.log(`[${this.name}] showChangelog: last=${last}, current=${this.version}`);
-		if (last === this.version) { console.log(`[${this.name}] Skipping: versions match`); return; }
-		BdApi.Data.save(this.name, 'version', this.version);
-		if (!last) { console.log(`[${this.name}] Skipping: fresh install`); return; }
+		const last = Data.load('version');
+		Logger.info(`showChangelog: last=${last}, current=${this.version}`);
+		if (last === this.version) { Logger.info("Skipping: versions match"); return; }
+		Data.save('version', this.version);
+		if (!last) { Logger.info("Skipping: fresh install"); return; }
 		try {
-			const res = await BdApi.Net.fetch(this.urls.changelog);
-			console.log(`[${this.name}] Changelog fetch status: ${res.status}`);
+			const res = await Net.fetch(this.urls.changelog);
+			Logger.info(`Changelog fetch status: ${res.status}`);
 			if (res.status !== 200) return;
 			const md = await res.text();
 			const changes = this.parseChangelog(md, last, this.version);
-			console.log(`[${this.name}] Parsed changes:`, changes);
+			Logger.info("Parsed changes:", changes);
 			if (changes.length === 0) return;
-			BdApi.UI.showChangelogModal({ title: this.name, subtitle: `Version ${this.version}`, changes });
-		} catch (e) { console.error(`[${this.name}] Changelog error:`, e); }
+			UI.showChangelogModal({ title: this.name, subtitle: `Version ${this.version}`, changes });
+		} catch (e) { Logger.error("Changelog error:", e); }
 	}
 	async showFullChangelog() {
 		try {
-			const res = await BdApi.Net.fetch(this.urls.changelog);
+			const res = await Net.fetch(this.urls.changelog);
 			if (res.status !== 200) throw new Error("Failed to fetch changelog");
 			const md = await res.text();
 			const changes = this.parseChangelog(md, "0.0.0", this.version);
-			BdApi.UI.showChangelogModal({
+			UI.showChangelogModal({
 				title: this.name,
 				subtitle: `All Changes`,
 				changes: changes.length ? changes : [{ title: "No changes found", items: [] }]
 			});
 		} catch {
-			BdApi.UI.showToast("Could not fetch changelog", { type: "error" });
+			UI.showToast("Could not fetch changelog", { type: "error" });
 		}
 	}
 	parseChangelog(md, from, to) {
@@ -200,20 +201,12 @@ class UpdateManager {
 		const relevant = versions.filter(
 			v => this.isNewer(v.version, from) && !this.isNewer(v.version, to)
 		);
-		const grouped = { added: [], improved: [], fixed: [], other: [] };
 		const getType = (lower) => {
 			if (lower.includes("fix")) return "fixed";
 			if (lower.includes("add") || lower.includes("initial")) return "added";
 			if (lower.includes("improv") || lower.includes("updat")) return "improved";
 			return "other";
 		};
-		for (const v of relevant) {
-			for (const item of v.items) {
-				const lower = item.toLowerCase();
-				const tagged = `${item} (v${v.version})`;
-				grouped[getType(lower)].push(tagged);
-			}
-		}
 		const sections = [
 			["New Features", "added", "added"],
 			["Improvements", "improved", "improved"],
@@ -221,9 +214,16 @@ class UpdateManager {
 			["Other Changes", "other", "progress"]
 		];
 		const result = [];
-		for (const [title, key, type] of sections) {
-			if (grouped[key].length) {
-				result.push({ title, type, items: grouped[key] });
+		for (const v of relevant) {
+			const grouped = { added: [], improved: [], fixed: [], other: [] };
+			for (const item of v.items) {
+				grouped[getType(item.toLowerCase())].push(item);
+			}
+			result.push({ title: `Version ${v.version}`, type: "", items: [] });
+			for (const [title, key, type] of sections) {
+				if (grouped[key].length) {
+					result.push({ title, type, items: grouped[key] });
+				}
 			}
 		}
 		return result;
@@ -255,19 +255,7 @@ class UpdateManager {
 		return versions;
 	}
 	isNewer(remoteVersion, localVersion = this.version) {
-		return this._compareSemver(remoteVersion, localVersion) > 0;
-	}
-	_compareSemver(a, b) {
-		const pa = String(a ?? "").split(".").map(n => Number.parseInt(n, 10));
-		const pb = String(b ?? "").split(".").map(n => Number.parseInt(n, 10));
-		const len = Math.max(pa.length, pb.length);
-		for (let i = 0; i < len; i++) {
-			const va = Number.isFinite(pa[i]) ? pa[i] : 0;
-			const vb = Number.isFinite(pb[i]) ? pb[i] : 0;
-			if (va > vb) return 1;
-			if (va < vb) return -1;
-		}
-		return 0;
+		return Utils.semverCompare(localVersion, remoteVersion) > 0;
 	}
 	_validateRemotePluginText(text) {
 		if (typeof text !== "string") return { ok: false, reason: "Not a string" };
@@ -493,7 +481,7 @@ class StyleManager {
 		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-trailing { order: 3 !important; margin-left: 0 !important; margin-bottom: 0 !important; }
 		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-tabListDropdown { margin-right: 0.25rem !important; }
 		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-newTab { margin-left: auto !important; margin-right: 2px !important; }
-		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-tabWrap { order: 10 !important; flex-basis: 100% !important; width: 100% !important; margin-top: 0.25rem !important; border-top: 1px solid var(--background-accent); display: flex !important; flex-wrap: wrap !important; max-height: 30vh; overflow-y: auto !important; padding-top: 0.3125rem;	}
+		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-tabWrap { order: 10 !important; flex-basis: 100% !important; width: 100% !important; margin-top: 0.25rem !important; border-top: 1px solid var(--background-accent); display: flex !important; flex-wrap: wrap !important; max-height: 30vh; overflow-y: auto !important; padding-top: 0.3125rem; padding-left: 0.3125rem;}
 		.enhancedChannelTabs-tabContainer[data-tab-layout="stacked"] .enhancedChannelTabs-tab { flex: 1 1 var(--enhancedChannelTabs-tabWidthMin); }
 		`;
 	}
@@ -505,67 +493,16 @@ class StyleManager {
 	}
 	static getTabPeekStyle() {
 		return `
-			.enhancedChannelTabs-peekPopout {
-				position: fixed;
-				z-index: 10000;
-				pointer-events: none;
-				background-color: var(--background-base-lower) !important;
-				border-radius: 0.625rem;
-				min-height: 9.375rem;
-				width: 50vw;
-				min-width: 21.875rem;
-				overflow: hidden;
-			}
-			.enhancedChannelTabs-peekPopout * {
-				pointer-events: none !important;
-			}
-			.enhancedChannelTabs-peekScroller {
-				display: flex;
-				flex-direction: column-reverse;
-				overflow-anchor: auto;
-			}
-			.enhancedChannelTabs-peekContainer {
-				padding-bottom: 1.5625rem;
-			}
-			.enhancedChannelTabs-peekContainer > * {
-				list-style: none;
-			}
-			.enhancedChannelTabs-peekHeader {
-				padding: 0.75rem 1rem;
-				border-bottom: 1px solid var(--border-subtle);
-				font-weight: 600;
-				color: var(--text-strong);
-				display: flex;
-				align-items: center;
-				gap: 0.5rem;
-			}
-			.enhancedChannelTabs-peekHeaderIcon {
-				width: 1.25rem;
-				height: 1.25rem;
-				border-radius: 50%;
-			}
-			.enhancedChannelTabs-peekDividerCut {
-				margin-top: 2.5rem !important;
-				border-style: dashed;
-			}
-			.enhancedChannelTabs-peekDividerCut > span {
-				font-weight: 400;
-			}
-			.enhancedChannelTabs-peekBackdrop {
-				position: fixed;
-				top: 0;
-				left: 0;
-				right: 0;
-				bottom: 0;
-				background: #000;
-				z-index: 9999;
-				pointer-events: none;
-				opacity: 0;
-				transition: .3s opacity;
-			}
-			.enhancedChannelTabs-peekBackdrop.enhancedChannelTabs-peekBackdropVisible {
-				/* opacity is now set dynamically via inline style */
-			}
+		.enhancedChannelTabs-peekPopout { position: fixed; z-index: 10000; pointer-events: none; background-color: var(--background-base-lower) !important; border-radius: 0.625rem; min-height: 9.375rem; width: 50vw; min-width: 21.875rem; overflow: hidden; }
+		.enhancedChannelTabs-peekPopout * { pointer-events: none !important; }
+		.enhancedChannelTabs-peekScroller { display: flex; flex-direction: column-reverse; overflow-anchor: auto; }
+		.enhancedChannelTabs-peekContainer { padding-bottom: 1.5625rem; }
+		.enhancedChannelTabs-peekContainer > * { list-style: none; }
+		.enhancedChannelTabs-peekHeader { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-subtle); font-weight: 600; color: var(--text-strong); display: flex; align-items: center; gap: 0.5rem; }
+		.enhancedChannelTabs-peekHeaderIcon { width: 1.25rem; height: 1.25rem; border-radius: 50%; }
+		.enhancedChannelTabs-peekDividerCut { margin-top: 2.5rem !important; border-style: dashed; }
+		.enhancedChannelTabs-peekDividerCut > span { font-weight: 400; }
+		.enhancedChannelTabs-peekBackdrop { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #000; z-index: 9999; pointer-events: none; opacity: 0; transition: .3s opacity; }
 		`;
 	}
 	static getTabListMenuStyle() {
@@ -600,10 +537,7 @@ class StyleManager {
 	}
 }
 let pluginMeta;
-const { ContextMenu, Patcher, Webpack, React, ReactDOM, DOM, ReactUtils, UI, Hooks, Utils } = new BdApi(
-	"EnhancedChannelTabs",
-);
-const Store = Utils?.Store ?? class {
+const Store = Utils.Store ?? class {
 	constructor() {
 		this.listeners = new Set();
 		this._state = {};
@@ -636,7 +570,6 @@ const Store = Utils?.Store ?? class {
 		this.listeners.delete(listener);
 	}
 };
-const { Data } = BdApi;
 const TabStateStore = new Store();
 TabStateStore.state = {
 	tabs: [],
@@ -1140,7 +1073,7 @@ const TabActions = (() => {
 			updateFavs((favsState) => favsState.map(createFavRenamer(favIndex, name)));
 			persistState();
 		};
-		BdApi.UI.showConfirmationModal(
+		UI.showConfirmationModal(
 			"What should the new name be?",
 			/* @__PURE__ */ React.createElement(RenameInput, {
 				defaultValue: currentName,
@@ -1260,7 +1193,7 @@ const TabActions = (() => {
 	};
 	const addFavGroup = () => {
 		let name = "New Group";
-		BdApi.UI.showConfirmationModal(
+		UI.showConfirmationModal(
 			"What should the new name be?",
 			/* @__PURE__ */ React.createElement(RenameInput, {
 				defaultValue: "New Group",
@@ -1283,7 +1216,7 @@ const TabActions = (() => {
 			updateFavGroups((groups) => groups.map(createGroupRenamer(groupId, name)));
 			persistState();
 		};
-		BdApi.UI.showConfirmationModal(
+		UI.showConfirmationModal(
 			"What should the new name be?",
 			/* @__PURE__ */ React.createElement(RenameInput, {
 				defaultValue: currentName,
@@ -1513,7 +1446,7 @@ const TabActions = (() => {
 		pluginRef.current?.updateSettings?.(
 			{ tabLayoutMode: newMode },
 			() => {
-				BdApi.UI.showToast(
+				UI.showToast(
 					`?? ${newMode === "single" ? "Single row mode" : "Multi-row mode"}`,
 					{ type: "info", timeout: 2000 }
 				);
@@ -1608,8 +1541,6 @@ function getStack() {
 	Error.prepareStackTrace = original;
 	return stack;
 }
-if (exports.dismissWarning) exports.dismissWarning();
-exports.dismissWarning = null;
 let missingFeatures = [];
 let dismissWarning = null;
 function missingModule({ name = "<unnamed>", feature, fatal = false }) {
@@ -1624,11 +1555,11 @@ ${trace}`);
 	if (feature != null) {
 		missingFeatures.push(feature);
 		if (dismissWarning) dismissWarning();
-		const content = BdApi.DOM.parseHTML(
+		const content = DOM.parseHTML(
 			`<span style="background: white; color: var(--text-strong); padding: 1px 3px; margin-right: 3px; border-radius: 5px;">EnhancedChannelTabs</span> These features are unavailable: ${missingFeatures.join(", ")}`,
 			true,
 		);
-		dismissWarning = BdApi.UI.showNotice(content, {
+		dismissWarning = UI.showNotice(content, {
 			type: "warning",
 		});
 	}
@@ -1740,21 +1671,21 @@ const DiscordConstants = {
 	),
 };
 const DragSource =
-	BdApi.Webpack.getModule(m => typeof m === "function" && m.toString().includes("DragSource") && m.toString().includes("containerDisplayName"), { searchExports: true })
-	?? BdApi.Webpack.getModule(BdApi.Webpack.Filters.byStrings("react-dnd.github.io/react-dnd/docs/api/drag-source", "createConnector"), { searchExports: true })
-	?? BdApi.Webpack.getModule(BdApi.Webpack.Filters.byStrings("returns a string given the current props"), { searchExports: true });
+	Webpack.getModule(m => typeof m === "function" && m.toString().includes("DragSource") && m.toString().includes("containerDisplayName"), { searchExports: true })
+	?? Webpack.getModule(Webpack.Filters.byStrings("react-dnd.github.io/react-dnd/docs/api/drag-source", "createConnector"), { searchExports: true })
+	?? Webpack.getModule(Webpack.Filters.byStrings("returns a string given the current props"), { searchExports: true });
 // DropTarget
 const DropTarget =
-	BdApi.Webpack.getModule(m => typeof m === "function" && m.toString().includes("DropTarget") && m.toString().includes("containerDisplayName"), { searchExports: true })
-	?? BdApi.Webpack.getModule(BdApi.Webpack.Filters.byStrings("react-dnd.github.io/react-dnd/docs/api/drop-target", "createConnector"), { searchExports: true })
-	?? BdApi.Webpack.getModule(BdApi.Webpack.Filters.byStrings("an array of strings, or a function that returns either"), { searchExports: true });
+	Webpack.getModule(m => typeof m === "function" && m.toString().includes("DropTarget") && m.toString().includes("containerDisplayName"), { searchExports: true })
+	?? Webpack.getModule(Webpack.Filters.byStrings("react-dnd.github.io/react-dnd/docs/api/drop-target", "createConnector"), { searchExports: true })
+	?? Webpack.getModule(Webpack.Filters.byStrings("an array of strings, or a function that returns either"), { searchExports: true });
 if (!DragSource) console.error("[EnhancedChannelTabs] DragSource module not found! Drag and drop will not work.");
 if (!DropTarget) console.error("[EnhancedChannelTabs] DropTarget module not found! Drag and drop will not work.");
 const Textbox = (props) =>
 	/* @__PURE__ */ React.createElement(
 	"div",
 	{ className: "enhancedChannelTabs-input" },
-		/* @__PURE__ */ React.createElement(BdApi.Components.TextInput, {
+		/* @__PURE__ */ React.createElement(Components.TextInput, {
 		...props,
 	}),
 );
@@ -1800,43 +1731,31 @@ const ChannelStreamItemTypes = warnModule(
 const ChatSelectors = bulkModules.ChatSelectors || {};
 const PopoutSelectors = bulkModules.PopoutSelectors || {};
 const PinToBottomScrollerAuto = (() => {
-	const mod = Webpack.getBySource?.('disableScrollAnchor', 'ResizeObserver');
+	const mod = Webpack.getBySource('disableScrollAnchor', 'ResizeObserver');
 	return mod ? Object.values(mod)[0] : null;
 })();
-const MessageComponent = Webpack.getModule?.(m =>
+const MessageComponent = Webpack.getModule(m =>
 	Filters.byStrings('must not be a thread starter message')(m?.type),
 	{ searchExports: true }
 );
-const ThreadStarterMessage = Webpack.getModule?.(m =>
+const ThreadStarterMessage = Webpack.getModule(m =>
 	Filters.byStrings('must be a thread starter message')(m?.type),
 	{ searchExports: true }
 );
-const FluxTypingUsers = Webpack.getByStrings?.('typingUsers', 'isThreadCreation');
-const generateChannelStream = Webpack.getByStrings?.('oldestUnreadMessageId', 'THREAD_STARTER_MESSAGE');
-const MessageDivider = Webpack.getModule?.(m =>
+const FluxTypingUsers = Webpack.getByStrings('typingUsers', 'isThreadCreation');
+const generateChannelStream = Webpack.getByStrings('oldestUnreadMessageId', 'THREAD_STARTER_MESSAGE');
+const MessageDivider = Webpack.getModule(m =>
 	Filters.byStrings('divider', 'isBeforeGroup')(m?.type?.render)
 );
 const AppearanceSettingsStore = bulkModules.AppearanceSettingsStore;
-const EmptyMessage = Webpack.getByStrings?.('parseTopic', 'buttonContainer');
-const [AttachmentModule, AttachmentKey] = Webpack.getWithKey?.(Filters.byStrings('getObscureReason', 'mosaicItemContent')) || [null, null];
-const Embed = Webpack.getByPrototypeKeys?.('renderAuthor', 'renderMedia');
-const Spinner =
-	warnModule(bulkModules.Spinner, "Spinner", {
-		feature: "Typing Indicators",
-	}) ??
-	getModule((m) => m.Type?.SPINNING_CIRCLE, {
-		searchExports: true,
-		feature: "Typing Indicators",
-	});
-const Tooltip = BdApi.Components.Tooltip;
-const Slider =
-	warnModule(bulkModules.Slider, "Slider") ??
-	getModule(
-		byStrings(
-			`"[UIKit]Slider.handleMouseDown(): assert failed: domNode nodeType !== Element"`,
-		),
-		{ searchExports: true },
-	);
+const EmptyMessage = Webpack.getByStrings('parseTopic', 'buttonContainer');
+const [AttachmentModule, AttachmentKey] = Webpack.getWithKey(Filters.byStrings('getObscureReason', 'mosaicItemContent')) || [null, null];
+const Embed = Webpack.getByPrototypeKeys('renderAuthor', 'renderMedia');
+const Spinner = warnModule(bulkModules.Spinner, "Spinner", {
+	feature: "Typing Indicators",
+});
+const Tooltip = Components.Tooltip;
+const Slider = warnModule(bulkModules.Slider, "Slider");
 const NavShortcuts = warnModule(bulkModules.NavShortcuts, "NavShortcuts");
 const [TitleBar, TitleBarKey] =
 	Webpack.getWithKey(byStrings("PlatformTypes", "leading", "trailing")) ||
@@ -1860,7 +1779,7 @@ const IconUtilities = warnModule(
 	"IconUtilities",
 );
 const standardSidebarView =
-	BdApi.Webpack.getByKeys("standardSidebarView")?.standardSidebarView ?? "";
+	Webpack.getByKeys("standardSidebarView")?.standardSidebarView ?? "";
 const backdropClasses = warnModule(
 	bulkModules.backdropClasses,
 	"backdropClasses",
@@ -1979,15 +1898,6 @@ const FilledFolderIcon = (props) =>
 		d: "M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"
 	})
 );
-const LeftCaret =
-	Icons?.ChevronLargeLeftIcon ??
-	(() => /* @__PURE__ */ React.createElement("b", null, "<"));
-const RightCaret =
-	Icons?.ChevronLargeRightIcon ??
-	(() => /* @__PURE__ */ React.createElement("b", null, ">"));
-const ChevronDown =
-	Icons?.ChevronDownIcon ??
-	(() => /* @__PURE__ */ React.createElement("b", null, "\u25BC"));
 const DefaultUserIconGrey = "https://cdn.discordapp.com/embed/avatars/0.png";
 const SettingsMenuIcon = /* @__PURE__ */ React.createElement(
 	"svg",
@@ -2820,7 +2730,7 @@ CTRL + Mouse Scroll - Switch Tab Layout
 								type: "text",
 								label: "Open Full Settings",
 								action: () => {
-									BdApi.UI.showConfirmationModal(
+									UI.showConfirmationModal(
 										"EnhancedChannelTabs Settings",
 										React.createElement("div", {
 											className: "enhancedChannelTabs-settingsModalContent"
@@ -3342,7 +3252,7 @@ function formatTimeAgo(timestamp) {
 }
 function showClosedTabsModal() {
 	const closedTabs = TabStateStore.getState().closedTabs || [];
-	BdApi.UI.showConfirmationModal(
+	UI.showConfirmationModal(
 		"Closed Tabs History",
 		React.createElement("div", { className: "enhancedChannelTabs-closedTabsContainer" },
 			closedTabs.length === 0
@@ -3932,7 +3842,7 @@ const CompactTab = (props) => {
 	);
 };
 const isGroupStarter = (channelStreamItem) => {
-	return channelStreamItem?.type === ChannelStreamItemTypes?.MESSAGE
+	return channelStreamItem?.type === ChannelStreamItemTypes.MESSAGE
 		&& channelStreamItem.content.id === channelStreamItem.groupId;
 };
 const TabPeekPopout = ({ tabUrl, channelId, tabName, position }) => {
@@ -3947,9 +3857,9 @@ const TabPeekPopout = ({ tabUrl, channelId, tabName, position }) => {
 	const groupSpacingSync = settings.tabPeekGroupSpacingSync !== false;
 	const customGroupSpacing = settings.tabPeekGroupSpacing ?? 16;
 	const messageGroupSpacing = groupSpacingSync
-		? (AppearanceSettingsStore?.messageGroupSpacing ?? 16)
+		? (AppearanceSettingsStore.messageGroupSpacing ?? 16)
 		: customGroupSpacing;
-	const channel = ChannelStore?.getChannel?.(channelId);
+	const channel = ChannelStore.getChannel(channelId);
 	React.useEffect(() => {
 		TabPreviewStore.setScrollerRef(scrollerRef);
 		return () => TabPreviewStore.setScrollerRef(null);
@@ -3959,15 +3869,15 @@ const TabPeekPopout = ({ tabUrl, channelId, tabName, position }) => {
 			setLoading(false);
 			return;
 		}
-		const cachedMessages = MessageStore.getMessages?.(channelId);
+		const cachedMessages = MessageStore.getMessages(channelId);
 		if (cachedMessages && cachedMessages.length > 0) {
 			setMessages(cachedMessages);
 			setLoading(false);
 		}
-		if (MessageActions?.fetchMessages) {
+		if (MessageActions.fetchMessages) {
 			MessageActions.fetchMessages({ channelId, limit: messageCount })
 				.then(() => {
-					const fetched = MessageStore.getMessages?.(channelId);
+					const fetched = MessageStore.getMessages(channelId);
 					if (fetched) {
 						setMessages(fetched);
 					}
@@ -4021,7 +3931,7 @@ const TabPeekPopout = ({ tabUrl, channelId, tabName, position }) => {
 	};
 	let channelStreamMarkup = null;
 	if (!loading && messages && channel && generateChannelStream && ChannelStreamItemTypes && MessageComponent) {
-		const oldestUnreadMessageId = ReadStateStore?.getOldestUnreadMessageId?.(channelId);
+		const oldestUnreadMessageId = ReadStateStore.getOldestUnreadMessageId(channelId);
 		const messagesArray = messages.toArray();
 		const isEmptyChannel = !messages.hasMoreBefore && messagesArray.length === 0;
 		const displayedMessages = messagesArray.slice(-messageCount);
@@ -4096,7 +4006,7 @@ const TabPeekPopout = ({ tabUrl, channelId, tabName, position }) => {
 	};
 	const scrollerContent = channelStreamMarkup || renderFallbackMessages();
 	const renderScroller = () => {
-		if (PinToBottomScrollerAuto && ChatSelectors?.scrollerContent) {
+		if (PinToBottomScrollerAuto && ChatSelectors.scrollerContent) {
 			return React.createElement(PinToBottomScrollerAuto, {
 				ref: scrollerRef,
 				className: "enhancedChannelTabs-peekScroller",
@@ -4137,7 +4047,7 @@ const TabPeekPopout = ({ tabUrl, channelId, tabName, position }) => {
 		value: { channel }
 	},
 		React.createElement("div", {
-			className: `enhancedChannelTabs-peekPopout group-spacing-${messageGroupSpacing} ${PopoutSelectors?.messagesPopoutWrap || ''}`,
+			className: `enhancedChannelTabs-peekPopout group-spacing-${messageGroupSpacing} ${PopoutSelectors.messagesPopoutWrap || ''}`,
 			style
 		},
 			React.createElement("div", { className: "enhancedChannelTabs-peekHeader" },
@@ -4184,7 +4094,7 @@ const BaseTab = (props) => {
 		if (!settings.enableTabPeek) return;
 		if (settings.tabPeekTrigger === 'shift-hover' && !e.shiftKey) return;
 		if (settings.tabPeekTrigger === 'mwheel') return;
-		const channel = ChannelStore?.getChannel?.(props.channelId);
+		const channel = ChannelStore.getChannel(props.channelId);
 		if (settings.tabPeekNsfw === 'hide' && channel?.nsfw) return;
 		const delay = (settings.tabPeekDelay || 0.4) * 1000;
 		const timeout = setTimeout(() => {
@@ -4214,7 +4124,7 @@ const BaseTab = (props) => {
 			props.closeTab(props.tabIndex);
 			return;
 		}
-		const channel = ChannelStore?.getChannel?.(props.channelId);
+		const channel = ChannelStore.getChannel(props.channelId);
 		if (settings.tabPeekNsfw === 'hide' && channel?.nsfw) {
 			props.closeTab(props.tabIndex);
 			return;
@@ -4850,7 +4760,7 @@ const TabListDropdown = (props) =>
 		onClick: (e) => CreateTabListContextMenu(props, e),
 		title: "Show all tabs"
 	},
-		/* @__PURE__ */ React.createElement(ChevronDown, null)
+		/* @__PURE__ */ React.createElement(Icons.ChevronDown, null)
 );
 const NoFavItemsPlaceholder = (props) =>
 	/* @__PURE__ */ React.createElement(
@@ -5375,7 +5285,7 @@ const TabBar = React.forwardRef((props, ref) => {
 						e.stopPropagation();
 					},
 				},
-				/* @__PURE__ */ React.createElement(LeftCaret, null),
+				/* @__PURE__ */ React.createElement(Icons.LeftCaret, null),
 			),
 			/* @__PURE__ */ React.createElement(
 				"div",
@@ -5402,7 +5312,7 @@ const TabBar = React.forwardRef((props, ref) => {
 						e.stopPropagation();
 					},
 				},
-				/* @__PURE__ */ React.createElement(RightCaret, null),
+				/* @__PURE__ */ React.createElement(Icons.RightCaret, null),
 			),
 			/* @__PURE__ */ React.createElement(
 				"div",
@@ -5658,14 +5568,14 @@ module.exports = class EnhancedChannelTabs {
 		);
 		this.persistSettings = debounce(() => {
 			try {
-				Data.save(this.getSettingsPath(), "settings", this.settings);
+				BdApi.Data.save(this.getSettingsPath(), "settings", this.settings);
 			} catch (error) {
 				console.error("Error saving settings:", error);
 			}
 		}, 250);
 	}
 	start(isRetry = false) {
-		if (isRetry && !BdApi.Plugins.isEnabled(config.info.name)) return;
+		if (isRetry && !Plugins.isEnabled(config.info.name)) return;
 		if (!UserStore.getCurrentUser())
 			return setTimeout(() => this.start(true), 1e3);
 		patches = [];
@@ -5873,7 +5783,7 @@ module.exports = class EnhancedChannelTabs {
 				document.querySelector(selector)?.parentElement ?? document.querySelector(selector);
 			log("selector", selector, "found", !!targetEl);
 			if (!targetEl) return;
-			const instance = ReactUtils.getOwnerInstance?.(targetEl);
+			const instance = ReactUtils.getOwnerInstance(targetEl);
 			if (!instance || typeof instance.forceUpdate !== "function") {
 				log("ownerNotFound");
 				return;
@@ -6272,15 +6182,15 @@ module.exports = class EnhancedChannelTabs {
 	}
 	loadSettings() {
 		if (
-			Object.keys(Data.load(this.getSettingsPath(), "settings") ?? {})
+			Object.keys(BdApi.Data.load(this.getSettingsPath(), "settings") ?? {})
 				.length === 0
 		) {
 			this.settings =
-				Data.load(this.getSettingsPath(true), "settings") ??
+				BdApi.Data.load(this.getSettingsPath(true), "settings") ??
 				this.defaultVariables;
 		} else {
 			this.settings =
-				Data.load(this.getSettingsPath(), "settings") ?? this.defaultVariables;
+				BdApi.Data.load(this.getSettingsPath(), "settings") ?? this.defaultVariables;
 		}
 		this.settings.favs = this.settings.favs.map((fav) => {
 			if (fav.channelId === void 0) {
@@ -6372,7 +6282,7 @@ module.exports = class EnhancedChannelTabs {
 							onChange: (value) => {
 								this.updateSettings(
 									{ tabLayoutMode: value },
-									() => BdApi.UI.showToast(
+									() => UI.showToast(
 										`📑 Layout: ${value.charAt(0).toUpperCase() + value.slice(1)}`,
 										{ type: "info", timeout: 2000 }
 									)
@@ -6936,7 +6846,7 @@ module.exports = class EnhancedChannelTabs {
 							onClick: () => {
 								updateClosedTabs(() => []);
 								this.saveSettings();
-								BdApi.UI.showToast("Closed tabs history cleared", { type: "success" });
+								UI.showToast("Closed tabs history cleared", { type: "success" });
 							},
 							color: "red",
 							text: "Clear History"
