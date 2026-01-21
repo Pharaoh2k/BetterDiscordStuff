@@ -2668,7 +2668,7 @@ function CreateSettingsContextMenu(instance, e) {
 		(props) => {
 			const pluginName = instance.props.plugin.getSettingsPath();
 			const settings =
-				BdApi.Hooks.useData(pluginName, "settings") ||
+				Hooks.useData(pluginName, "settings") ||
 				instance.props.plugin.settings ||
 				{};
 			const [storeState, setStoreState] = React.useState(TabStateStore.getState());
@@ -5568,7 +5568,7 @@ module.exports = class EnhancedChannelTabs {
 		);
 		this.persistSettings = debounce(() => {
 			try {
-				BdApi.Data.save(this.getSettingsPath(), "settings", this.settings);
+				Data.save(this.getSettingsPath(), "settings", this.settings);
 			} catch (error) {
 				console.error("Error saving settings:", error);
 			}
@@ -6182,15 +6182,15 @@ module.exports = class EnhancedChannelTabs {
 	}
 	loadSettings() {
 		if (
-			Object.keys(BdApi.Data.load(this.getSettingsPath(), "settings") ?? {})
+			Object.keys(Data.load(this.getSettingsPath(), "settings") ?? {})
 				.length === 0
 		) {
 			this.settings =
-				BdApi.Data.load(this.getSettingsPath(true), "settings") ??
+				Data.load(this.getSettingsPath(true), "settings") ??
 				this.defaultVariables;
 		} else {
 			this.settings =
-				BdApi.Data.load(this.getSettingsPath(), "settings") ?? this.defaultVariables;
+				Data.load(this.getSettingsPath(), "settings") ?? this.defaultVariables;
 		}
 		this.settings.favs = this.settings.favs.map((fav) => {
 			if (fav.channelId === void 0) {
