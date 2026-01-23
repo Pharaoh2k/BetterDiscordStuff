@@ -4,7 +4,7 @@
  * @authorId 874825550408089610
  * @description Enables uploading and downloading very large files (up to ~2GB) by splitting them into chunks and reassembling them automatically. Both sender and receiver need the plugin. Includes automatic chunk sending, low‑memory mode, and other conveniences. Like BetterSplitLargeMessages, it doesn’t bypass Discord’s limits or Nitro, it simply works within them to make large transfers possible.
 
- * @version 1.0.1
+ * @version 1.0.2
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BigFileTransfers/BigFileTransfers.plugin.js
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BigFileTransfers/BigFileTransfers.plugin.js
@@ -1718,8 +1718,8 @@ module.exports = class BigFileTransfers {
     _wireDispatcher() {
         const dispatcher = this._discordModules.Dispatcher;
         if (!dispatcher.subscribe) return;
-        Patcher.instead(this.name, dispatcher, "dispatch", (that, [event], original) => {
-            if (event.type === 'UPLOAD_ATTACHMENT_REMOVE_FILE') {
+        Patcher.before(this.name, dispatcher, "dispatch", (_that, [event]) => {
+            if (event?.type === 'UPLOAD_ATTACHMENT_REMOVE_FILE') {
                 const upload = this._discordModules.UploadAttachmentStore?.getUpload(
                     event.channelId, event.id, event.draftType
                 );
@@ -1730,8 +1730,7 @@ module.exports = class BigFileTransfers {
                     }
                 }
             }
-            return original(event);
-        });
+        });        
         const sub = (event, fn) => {
             dispatcher.subscribe(event, fn);
             this._dispatcherSubs.push({ dispatcher, event, fn });
