@@ -4,7 +4,7 @@
  * @authorId 874825550408089610
  * @description Enables uploading and downloading very large files (up to ~2GB) by splitting them into chunks and reassembling them automatically. Both sender and receiver need the plugin. Includes automatic chunk sending, low‑memory mode, and other conveniences. Like BetterSplitLargeMessages, it doesn’t bypass Discord’s limits or Nitro, it simply works within them to make large transfers possible.
 
- * @version 1.0.2
+ * @version 1.0.3
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BigFileTransfers/BigFileTransfers.plugin.js
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BigFileTransfers/BigFileTransfers.plugin.js
@@ -360,10 +360,11 @@ module.exports = class BigFileTransfers {
             try { module[key] = original; } catch { }
             this._fileSizePatch = null;
         }
-        if (this._totalSizePatch) {
-            const { module, key, original } = this._totalSizePatch;
-            try { module[key] = original; } catch { }
-            this._totalSizePatch = null;
+        if (this._totalSizePatches) {
+            for (const { module, key, original } of this._totalSizePatches) {
+                try { module[key] = original; } catch { }
+            }
+            this._totalSizePatches = null;
         }
         if (this._refreshTimer) {
             clearTimeout(this._refreshTimer);
@@ -629,7 +630,8 @@ module.exports = class BigFileTransfers {
         const MAGIC0 = this.MAGIC0;
         const MAGIC1 = this.MAGIC1;
         const EXT = this.EXT;
-        const maxPayload = maxSize - HEADER_SIZE - UPLOAD_OVERHEAD;
+        const MAX_CHUNK_PAYLOAD = 49 * 1024 * 1024; /* 49MB max chunk to stay under 500MB server batch limit */
+        const maxPayload = Math.min(maxSize - HEADER_SIZE - UPLOAD_OVERHEAD, MAX_CHUNK_PAYLOAD);
         const effectiveMaxChunks = Math.min(this.MAX_CHUNKS, Math.ceil(this.MAX_RAM_ASSEMBLY_SIZE / maxPayload));
         const totalChunks = Math.ceil(file.size / maxPayload);
         if (totalChunks <= 1) return null;
@@ -1880,26 +1882,21 @@ module.exports = class BigFileTransfers {
             Logger.warn(this.name, "Could not find size validation module");
             return false;
         }
-        let targetKey = null;
+        this._totalSizePatches = [];
         for (const [key, val] of Object.entries(sizeModule)) {
             if (typeof val !== "function") continue;
             try {
                 if (val([]) !== false) continue;
                 if (val([{ size: 600000000 }]) !== true) continue;
-                targetKey = key;
-                break;
+                this._totalSizePatches.push({ module: sizeModule, key, original: val });
+                sizeModule[key] = () => false;
             } catch { }
         }
-        if (!targetKey) {
-            Logger.warn(this.name, "Could not find total size check function");
+        if (this._totalSizePatches.length === 0) {
+            Logger.warn(this.name, "Could not find total size check functions");
             return false;
         }
-        this._totalSizePatch = {
-            module: sizeModule,
-            key: targetKey,
-            original: sizeModule[targetKey]
-        };
-        sizeModule[targetKey] = () => false;
+        Logger.info(this.name, `Patched ${this._totalSizePatches.length} size validators`);
         return true;
     }
     /*---  UTILITIES ---*/
