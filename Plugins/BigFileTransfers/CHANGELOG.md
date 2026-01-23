@@ -1,5 +1,8 @@
 # [BigFileTransfers](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BigFileTransfers "BigFileTransfers") Changelog
 
+### 1.0.2
+- Improved compatibility with other plugins
+
 ### 1.0.1
 - Improved code quality (minor change)
 
