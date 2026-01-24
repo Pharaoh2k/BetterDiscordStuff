@@ -2,7 +2,7 @@
  * @name BetterFriendsSince
  * @author Pharaoh2k
  * @description Shows the date you and a friend became friends in the profile modal and Friends sidebar.
- * @version 1.3.2
+ * @version 1.3.3
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterFriendsSince/BetterFriendsSince.plugin.js
@@ -325,24 +325,13 @@ const findProfileBody = tree =>
 const getCurrentLocale = LocaleStore => LocaleStore?.locale ?? LocaleStore?.systemLocale ?? "en-US";
 const getHeadingForLocale = locale => HEADING_BY_LOCALE[locale] ?? HEADING_BY_LOCALE["en-US"];
 const isAbortError = err => err?.name === "AbortError";
-const findSidebarSectionKey = (mod) => {
-	if (!mod || typeof mod !== "object") return null;
-	const preciseKey = Object.keys(mod).find(k => { const exportValue = mod[k]; return typeof exportValue === "function" && exportValue.toString().includes("introText"); });
-	if (preciseKey) return preciseKey;
-	return (typeof mod.Z === "function") ? "Z" : null;
-};
-const tryFilters = async (filterConfigs, signal) => {
-	for (const { filter, options = {} } of filterConfigs) {
-		try {
-			const module = Webpack.getModule(filter, options);
-			if (module) {
-				return module;
-			}
-		} catch { /* try next */ }
-	}
+const getMangledLazy = async (moduleFilter, mangledMap, options, signal) => {
+	let result = Webpack.getMangled(moduleFilter, mangledMap, options);
+	const key = Object.keys(mangledMap)[0];
+	if (result?.[key]) return result;
 	try {
-		const { filter, options = {} } = filterConfigs[0];
-		return await Webpack.waitForModule(filter, { signal, ...options });
+		await Webpack.waitForModule(moduleFilter, { signal, defaultExport: options?.defaultExport ?? false });
+		return Webpack.getMangled(moduleFilter, mangledMap, options);
 	} catch { return null; }
 };
 const createGetFriendSince = store => {
@@ -533,47 +522,42 @@ const BetterFriendsSince = meta => {
 	};
 	const patchSidebar = async (signal) => {
 		try {
-			const sidebarBodyMod = Webpack.getModule(
-				m => m?.Z?.toString?.().includes('UserProfileSidebarBody') &&
-					m?.Z?.toString?.().includes('isProvisional'),
-				{ first: true }
+			const sidebarBodyMangled = Webpack.getMangled(
+				Filters.bySource('UserProfileSidebarBody', 'isProvisional'),
+				{ SidebarBody: Filters.byStrings('UserProfileSidebarBody', 'isProvisional') },
+				{ defaultExport: false }
 			);
 			if (signal.aborted) return;
-			if (sidebarBodyMod?.Z) {
-				Patcher.after(meta.name, sidebarBodyMod, 'Z', handleSidebarBodyPatch);
+			if (sidebarBodyMangled?.SidebarBody) {
+				Patcher.after(meta.name, sidebarBodyMangled, 'SidebarBody', handleSidebarBodyPatch);
 				return;
 			}
-			const sidebarSectionMod = await tryFilters([
-				{ filter: Filters.bySource('introText:', 'headingClassName:') },
-				{ filter: Filters.bySource('scrollTargetId:', 'headingIcon:', '"text-xs/semibold"') },
-				{ filter: Filters.bySource('scrollTargetId:', 'headingVariant:') }
-			], signal);
+			const sidebarSectionMangled =
+				await getMangledLazy(
+					Filters.bySource('introText:', 'headingClassName:'),
+					{ SidebarSection: Filters.byStrings('introText', 'headingClassName') },
+					{},
+					signal
+				) ??
+				await getMangledLazy(
+					Filters.bySource('scrollTargetId:', 'headingIcon:'),
+					{ SidebarSection: Filters.byStrings('scrollTargetId:', 'headingIcon:', '"text-xs/semibold"') },
+					{},
+					signal
+				) ??
+				await getMangledLazy(
+					Filters.bySource('scrollTargetId:', 'headingVariant:'),
+					{ SidebarSection: Filters.byStrings('scrollTargetId:', 'headingVariant:') },
+					{},
+					signal
+				);
 			if (signal.aborted) return;
-			if (!sidebarSectionMod) {
-				Logger.warn(meta.name, "sidebarSectionMod not found by any filter");
+			if (!sidebarSectionMangled?.SidebarSection) {
+				Logger.warn(meta.name, "sidebarSectionMod not found via getMangledLazy");
 				return;
 			}
-			let sidebarKey = null;
-			if (typeof sidebarSectionMod === "function") {
-				SidebarSectionComponent = sidebarSectionMod;
-				sidebarKey = "default";
-			} else if (typeof sidebarSectionMod === "object") {
-				const key = findSidebarSectionKey(sidebarSectionMod);
-				if (key) {
-					SidebarSectionComponent = sidebarSectionMod[key];
-					sidebarKey = key;
-				}
-			}
-			if (!sidebarKey || !SidebarSectionComponent) {
-				Logger.warn(meta.name, "sidebarKey not found. Module type:", typeof sidebarSectionMod, "Keys:", Object.keys(sidebarSectionMod || {}));
-				return;
-			}
-			if (SidebarSectionComponent && sidebarSectionMod && sidebarKey) {
-				const targetModule = typeof sidebarSectionMod === "function"
-					? { [sidebarKey]: sidebarSectionMod }
-					: sidebarSectionMod;
-				Patcher.after(meta.name, targetModule, sidebarKey, handleSidebarPatch);
-			}
+			SidebarSectionComponent = sidebarSectionMangled.SidebarSection;
+			Patcher.after(meta.name, sidebarSectionMangled, 'SidebarSection', handleSidebarPatch);
 		} catch (err) {
 			if (isAbortError(err)) return;
 			Logger.warn(meta.name, "Sidebar patching failed or timed out", err);
@@ -581,26 +565,40 @@ const BetterFriendsSince = meta => {
 	};
 	const patchProfile = async (signal) => {
 		try {
-			const [sectionModule, userProfileModule] = await Promise.all([
-				tryFilters([
-					{ filter: Filters.byStrings('.section', 'text-xs/medium', 'headingColor'), options: { searchExports: true } },
-					{ filter: Filters.byStrings('.section', '"currentColor"', 'headingVariant'), options: { searchExports: true } }
-				], signal),
-				tryFilters([
-					{ filter: Filters.bySource('parentComponent:', '"UserProfileModalV2"'), options: { defaultExport: false } },
-					{ filter: Filters.bySource('SHAKE_PROFILE_MODAL', 'profileEffect'), options: { defaultExport: false } },
-					{ filter: Filters.bySource('profileBody', 'profileHeader', 'profileButtons'), options: { defaultExport: false } }
-				], signal)
-			]);
+			const sectionMangled =
+				Webpack.getMangled(
+					Filters.bySource('introText', 'headingClassName'),
+					{ Section: Filters.byStrings('introText', 'headingClassName', 'headingVariant') },
+					{ searchExports: true }
+				) ??
+				Webpack.getMangled(
+					Filters.bySource('introText', 'headingIcon'),
+					{ Section: Filters.byStrings('introText', 'headingIcon', '"text-xs/semibold"') },
+					{ searchExports: true }
+				);
 			if (signal.aborted) return;
-			Section = sectionModule;
+			Section = sectionMangled?.Section ?? null;
 			if (!Section) {
 				Logger.warn(meta.name, "Section module not found, profile patch will rely on tree fallback.");
 			}
-			if (!userProfileModule?.Z || typeof userProfileModule.Z !== "function") {
-				Logger.warn(meta.name, "UserProfileModal module not in expected shape.");
+			const profileMangled =
+				await getMangledLazy(
+					Filters.bySource('parentComponent:', '"UserProfileModalV2"'),
+					{ UserProfileModal: Filters.byStrings('parentComponent:', '"UserProfileModalV2"') },
+					{ defaultExport: false },
+					signal
+				) ??
+				await getMangledLazy(
+					Filters.bySource('SHAKE_PROFILE_MODAL', 'profileEffect'),
+					{ UserProfileModal: Filters.byStrings('profileEffect', 'SHAKE_PROFILE_MODAL') },
+					{ defaultExport: false },
+					signal
+				);
+			if (signal.aborted) return;
+			if (!profileMangled?.UserProfileModal || typeof profileMangled.UserProfileModal !== "function") {
+				Logger.warn(meta.name, "UserProfileModal module not found via getMangled.");
 			} else {
-				Patcher.after(meta.name, userProfileModule, "Z", handleProfilePatch);
+				Patcher.after(meta.name, profileMangled, "UserProfileModal", handleProfilePatch);
 			}
 		} catch (err) {
 			if (isAbortError(err)) return;
