@@ -4,7 +4,7 @@
  * @authorId 874825550408089610
  * @description Enables uploading and downloading very large files (up to ~2GB) by splitting them into chunks and reassembling them automatically. Both sender and receiver need the plugin. Includes automatic chunk sending, low‑memory mode, and other conveniences. Like BetterSplitLargeMessages, it doesn’t bypass Discord’s limits or Nitro, it simply works within them to make large transfers possible.
 
- * @version 1.0.3
+ * @version 1.0.4
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BigFileTransfers/BigFileTransfers.plugin.js
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BigFileTransfers/BigFileTransfers.plugin.js
@@ -526,22 +526,27 @@ module.exports = class BigFileTransfers {
             ["hoverButtonGroup", "hoverButton", "sizer"],
             ["nonMediaMosaicItem"]
         );
-        this._discordModules.FileAttachment = this._getModuleWithFallbacks(
-            Webpack.getBySource,
-            ["renderAdjacentContent", "filenameLinkWrapper"],
-            ["fileWrapper", "fileNameLink", "fileSize"]
-        );
+        const fileAttachmentModule = Webpack.getModule(Filters.bySource("icon-file-"))
+            || Webpack.getModule(Filters.bySource("-image.svg"));
+        if (fileAttachmentModule) {
+            const fileAttachmentKey = Object.keys(fileAttachmentModule).find(k =>
+                typeof fileAttachmentModule[k] === 'function' &&
+                fileAttachmentModule[k].length >= 1 &&
+                fileAttachmentModule[k].toString?.().includes('renderAdjacentContent')
+            );
+            console.log("FileAttachment key:", fileAttachmentKey);
+            this._discordModules.FileAttachmentModule = fileAttachmentModule;
+            this._discordModules.FileAttachmentKey = fileAttachmentKey;
+            this._discordModules.FileAttachment = fileAttachmentKey ? fileAttachmentModule[fileAttachmentKey] : null;
+        }
         this._discordModules.MessageAccessories = this._findMessageAccessories();
-        this._discordModules.MessageComponent =
-            Webpack.getModule(Filters.combine(Filters.bySource("Message must be a thread starter message"), m => !m.$$typeof), { searchExports: true }) ||
-            Webpack.getModule(Filters.combine(Filters.bySource("quotedChatMessage", "bg-flash-"), m => !m.$$typeof), { searchExports: true }) ||
-            Webpack.getModule(Filters.combine(Filters.bySource("messageListItem", "hasThread", "isSystemMessage"), m => !m.$$typeof), { searchExports: true });
-        const uploadExports = Webpack.getMangled('shouldUploadFailureSendNot', { uploadWithProgress: Filters.byStrings('UPLOAD_START') }
-        );
+        const messageComponentExports = Webpack.getMangled("Message must be a thread starter message", { MemoizedMessage: m => m?.$$typeof && typeof m.type === 'function' })
+            || Webpack.getMangled("bg-flash-", { MemoizedMessage: m => m?.$$typeof && typeof m.type === 'function' })
+            || Webpack.getMangled(Filters.bySource("hasThread", "isSystemMessage"), { MemoizedMessage: m => m?.$$typeof && typeof m.type === 'function' });
+        this._discordModules.MemoizedMessage = messageComponentExports?.MemoizedMessage;
+        const uploadExports = Webpack.getMangled('shouldUploadFailureSendNot', { uploadWithProgress: Filters.byStrings('UPLOAD_START') });
         this._discordModules.uploadWithProgress = uploadExports?.uploadWithProgress;
-
-        const cloudExports = Webpack.getMangled('uploadFileToCloud', { CloudUpload: Filters.byPrototypeKeys('uploadFileToCloud') }
-        );
+        const cloudExports = Webpack.getMangled('uploadFileToCloud', { CloudUpload: Filters.byPrototypeKeys('uploadFileToCloud') });
         this._discordModules.CloudUpload = cloudExports?.CloudUpload;
         const failed = Object.keys(this._discordModules).filter(k => !this._discordModules[k]);
         if (failed.length) Logger.warn(this.name, "Modules not found:", failed);
@@ -1215,12 +1220,13 @@ module.exports = class BigFileTransfers {
     };
     /*---  FILE ATTACHMENT PATCH ---*/
     _patchFileAttachment() {
-        const FileAttachment = this._discordModules.FileAttachment;
-        if (!FileAttachment?.Z) {
-            Logger.warn(this.name, "FileAttachment.Z not found, custom rendering disabled");
+        const FileAttachmentModule = this._discordModules.FileAttachmentModule;
+        const FileAttachmentKey = this._discordModules.FileAttachmentKey;
+        if (!FileAttachmentModule || !FileAttachmentKey) {
+            Logger.warn(this.name, "FileAttachment not found, custom rendering disabled");
             return;
         }
-        Patcher.after(this.name, FileAttachment, "Z", (that, [props], ret) => {
+        Patcher.after(this.name, FileAttachmentModule, FileAttachmentKey, (that, [props], ret) => {
             if (!props?._bftr_isCombinedView) return ret;
             try {
                 if (!React.isValidElement(ret)) return ret;
@@ -1341,7 +1347,7 @@ module.exports = class BigFileTransfers {
                 e.stopPropagation();
                 if (!isDownloading && !isBroken) _downloadAndReassemble(displayData);
             };
-            const FileAttachment = _discordModules.FileAttachment?.Z;
+            const FileAttachment = _discordModules.FileAttachmentModule?.[_discordModules.FileAttachmentKey];
             if (!FileAttachment) {
                 const sizeText = displayData.totalSize ? _formatBytes(displayData.totalSize) : "...";
                 if (isBroken) {
@@ -1433,9 +1439,9 @@ module.exports = class BigFileTransfers {
         });
     }
     _patchMessageComponent() {
-        const MessageModule = this._discordModules.MessageComponent;
-        if (!MessageModule?.ZP?.type) {
-            Logger.warn(this.name, "MessageComponent.ZP not found, message hiding disabled");
+        const MemoizedMessage = this._discordModules.MemoizedMessage;
+        if (!MemoizedMessage?.type) {
+            Logger.warn(this.name, "MemoizedMessage not found, message hiding disabled");
             return;
         }
         const MessageVisibilityWrapper = (props) => {
@@ -1488,7 +1494,7 @@ module.exports = class BigFileTransfers {
             }, [message?.id]);
             return shouldHide ? null : children;
         };
-        Patcher.instead(this.name, MessageModule.ZP, "type", (that, args, original) => {
+        Patcher.instead(this.name, MemoizedMessage, "type", (that, args, original) => {
             const props = args[0];
             const message = props?.message;
             const attachments = message?.attachments;
@@ -1732,7 +1738,7 @@ module.exports = class BigFileTransfers {
                     }
                 }
             }
-        });        
+        });
         const sub = (event, fn) => {
             dispatcher.subscribe(event, fn);
             this._dispatcherSubs.push({ dispatcher, event, fn });
