@@ -2,7 +2,7 @@
  * @name BetterFriendsSince
  * @author Pharaoh2k
  * @description Shows the date you and a friend became friends in the profile modal and Friends sidebar.
- * @version 1.3.3
+ * @version 1.3.4
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterFriendsSince/BetterFriendsSince.plugin.js
@@ -325,13 +325,37 @@ const findProfileBody = tree =>
 const getCurrentLocale = LocaleStore => LocaleStore?.locale ?? LocaleStore?.systemLocale ?? "en-US";
 const getHeadingForLocale = locale => HEADING_BY_LOCALE[locale] ?? HEADING_BY_LOCALE["en-US"];
 const isAbortError = err => err?.name === "AbortError";
-const getMangledLazy = async (moduleFilter, mangledMap, options, signal) => {
-	let result = Webpack.getMangled(moduleFilter, mangledMap, options);
-	const key = Object.keys(mangledMap)[0];
-	if (result?.[key]) return result;
+const findFunctionExportKey = (mod, ...sourceStrings) => {
+	if (!mod || typeof mod !== "object") return null;
+	for (const key of Object.keys(mod)) {
+		const exportValue = mod[key];
+		if (typeof exportValue === "function") {
+			try {
+				const source = exportValue.toString();
+				if (sourceStrings.every(str => source.includes(str))) {
+					return key;
+				}
+			} catch { /* toString may fail on some built-ins */ }
+		}
+	}
+	return null;
+};
+const findSidebarSectionKey = (mod) => {
+	if (!mod || typeof mod !== "object") return null;
+	return findFunctionExportKey(mod, "introText");
+};
+const tryFilters = async (filterConfigs, signal) => {
+	for (const { filter, options = {} } of filterConfigs) {
+		try {
+			const module = Webpack.getModule(filter, options);
+			if (module) {
+				return module;
+			}
+		} catch { /* try next */ }
+	}
 	try {
-		await Webpack.waitForModule(moduleFilter, { signal, defaultExport: options?.defaultExport ?? false });
-		return Webpack.getMangled(moduleFilter, mangledMap, options);
+		const { filter, options = {} } = filterConfigs[0];
+		return await Webpack.waitForModule(filter, { signal, ...options });
 	} catch { return null; }
 };
 const createGetFriendSince = store => {
@@ -522,42 +546,47 @@ const BetterFriendsSince = meta => {
 	};
 	const patchSidebar = async (signal) => {
 		try {
-			const sidebarBodyMangled = Webpack.getMangled(
-				Filters.bySource('UserProfileSidebarBody', 'isProvisional'),
-				{ SidebarBody: Filters.byStrings('UserProfileSidebarBody', 'isProvisional') },
-				{ defaultExport: false }
+			const sidebarBodyMod = Webpack.getModule(
+				m => findFunctionExportKey(m, 'UserProfileSidebarBody', 'isProvisional') !== null,
+				{ first: true }
 			);
 			if (signal.aborted) return;
-			if (sidebarBodyMangled?.SidebarBody) {
-				Patcher.after(meta.name, sidebarBodyMangled, 'SidebarBody', handleSidebarBodyPatch);
+			const sidebarBodyKey = sidebarBodyMod && findFunctionExportKey(sidebarBodyMod, 'UserProfileSidebarBody', 'isProvisional');
+			if (sidebarBodyKey) {
+				Patcher.after(meta.name, sidebarBodyMod, sidebarBodyKey, handleSidebarBodyPatch);
 				return;
 			}
-			const sidebarSectionMangled =
-				await getMangledLazy(
-					Filters.bySource('introText:', 'headingClassName:'),
-					{ SidebarSection: Filters.byStrings('introText', 'headingClassName') },
-					{},
-					signal
-				) ??
-				await getMangledLazy(
-					Filters.bySource('scrollTargetId:', 'headingIcon:'),
-					{ SidebarSection: Filters.byStrings('scrollTargetId:', 'headingIcon:', '"text-xs/semibold"') },
-					{},
-					signal
-				) ??
-				await getMangledLazy(
-					Filters.bySource('scrollTargetId:', 'headingVariant:'),
-					{ SidebarSection: Filters.byStrings('scrollTargetId:', 'headingVariant:') },
-					{},
-					signal
-				);
+			const sidebarSectionMod = await tryFilters([
+				{ filter: Filters.bySource('introText:', 'headingClassName:') },
+				{ filter: Filters.bySource('scrollTargetId:', 'headingIcon:', '"text-xs/semibold"') },
+				{ filter: Filters.bySource('scrollTargetId:', 'headingVariant:') }
+			], signal);
 			if (signal.aborted) return;
-			if (!sidebarSectionMangled?.SidebarSection) {
-				Logger.warn(meta.name, "sidebarSectionMod not found via getMangledLazy");
+			if (!sidebarSectionMod) {
+				Logger.warn(meta.name, "sidebarSectionMod not found by any filter");
 				return;
 			}
-			SidebarSectionComponent = sidebarSectionMangled.SidebarSection;
-			Patcher.after(meta.name, sidebarSectionMangled, 'SidebarSection', handleSidebarPatch);
+			let sidebarKey = null;
+			if (typeof sidebarSectionMod === "function") {
+				SidebarSectionComponent = sidebarSectionMod;
+				sidebarKey = "default";
+			} else if (typeof sidebarSectionMod === "object") {
+				const key = findSidebarSectionKey(sidebarSectionMod);
+				if (key) {
+					SidebarSectionComponent = sidebarSectionMod[key];
+					sidebarKey = key;
+				}
+			}
+			if (!sidebarKey || !SidebarSectionComponent) {
+				Logger.warn(meta.name, "sidebarKey not found. Module type:", typeof sidebarSectionMod, "Keys:", Object.keys(sidebarSectionMod || {}));
+				return;
+			}
+			if (SidebarSectionComponent && sidebarSectionMod && sidebarKey) {
+				const targetModule = typeof sidebarSectionMod === "function"
+					? { [sidebarKey]: sidebarSectionMod }
+					: sidebarSectionMod;
+				Patcher.after(meta.name, targetModule, sidebarKey, handleSidebarPatch);
+			}
 		} catch (err) {
 			if (isAbortError(err)) return;
 			Logger.warn(meta.name, "Sidebar patching failed or timed out", err);
@@ -565,46 +594,34 @@ const BetterFriendsSince = meta => {
 	};
 	const patchProfile = async (signal) => {
 		try {
-			const sectionMangled =
-				Webpack.getMangled(
-					Filters.bySource('introText', 'headingClassName'),
-					{ Section: Filters.byStrings('introText', 'headingClassName', 'headingVariant') },
-					{ searchExports: true }
-				) ??
-				Webpack.getMangled(
-					Filters.bySource('introText', 'headingIcon'),
-					{ Section: Filters.byStrings('introText', 'headingIcon', '"text-xs/semibold"') },
-					{ searchExports: true }
-				);
+			const [sectionModule, userProfileModule] = await Promise.all([
+				tryFilters([
+					{ filter: Filters.byStrings('introText', 'headingClassName', 'headingVariant'), options: { searchExports: true } },
+					{ filter: Filters.byStrings('introText', 'headingIcon', '"text-xs/semibold"'), options: { searchExports: true } }
+				], signal),
+				tryFilters([
+					{ filter: Filters.bySource('parentComponent:', '"UserProfileModalV2"'), options: { defaultExport: false } },
+					{ filter: Filters.bySource('SHAKE_PROFILE_MODAL', 'profileEffect'), options: { defaultExport: false } },
+					{ filter: Filters.bySource('profileBody', 'profileHeader', 'profileButtons'), options: { defaultExport: false } }
+				], signal)
+			]);
 			if (signal.aborted) return;
-			Section = sectionMangled?.Section ?? null;
+			Section = sectionModule;
 			if (!Section) {
 				Logger.warn(meta.name, "Section module not found, profile patch will rely on tree fallback.");
 			}
-			const profileMangled =
-				await getMangledLazy(
-					Filters.bySource('parentComponent:', '"UserProfileModalV2"'),
-					{ UserProfileModal: Filters.byStrings('parentComponent:', '"UserProfileModalV2"') },
-					{ defaultExport: false },
-					signal
-				) ??
-				await getMangledLazy(
-					Filters.bySource('SHAKE_PROFILE_MODAL', 'profileEffect'),
-					{ UserProfileModal: Filters.byStrings('profileEffect', 'SHAKE_PROFILE_MODAL') },
-					{ defaultExport: false },
-					signal
-				);
-			if (signal.aborted) return;
-			if (!profileMangled?.UserProfileModal || typeof profileMangled.UserProfileModal !== "function") {
-				Logger.warn(meta.name, "UserProfileModal module not found via getMangled.");
+			const userProfileKey = userProfileModule && findFunctionExportKey(userProfileModule, 'UserProfileModalV2');
+			if (userProfileKey) {
+				Patcher.after(meta.name, userProfileModule, userProfileKey, handleProfilePatch);
 			} else {
-				Patcher.after(meta.name, profileMangled, "UserProfileModal", handleProfilePatch);
+				Logger.warn(meta.name, "UserProfileModal export key not found.");
 			}
 		} catch (err) {
 			if (isAbortError(err)) return;
 			Logger.warn(meta.name, "Profile patching failed (likely waiting for modal open)", err);
 		}
 	};
+	
 	const start = async () => {
 		if (abortController) {
 			abortController.abort();
