@@ -1,6 +1,6 @@
 /**
  * @name BetterTypingIndicator
- * @version 2.9.5
+ * @version 2.9.6
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/edit/main/Plugins/BetterTypingIndicator/BetterTypingIndicator.plugin.js
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BetterTypingIndicator/BetterTypingIndicator.plugin.js
@@ -9,12 +9,14 @@
  * @author Pharaoh2k
  */
 /*
-Copyright © 2024–2025 Pharaoh2k. All rights reserved.
-Unauthorized copying, modification, or redistribution of this code is prohibited without prior written consent from the author.
-Contributions are welcome via GitHub pull requests. Please ensure submissions align with the project's guidelines and coding standards.
+ * Copyright © 2024–2025 Pharaoh2k. All rights reserved.
+* Unauthorized copying, modification, or redistribution of this code is prohibited without prior written consent from the author.
+***
+ * Contributions are welcome via GitHub pull requests. 
+ * Please ensure submissions align with the project's guidelines and coding standards.
 */
 const PLUGIN_NAME = "BetterTypingIndicator";
-const { Data, DOM, React, ReactDOM, UI, Webpack, Utils, Hooks } = BdApi;
+const { Data, DOM, React, ReactDOM, UI, Webpack, Utils, Hooks, Net, Logger, Plugins } = BdApi;
 const TYPES = { CHANNEL: 'channel', GUILD: 'guild', FOLDER: 'folder', HOME: 'home' };
 const TYPING_EVENTS = ['TYPING_START', 'TYPING_STOP', 'MESSAGE_CREATE'];
 const CONFIG = {
@@ -198,7 +200,8 @@ const VISUAL_SETTINGS_KEYS = [
     'showCount', 'tooltipStyle', 'includeBlocked'
 ];
 class UpdateManager {
-    constructor(pluginName, version, github = "Pharaoh2k/BetterDiscordStuff") {
+    /* using Net, UI, Logger, Data, Plugins, Utils from BdApi */
+    constructor(pluginName, version, github = GITHUB_REPO) {
         this.name = pluginName;
         this.version = version;
         const [user, repo] = github.split('/');
@@ -225,13 +228,17 @@ class UpdateManager {
         }
         clearInterval(this.timer);
         this.timer = null;
+        this._closeNotification();
+    }
+    _closeNotification() {
+        if (!this.notification) return;
         if (typeof this.notification === "function") this.notification();
-        else this.notification?.close?.();
+        else if (this.notification.close) this.notification.close();
         this.notification = null;
     }
     async check(silent = false) {
         try {
-            const res = await BdApi.Net.fetch(this.urls.plugin);
+            const res = await Net.fetch(this.urls.plugin);
             if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
             const text = await res.text();
             const validated = this._validateRemotePluginText(text);
@@ -240,22 +247,16 @@ class UpdateManager {
             if (this.isNewer(version)) {
                 this.showUpdateNotice(version, text);
             } else if (!silent) {
-                BdApi.UI.showToast(`[${this.name}] You're up to date.`, { type: "info" });
+                UI.showToast(`[${this.name}] You're up to date.`, { type: "info" });
             }
         } catch (e) {
-            BdApi.Logger.error(this.name, "Update check failed:", e);
-            if (!silent) BdApi.UI.showToast(`[${this.name}] Update check failed`, { type: "error" });
+            Logger.error(this.name, "Update check failed:", e);
+            if (!silent) UI.showToast(`[${this.name}] Update check failed`, { type: "error" });
         }
     }
     showUpdateNotice(version, text) {
-        if (typeof this.notification === "function") this.notification();
-        else this.notification?.close?.();
-        let handle = null;
-        const closeHandle = () => {
-            if (typeof handle === "function") handle();
-            else handle?.close?.();
-        };
-        handle = BdApi.UI.showNotification?.({
+        this._closeNotification();
+        const handle = UI.showNotification?.({
             id: `bd-plugin-update:${this.name}`,
             title: `${this.name}`,
             content: `v${version} is available`,
@@ -265,26 +266,26 @@ class UpdateManager {
                 {
                     label: "Update",
                     onClick: () => {
-                        closeHandle();
+                        this._closeNotification();
                         this.applyUpdate(text, version);
                     },
                 },
                 {
                     label: "Dismiss",
-                    onClick: closeHandle,
+                    onClick: () => this._closeNotification(),
                 },
             ],
             onClose: () => {
                 if (this.notification === handle) this.notification = null;
             },
-        }) ?? BdApi.UI.showNotice(`${this.name} v${version} is available`, {
+        }) ?? UI.showNotice(`${this.name} v${version} is available`, {
             type: "info",
             buttons: [
                 {
                     label: "Update",
                     onClick: (closeOrEvent) => {
                         if (typeof closeOrEvent === "function") closeOrEvent();
-                        else closeHandle();
+                        else this._closeNotification();
                         this.applyUpdate(text, version);
                     },
                 },
@@ -292,7 +293,7 @@ class UpdateManager {
                     label: "Dismiss",
                     onClick: (closeOrEvent) => {
                         if (typeof closeOrEvent === "function") closeOrEvent();
-                        else closeHandle();
+                        else this._closeNotification();
                     },
                 },
             ],
@@ -303,54 +304,54 @@ class UpdateManager {
         try {
             const validated = this._validateRemotePluginText(text);
             if (!validated.ok) {
-                BdApi.UI.showToast(`Update blocked: ${validated.reason}`, { type: "error", timeout: 8000 });
+                UI.showToast(`Update blocked: ${validated.reason}`, { type: "error", timeout: 8000 });
                 return;
             }
             const nextVersion = validated.version ?? version;
             require("fs").writeFileSync(__filename, text);
-            BdApi.UI.showToast(`Updated to v${nextVersion}. Reloading...`, { type: "success" });
+            UI.showToast(`Updated to v${nextVersion}. Reloading...`, { type: "success" });
             setTimeout(() => {
                 try {
-                    BdApi.Plugins.reload(this.name);
+                    Plugins.reload(this.name);
                 } catch {
-                    BdApi.UI.showToast("Please reload Discord (Ctrl+R)", { type: "info", timeout: 0 });
+                    UI.showToast("Please reload Discord (Ctrl+R)", { type: "info", timeout: 0 });
                 }
             }, 100);
         } catch (e) {
-            BdApi.Logger.error(this.name, "Update failed:", e);
-            BdApi.UI.showToast("Update failed", { type: "error" });
+            Logger.error(this.name, "Update failed:", e);
+            UI.showToast("Update failed", { type: "error" });
         }
     }
     async showChangelog() {
-        const last = BdApi.Data.load(this.name, 'version');
-        console.log(`[${this.name}] showChangelog: last=${last}, current=${this.version}`);
-        if (last === this.version) { console.log(`[${this.name}] Skipping: versions match`); return; }
-        BdApi.Data.save(this.name, 'version', this.version);
-        if (!last) { console.log(`[${this.name}] Skipping: fresh install`); return; }
+        const last = Data.load(this.name, 'version');
+        Logger.info(this.name, `showChangelog: last=${last}, current=${this.version}`);
+        if (last === this.version) { Logger.info(this.name, "Skipping: versions match"); return; }
+        Data.save(this.name, 'version', this.version);
+        if (!last) { Logger.info(this.name, "Skipping: fresh install"); return; }
         try {
-            const res = await BdApi.Net.fetch(this.urls.changelog);
-            console.log(`[${this.name}] Changelog fetch status: ${res.status}`);
+            const res = await Net.fetch(this.urls.changelog);
+            Logger.info(this.name, `Changelog fetch status: ${res.status}`);
             if (res.status !== 200) return;
             const md = await res.text();
             const changes = this.parseChangelog(md, last, this.version);
-            console.log(`[${this.name}] Parsed changes:`, changes);
+            Logger.info(this.name, "Parsed changes:", changes);
             if (changes.length === 0) return;
-            BdApi.UI.showChangelogModal({ title: this.name, subtitle: `Version ${this.version}`, changes });
-        } catch (e) { console.error(`[${this.name}] Changelog error:`, e); }
+            UI.showChangelogModal({ title: this.name, subtitle: `Version ${this.version}`, changes });
+        } catch (e) { Logger.error(this.name, "Changelog error:", e); }
     }
     async showFullChangelog() {
         try {
-            const res = await BdApi.Net.fetch(this.urls.changelog);
+            const res = await Net.fetch(this.urls.changelog);
             if (res.status !== 200) throw new Error("Failed to fetch changelog");
             const md = await res.text();
             const changes = this.parseChangelog(md, "0.0.0", this.version);
-            BdApi.UI.showChangelogModal({
+            UI.showChangelogModal({
                 title: this.name,
                 subtitle: `All Changes`,
                 changes: changes.length ? changes : [{ title: "No changes found", items: [] }]
             });
         } catch {
-            BdApi.UI.showToast("Could not fetch changelog", { type: "error" });
+            UI.showToast("Could not fetch changelog", { type: "error" });
         }
     }
     parseChangelog(md, from, to) {
@@ -358,20 +359,12 @@ class UpdateManager {
         const relevant = versions.filter(
             v => this.isNewer(v.version, from) && !this.isNewer(v.version, to)
         );
-        const grouped = { added: [], improved: [], fixed: [], other: [] };
         const getType = (lower) => {
             if (lower.includes("fix")) return "fixed";
             if (lower.includes("add") || lower.includes("initial")) return "added";
             if (lower.includes("improv") || lower.includes("updat")) return "improved";
             return "other";
         };
-        for (const v of relevant) {
-            for (const item of v.items) {
-                const lower = item.toLowerCase();
-                const tagged = `${item} (v${v.version})`;
-                grouped[getType(lower)].push(tagged);
-            }
-        }
         const sections = [
             ["New Features", "added", "added"],
             ["Improvements", "improved", "improved"],
@@ -379,9 +372,16 @@ class UpdateManager {
             ["Other Changes", "other", "progress"]
         ];
         const result = [];
-        for (const [title, key, type] of sections) {
-            if (grouped[key].length) {
-                result.push({ title, type, items: grouped[key] });
+        for (const v of relevant) {
+            const grouped = { added: [], improved: [], fixed: [], other: [] };
+            for (const item of v.items) {
+                grouped[getType(item.toLowerCase())].push(item);
+            }
+            result.push({ title: `Version ${v.version}`, type: "", items: [] });
+            for (const [title, key, type] of sections) {
+                if (grouped[key].length) {
+                    result.push({ title, type, items: grouped[key] });
+                }
             }
         }
         return result;
@@ -413,19 +413,7 @@ class UpdateManager {
         return versions;
     }
     isNewer(remoteVersion, localVersion = this.version) {
-        return this._compareSemver(remoteVersion, localVersion) > 0;
-    }
-    _compareSemver(a, b) {
-        const pa = String(a ?? "").split(".").map(n => Number.parseInt(n, 10));
-        const pb = String(b ?? "").split(".").map(n => Number.parseInt(n, 10));
-        const len = Math.max(pa.length, pb.length);
-        for (let i = 0; i < len; i++) {
-            const va = Number.isFinite(pa[i]) ? pa[i] : 0;
-            const vb = Number.isFinite(pb[i]) ? pb[i] : 0;
-            if (va > vb) return 1;
-            if (va < vb) return -1;
-        }
-        return 0;
+        return Utils.semverCompare(localVersion, remoteVersion) > 0;
     }
     _validateRemotePluginText(text) {
         if (typeof text !== "string") return { ok: false, reason: "Not a string" };
@@ -447,7 +435,7 @@ const getConfigWithCurrentValues = (current, defaults = CONFIG.defaultConfig) =>
     }));
 };
 const Modules = {
-    Dispatcher: Webpack.getByKeys("actionLogger"),
+    Dispatcher: Webpack.getStore("UserStore")._dispatcher,
     TypingStore: Webpack.getStore("TypingStore"),
     UserStore: Webpack.getStore("UserStore"),
     RelationshipStore: Webpack.getStore("RelationshipStore"),
