@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 5.0.7
+ * @version 5.0.8
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
@@ -1620,7 +1620,7 @@ const bulkModules = Webpack.getBulkKeyed({
 	PlusIcon: { filter: (m) => m.toString?.().includes("M13 6a1 1") },
 	ChevronDownIcon: { filter: (m) => m.toString?.().includes("M5.3 9.3a1") },
 	ReadStateStore: { filter: byStoreName("ReadStateStore") },
-	AppearanceSettingsStore: { filter: byStoreName("AppearanceSettingsStore") },
+	AppearanceSettingsStore: { filter: byStoreName("AccessibilityStore") },
 	ChannelStreamItemTypes: { filter: byKeys("MESSAGE", "DIVIDER"), searchExports: true },
 	ChatSelectors: { filter: byKeys("messagesWrapper", "scrollerContent") },
 	PopoutSelectors: { filter: byKeys("messagesPopoutWrap") },
@@ -1731,8 +1731,18 @@ const ChannelStreamItemTypes = warnModule(
 const ChatSelectors = bulkModules.ChatSelectors || {};
 const PopoutSelectors = bulkModules.PopoutSelectors || {};
 const PinToBottomScrollerAuto = (() => {
-	const mod = Webpack.getBySource('disableScrollAnchor', 'ResizeObserver');
-	return mod ? Object.values(mod)[0] : null;
+    const mod = Webpack.getByKeys("ConfirmModal", "ExpressiveModal");
+    if (!mod) return null;
+    for (const key of Object.keys(mod)) {
+        const exp = mod[key];
+        try {
+            if (exp?.$$typeof === Symbol.for('react.forward_ref') && 
+                exp?.render?.toString?.().includes("getScrollerNode")) {
+                return exp;
+            }
+        } catch {}
+    }
+    return null;
 })();
 const MessageComponent = Webpack.getModule(m =>
 	Filters.byStrings('must not be a thread starter message')(m?.type),
