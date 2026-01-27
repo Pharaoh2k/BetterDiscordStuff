@@ -2,7 +2,7 @@
  * @name BetterFriendsSince
  * @author Pharaoh2k
  * @description Shows the date you and a friend became friends in the profile modal and Friends sidebar.
- * @version 1.3.4
+ * @version 1.3.5
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterFriendsSince/BetterFriendsSince.plugin.js
@@ -325,38 +325,34 @@ const findProfileBody = tree =>
 const getCurrentLocale = LocaleStore => LocaleStore?.locale ?? LocaleStore?.systemLocale ?? "en-US";
 const getHeadingForLocale = locale => HEADING_BY_LOCALE[locale] ?? HEADING_BY_LOCALE["en-US"];
 const isAbortError = err => err?.name === "AbortError";
-const findFunctionExportKey = (mod, ...sourceStrings) => {
+const getWithKey = (...sourceStrings) => {
+	const filter = m => {
+		try {
+			const source = m?.toString?.();
+			return source && sourceStrings.every(s => source.includes(s));
+		} catch { return false; }
+	};
+	const [mod, key] = Webpack.getWithKey(filter, { searchExports: true }) ?? [];
+	return mod && key ? { mod, key, fn: mod[key] } : null;
+};
+const getWithKeyLazy = async (signal, ...sourceStrings) => {
+	const sync = getWithKey(...sourceStrings);
+	if (sync) return sync;
+	const filter = Filters.bySource(...sourceStrings);
+	const mod = await Webpack.waitForModule(filter, { signal, defaultExport: false });
 	if (!mod || typeof mod !== "object") return null;
 	for (const key of Object.keys(mod)) {
-		const exportValue = mod[key];
-		if (typeof exportValue === "function") {
+		const fn = mod[key];
+		if (typeof fn === "function") {
 			try {
-				const source = exportValue.toString();
-				if (sourceStrings.every(str => source.includes(str))) {
-					return key;
+				const source = fn.toString();
+				if (sourceStrings.every(s => source.includes(s))) {
+					return { mod, key, fn };
 				}
-			} catch { /* toString may fail on some built-ins */ }
+			} catch { /* continue */ }
 		}
 	}
 	return null;
-};
-const findSidebarSectionKey = (mod) => {
-	if (!mod || typeof mod !== "object") return null;
-	return findFunctionExportKey(mod, "introText");
-};
-const tryFilters = async (filterConfigs, signal) => {
-	for (const { filter, options = {} } of filterConfigs) {
-		try {
-			const module = Webpack.getModule(filter, options);
-			if (module) {
-				return module;
-			}
-		} catch { /* try next */ }
-	}
-	try {
-		const { filter, options = {} } = filterConfigs[0];
-		return await Webpack.waitForModule(filter, { signal, ...options });
-	} catch { return null; }
 };
 const createGetFriendSince = store => {
 	const hasGetSince = typeof store.getSince === "function";
@@ -546,47 +542,22 @@ const BetterFriendsSince = meta => {
 	};
 	const patchSidebar = async (signal) => {
 		try {
-			const sidebarBodyMod = Webpack.getModule(
-				m => findFunctionExportKey(m, 'UserProfileSidebarBody', 'isProvisional') !== null,
-				{ first: true }
-			);
+			const sidebarBody = getWithKey('UserProfileSidebarBody', 'isProvisional');
 			if (signal.aborted) return;
-			const sidebarBodyKey = sidebarBodyMod && findFunctionExportKey(sidebarBodyMod, 'UserProfileSidebarBody', 'isProvisional');
-			if (sidebarBodyKey) {
-				Patcher.after(meta.name, sidebarBodyMod, sidebarBodyKey, handleSidebarBodyPatch);
+			if (sidebarBody) {
+				Patcher.after(meta.name, sidebarBody.mod, sidebarBody.key, handleSidebarBodyPatch);
 				return;
 			}
-			const sidebarSectionMod = await tryFilters([
-				{ filter: Filters.bySource('introText:', 'headingClassName:') },
-				{ filter: Filters.bySource('scrollTargetId:', 'headingIcon:', '"text-xs/semibold"') },
-				{ filter: Filters.bySource('scrollTargetId:', 'headingVariant:') }
-			], signal);
+			const sidebarSection = getWithKey('introText:', 'headingClassName:')
+				?? getWithKey('scrollTargetId:', 'headingIcon:', '"text-xs/semibold"')
+				?? getWithKey('scrollTargetId:', 'headingVariant:');
 			if (signal.aborted) return;
-			if (!sidebarSectionMod) {
-				Logger.warn(meta.name, "sidebarSectionMod not found by any filter");
+			if (!sidebarSection) {
+				Logger.warn(meta.name, "sidebarSection not found via getWithKey");
 				return;
 			}
-			let sidebarKey = null;
-			if (typeof sidebarSectionMod === "function") {
-				SidebarSectionComponent = sidebarSectionMod;
-				sidebarKey = "default";
-			} else if (typeof sidebarSectionMod === "object") {
-				const key = findSidebarSectionKey(sidebarSectionMod);
-				if (key) {
-					SidebarSectionComponent = sidebarSectionMod[key];
-					sidebarKey = key;
-				}
-			}
-			if (!sidebarKey || !SidebarSectionComponent) {
-				Logger.warn(meta.name, "sidebarKey not found. Module type:", typeof sidebarSectionMod, "Keys:", Object.keys(sidebarSectionMod || {}));
-				return;
-			}
-			if (SidebarSectionComponent && sidebarSectionMod && sidebarKey) {
-				const targetModule = typeof sidebarSectionMod === "function"
-					? { [sidebarKey]: sidebarSectionMod }
-					: sidebarSectionMod;
-				Patcher.after(meta.name, targetModule, sidebarKey, handleSidebarPatch);
-			}
+			SidebarSectionComponent = sidebarSection.fn;
+			Patcher.after(meta.name, sidebarSection.mod, sidebarSection.key, handleSidebarPatch);
 		} catch (err) {
 			if (isAbortError(err)) return;
 			Logger.warn(meta.name, "Sidebar patching failed or timed out", err);
@@ -594,25 +565,20 @@ const BetterFriendsSince = meta => {
 	};
 	const patchProfile = async (signal) => {
 		try {
-			const [sectionModule, userProfileModule] = await Promise.all([
-				tryFilters([
-					{ filter: Filters.byStrings('introText', 'headingClassName', 'headingVariant'), options: { searchExports: true } },
-					{ filter: Filters.byStrings('introText', 'headingIcon', '"text-xs/semibold"'), options: { searchExports: true } }
-				], signal),
-				tryFilters([
-					{ filter: Filters.bySource('parentComponent:', '"UserProfileModalV2"'), options: { defaultExport: false } },
-					{ filter: Filters.bySource('SHAKE_PROFILE_MODAL', 'profileEffect'), options: { defaultExport: false } },
-					{ filter: Filters.bySource('profileBody', 'profileHeader', 'profileButtons'), options: { defaultExport: false } }
-				], signal)
+			const [sectionResult, userProfile] = await Promise.all([
+				getWithKeyLazy(signal, 'introText', 'headingClassName', 'headingVariant')
+					.then(r => r ?? getWithKeyLazy(signal, 'introText', 'headingIcon', '"text-xs/semibold"')),
+				getWithKeyLazy(signal, 'parentComponent:', '"UserProfileModalV2"')
+					.then(r => r ?? getWithKeyLazy(signal, 'SHAKE_PROFILE_MODAL', 'profileEffect'))
+					.then(r => r ?? getWithKeyLazy(signal, 'profileBody', 'profileHeader', 'profileButtons'))
 			]);
 			if (signal.aborted) return;
-			Section = sectionModule;
+			Section = sectionResult?.fn;
 			if (!Section) {
 				Logger.warn(meta.name, "Section module not found, profile patch will rely on tree fallback.");
 			}
-			const userProfileKey = userProfileModule && findFunctionExportKey(userProfileModule, 'UserProfileModalV2');
-			if (userProfileKey) {
-				Patcher.after(meta.name, userProfileModule, userProfileKey, handleProfilePatch);
+			if (userProfile) {
+				Patcher.after(meta.name, userProfile.mod, userProfile.key, handleProfilePatch);
 			} else {
 				Logger.warn(meta.name, "UserProfileModal export key not found.");
 			}
