@@ -1741,7 +1741,6 @@ const ThreadStarterMessage = Webpack.getModule(m =>
 );
 const FluxTypingUsers = Webpack.getByStrings('typingUsers', 'isThreadCreation');
 const generateChannelStream = Webpack.getByStrings('oldestUnreadMessageId', 'THREAD_STARTER_MESSAGE');
-
 const MessageDivider = Webpack.getModule(m => Filters.byStrings('"separator"', 'isBeforeGroup')(m?.type?.render))
 const AppearanceSettingsStore = bulkModules.AppearanceSettingsStore;
 const EmptyMessage = Webpack.getModule(Filters.byStrings('"manage"', 'IS_JOIN_REQUEST_INTERVIEW_CHANNEL'))
@@ -5572,34 +5571,39 @@ module.exports = class EnhancedChannelTabs {
 	}
 	start(isRetry = false) {
 		if (isRetry && !Plugins.isEnabled(config.info.name)) return;
-		if (!UserStore.getCurrentUser())
-			return setTimeout(() => this.start(true), 1e3);
-		patches = [];
 		this.loadSettings();
-		TabActions.setPlugin(this);
-		this.applyStyle();
-		this.ifNoTabsExist();
 		this.updateManager.start(this.settings.autoUpdate !== false);
-		this.promises = {
-			state: { cancelled: false },
-			cancel() {
-				this.state.cancelled = true;
-			},
-		};
-		this.saveSettings = this.saveSettings.bind(this);
-		this.keybindHandler = this.keybindHandler.bind(this);
-		this.openTabShortcutHandler = this.openTabShortcutHandler.bind(this);
-		this.mouseDownHandler = this.mouseDownHandler.bind(this);
-		this.ifReopenLastChannelDefault();
-		this.onSwitch();
-		this.patchTitleBar(this.promises.state);
-		this.patchContextMenus();
-		this.patchNsfwMedia();
-		document.addEventListener("keydown", this.keybindHandler);
-		document.addEventListener("click", this.clickHandler);
-		document.addEventListener("click", this.openTabShortcutHandler, true);
-		document.addEventListener("mouseup", this.openTabShortcutHandler, true);
-		document.addEventListener("mousedown", this.mouseDownHandler, true);
+		try {
+			if (!UserStore.getCurrentUser())
+				return setTimeout(() => this.start(true), 1e3);
+			patches = [];
+			TabActions.setPlugin(this);
+			this.applyStyle();
+			this.ifNoTabsExist();
+			this.promises = {
+				state: { cancelled: false },
+				cancel() {
+					this.state.cancelled = true;
+				},
+			};
+			this.saveSettings = this.saveSettings.bind(this);
+			this.keybindHandler = this.keybindHandler.bind(this);
+			this.openTabShortcutHandler = this.openTabShortcutHandler.bind(this);
+			this.mouseDownHandler = this.mouseDownHandler.bind(this);
+			this.ifReopenLastChannelDefault();
+			this.onSwitch();
+			this.patchTitleBar(this.promises.state);
+			this.patchContextMenus();
+			this.patchNsfwMedia();
+			document.addEventListener("keydown", this.keybindHandler);
+			document.addEventListener("click", this.clickHandler);
+			document.addEventListener("click", this.openTabShortcutHandler, true);
+			document.addEventListener("mouseup", this.openTabShortcutHandler, true);
+			document.addEventListener("mousedown", this.mouseDownHandler, true);
+		} catch (e) {
+			Logger.error("Plugin initialization failed:", e);
+			UI.showToast("EnhancedChannelTabs failed to start. Update checking is still active.", { type: "warning" });
+		}
 	}
 	stop() {
 		this.removeStyle();
