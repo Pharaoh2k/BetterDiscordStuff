@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 5.0.8
+ * @version 5.0.9
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
@@ -1730,20 +1730,7 @@ const ChannelStreamItemTypes = warnModule(
 );
 const ChatSelectors = bulkModules.ChatSelectors || {};
 const PopoutSelectors = bulkModules.PopoutSelectors || {};
-const PinToBottomScrollerAuto = (() => {
-    const mod = Webpack.getByKeys("ConfirmModal", "ExpressiveModal");
-    if (!mod) return null;
-    for (const key of Object.keys(mod)) {
-        const exp = mod[key];
-        try {
-            if (exp?.$$typeof === Symbol.for('react.forward_ref') && 
-                exp?.render?.toString?.().includes("getScrollerNode")) {
-                return exp;
-            }
-        } catch {}
-    }
-    return null;
-})();
+const PinToBottomScrollerAuto = Webpack.getModule(m => Filters.byStrings('useImperativeHandle', 'getScrollerState', 'isScrolling')(m?.render), { searchExports: true })
 const MessageComponent = Webpack.getModule(m =>
 	Filters.byStrings('must not be a thread starter message')(m?.type),
 	{ searchExports: true }
@@ -1754,11 +1741,10 @@ const ThreadStarterMessage = Webpack.getModule(m =>
 );
 const FluxTypingUsers = Webpack.getByStrings('typingUsers', 'isThreadCreation');
 const generateChannelStream = Webpack.getByStrings('oldestUnreadMessageId', 'THREAD_STARTER_MESSAGE');
-const MessageDivider = Webpack.getModule(m =>
-	Filters.byStrings('divider', 'isBeforeGroup')(m?.type?.render)
-);
+
+const MessageDivider = Webpack.getModule(m => Filters.byStrings('"separator"', 'isBeforeGroup')(m?.type?.render))
 const AppearanceSettingsStore = bulkModules.AppearanceSettingsStore;
-const EmptyMessage = Webpack.getByStrings('parseTopic', 'buttonContainer');
+const EmptyMessage = Webpack.getModule(Filters.byStrings('"manage"', 'IS_JOIN_REQUEST_INTERVIEW_CHANNEL'))
 const [AttachmentModule, AttachmentKey] = Webpack.getWithKey(Filters.byStrings('getObscureReason', 'mosaicItemContent')) || [null, null];
 const Embed = Webpack.getByPrototypeKeys('renderAuthor', 'renderMedia');
 const Spinner = warnModule(bulkModules.Spinner, "Spinner", {
@@ -5739,12 +5725,11 @@ module.exports = class EnhancedChannelTabs {
 					child?.props?.className?.includes("winButton") ||
 					child?.props?.className?.includes("trailing")
 			);
-			const leading = children.find(child => child !== trailing);
 			const injected = React.createElement(
 				DragProvider,
 				null,
 				React.createElement(HookedTopBar, {
-					leading: leading,
+					leading: null,
 					trailing: trailing,
 					reopenLastChannel: this.settings.reopenLastChannel,
 					showTabBar: this.settings.showTabBar,
