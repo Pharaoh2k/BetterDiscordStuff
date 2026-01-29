@@ -1,5 +1,8 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+### 5.0.9
+- Updated to match Discord changes
+
 ### 5.0.8
 - Updated styles to match Discord changes
 
