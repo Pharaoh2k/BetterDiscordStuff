@@ -2,7 +2,7 @@
  * @name BetterPinDMs
  * @author Pharaoh2k
  * @description Enhanced DM pinning with category headers, drag & drop, unread tracking, hotkeys, import/export (from similar plugins too), and smart categories. Pinned DMs are shown in a separate PINNED DMs section above "Direct Messages".
- * @version 2.1.0
+ * @version 2.2.0
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterPinDMs/BetterPinDMs.plugin.js
@@ -58,9 +58,6 @@ const CATEGORY_META = {
 	activeToday: { name: "Active Today", color: "#1abc9c" },
 	muted: { name: "Muted", color: "#95a5a6" }
 };
-const TIMEOUTS = {
-	UPDATE_DEBOUNCE: 0
-};
 const DEFAULT_COLOR = "#5865F2";
 const DEFAULT_COLOR_RGBA = [88, 101, 242, 1];
 const DEFAULT_CATEGORY_PREFIX = "Pinned DMs #";
@@ -73,12 +70,13 @@ const removeDragClasses = (el) => el?.classList?.remove(...DRAG_CLASSES);
 const filterStringArray = (arr) => Array.isArray(arr) ? arr.filter(x => typeof x === "string") : [];
 //#endregion Utility Helpers
 //#region BdApi destructuring & Utils helpers
-const { React, ReactDOM, UI, DOM, Data, Patcher, Webpack, Logger, ContextMenu, Utils, Hooks, Net, Plugins, Components, ReactUtils } = BdApi;
+const { React, ReactDOM, UI, DOM, Data, Patcher, Webpack, Logger, ContextMenu, Utils, Hooks, Net, Plugins, Components, ReactUtils } = new BdApi("BetterPinDMs");
 const { Filters } = Webpack;
 const { className, debounce, findInTree } = Utils;
 //#endregion BdApi destructuring
 //#region Update Manager
 class UpdateManager {
+    /* using Net, UI, Logger, Data, Plugins, Utils from BdApi */
     constructor(pluginName, version, github = GITHUB_REPO) {
         this.name = pluginName;
         this.version = version;
@@ -128,7 +126,7 @@ class UpdateManager {
                 UI.showToast(`[${this.name}] You're up to date.`, { type: "info" });
             }
         } catch (e) {
-            Logger.error(this.name, "Update check failed:", e);
+            Logger.error("Update check failed:", e);
             if (!silent) UI.showToast(`[${this.name}] Update check failed`, { type: "error" });
         }
     }
@@ -196,40 +194,41 @@ class UpdateManager {
                 }
             }, 100);
         } catch (e) {
-            Logger.error(this.name, "Update failed:", e);
+            Logger.error("Update failed:", e);
             UI.showToast("Update failed", { type: "error" });
         }
     }
     async showChangelog() {
-        const last = Data.load(this.name, 'version');
-        Logger.info(this.name, `showChangelog: last=${last}, current=${this.version}`);
-        if (last === this.version) { Logger.info(this.name, "Skipping: versions match"); return; }
-        Data.save(this.name, 'version', this.version);
-        if (!last) { Logger.info(this.name, "Skipping: fresh install"); return; }
-        try {
-            const res = await Net.fetch(this.urls.changelog);
-            Logger.info(this.name, `Changelog fetch status: ${res.status}`);
-            if (res.status !== 200) return;
-            const md = await res.text();
-            const changes = this.parseChangelog(md, last, this.version);
-            Logger.info(this.name, "Parsed changes:", changes);
-            if (changes.length === 0) return;
-            UI.showChangelogModal({ title: this.name, subtitle: `Version ${this.version}`, changes });
-        } catch (e) { Logger.error(this.name, "Changelog error:", e); }
+        const last = Data.load('version');
+        Logger.info(`showChangelog: last=${last}, current=${this.version}`);
+        if (last === this.version) { Logger.info("Skipping: versions match"); return; }
+        Data.save('version', this.version);
+        if (!last) { Logger.info("Skipping: fresh install"); return; }
+        await this._fetchAndShowChangelog(last, `Version ${this.version}`, true);
     }
     async showFullChangelog() {
+        await this._fetchAndShowChangelog("0.0.0", "All Changes", false);
+    }
+    async _fetchAndShowChangelog(fromVersion, subtitle, silent) {
         try {
             const res = await Net.fetch(this.urls.changelog);
-            if (res.status !== 200) throw new Error("Failed to fetch changelog");
+            Logger.info(`Changelog fetch status: ${res.status}`);
+            if (res.status !== 200) {
+                if (!silent) UI.showToast("Could not fetch changelog", { type: "error" });
+                return;
+            }
             const md = await res.text();
-            const changes = this.parseChangelog(md, "0.0.0", this.version);
+            const changes = this.parseChangelog(md, fromVersion, this.version);
+            Logger.info("Parsed changes:", changes);
+            if (changes.length === 0 && silent) return;
             UI.showChangelogModal({
                 title: this.name,
-                subtitle: `All Changes`,
+                subtitle,
                 changes: changes.length ? changes : [{ title: "No changes found", items: [] }]
             });
-        } catch {
-            UI.showToast("Could not fetch changelog", { type: "error" });
+        } catch (e) {
+            Logger.error("Changelog error:", e);
+            if (!silent) UI.showToast("Could not fetch changelog", { type: "error" });
         }
     }
     parseChangelog(md, from, to) {
@@ -309,8 +308,7 @@ class UpdateManager {
 //#endregion Update Manager
 //#region Discord Store Service
 class DiscordStoreService {
-	constructor(pluginName) {
-		this.pluginName = pluginName;
+	constructor() {
 		this.stores = {};
 		this._initialized = false;
 	}
@@ -330,7 +328,7 @@ class DiscordStoreService {
 			for (const name of storeNames) {
 				this.stores[name] = Webpack.Stores[name];
 				if (!this.stores[name]) {
-					Logger.warn(this.pluginName, `Store not found: ${name}`);
+					Logger.warn(`Store not found: ${name}`);
 				}
 			}
 			this._initialized = true;
@@ -372,22 +370,18 @@ class DiscordStoreService {
 		return this._getFromStore("PrivateChannelReadStateStore", "getUnreadPrivateChannelIds") || [];
 	}
 	isChannelMuted(channelId) {
-		try {
-			if (!channelId) return false;
-			const guildSettings = this.stores.UserGuildSettingsStore;
-			const channelStore = this.stores.ChannelStore;
-			if (!guildSettings || !channelStore) return false;
-			const channel = channelStore.getChannel(channelId);
-			const guildId = channel?.guild_id ?? null;
-			const fn = guildSettings.isChannelMuted;
-			if (typeof fn !== "function") return false;
-			if (fn.length >= 2) {
-				return !!fn.call(guildSettings, guildId, channelId);
-			} else {
-				return !!fn.call(guildSettings, channelId);
-			}
-		} catch {
-			return false;
+		if (!channelId) return false;
+		const guildSettings = this.stores.UserGuildSettingsStore;
+		const channelStore = this.stores.ChannelStore;
+		if (!guildSettings || !channelStore) return false;
+		const channel = channelStore.getChannel(channelId);
+		const guildId = channel?.guild_id ?? null;
+		const fn = guildSettings.isChannelMuted;
+		if (typeof fn !== "function") return false;
+		if (fn.length >= 2) {
+			return !!fn.call(guildSettings, guildId, channelId);
+		} else {
+			return !!fn.call(guildSettings, channelId);
 		}
 	}
 	_emitStoreChange(storeName) {
@@ -417,19 +411,19 @@ class DiscordStoreService {
 			}
 			return store[methodName](...args);
 		} catch (err) {
-			Logger.warn(this.pluginName, `Store call failed: ${storeName}.${methodName}`, err);
+			Logger.warn(`Store call failed: ${storeName}.${methodName}`, err);
 			return null;
 		}
 	}
 }
 //#endregion Discord Store Service
+const ChevronDown = Webpack.getByStrings("M5.3 9.3a1 1 0 0 1 1.4 0l5.3 5.29", {searchExports: true});
 //#region UI Manager
 class UIManager {
 	constructor(plugin) {
 		this.plugin = plugin;
 		this.headerRoots = new Map();
 		this.ColorInput = Components.ColorInput;
-		this.ChevronDown = Webpack.getByRegex(/M5\.3 9\.3a1 1 0 0 1 1\.4 0l5\.3 5\.29/, { searchExports: true });
 	}
 	renderSettingsPanel() {
 		const panel = document.createElement("div");
@@ -439,8 +433,7 @@ class UIManager {
 		return panel;
 	}
 	SettingsPanelComponent = () => {
-		const pluginName = this.plugin.pluginName;
-		const settings = Hooks.useData(pluginName, "settings") ?? this.plugin.settings;
+		const settings = Hooks.useData("settings") ?? this.plugin.settings;
 		const settingsSchema = [
 			{
 				type: "category",
@@ -549,17 +542,20 @@ class UIManager {
 			}
 		];
 		return React.createElement("div", {}, [
-			UI.buildSettingsPanel({
-				settings: settingsSchema,
-				onChange: (_category, id, value) => this.plugin.updateSetting(id, value)
-			}),
+			React.createElement(React.Fragment, { key: "settings" },
+				UI.buildSettingsPanel({
+					settings: settingsSchema,
+					onChange: (_category, id, value) => this.plugin.updateSetting(id, value)
+				})
+			),
 			React.createElement(this.CustomCategoriesSection, { key: "custom" }),
 			React.createElement(this.ActionsSection, { key: "actions" })
 		]);
 	}
 	CustomCategoriesSection = () => {
-		const pluginName = this.plugin.pluginName;
-		const categoriesData = Hooks.useData(pluginName, "categories") ?? this.plugin.categories;
+		const categoriesData = Hooks.useStateFromStores([this.plugin.categoryStore], () => {
+			return {...this.plugin.categories, custom: {...(this.plugin.categories?.custom ?? {})}};
+		});
 		const categories = Object.values(categoriesData?.custom ?? {}).sort((a, b) => (a.pos || 0) - (b.pos || 0));
 		return React.createElement(
 			"div",
@@ -676,18 +672,18 @@ class UIManager {
 							"div",
 							{ key: "shortcuts-list", className: "betterpindms-shortcuts-list" },
 							[
-								React.createElement("div", { key: "s1" }, [
+								React.createElement("div", { key: "s1" },
 									React.createElement("kbd", { className: "betterpindms-shortcuts-kbd" }, "Ctrl+P"),
 									" Pin/unpin current DM (default, configurable in settings)"
-								]),
-								React.createElement("div", { key: "s2" }, [
+								),
+								React.createElement("div", { key: "s2" },
 									React.createElement("kbd", { className: "betterpindms-shortcuts-kbd" }, "Ctrl+Shift+P"),
 									" Quick category picker (default, configurable in settings)"
-								]),
-								React.createElement("div", { key: "s3" }, [
+								),
+								React.createElement("div", { key: "s3" },
 									React.createElement("kbd", { className: "betterpindms-shortcuts-kbd" }, "Ctrl+1-9"),
 									" Jump to category (prefix configurable in settings)"
-								])
+								)
 							]
 						)
 					]
@@ -715,7 +711,7 @@ class UIManager {
 			try {
 				root.unmount();
 			} catch (err) {
-				Logger.warn(this.plugin.pluginName, "Failed to unmount header:", err);
+				Logger.warn("Failed to unmount header:", err);
 			}
 			this.headerRoots.delete(container);
 		}
@@ -748,10 +744,7 @@ class UIManager {
 			e.stopPropagation();
 			callbacks.onContextMenu?.(e, category);
 		};
-		const headerClasses = className(
-			"betterpindms-category-header-inner",
-			"betterpindms-category-header-inner-static"
-		);
+		const headerClasses = "betterpindms-category-header-inner";
 		const arrowClasses = className(
 			"betterpindms-category-arrow",
 			category.collapsed ? "betterpindms-category-arrow-collapsed" : "betterpindms-category-arrow-expanded"
@@ -777,9 +770,7 @@ class UIManager {
 				React.createElement(
 					"div",
 					{ key: "arrow", className: arrowClasses },
-					this.ChevronDown
-						? React.createElement(this.ChevronDown, { size: "sm" })
-						: null
+					React.createElement(ChevronDown, { size: "sm" })
 				)
 			]
 		);
@@ -795,7 +786,7 @@ class UIManager {
 			try {
 				root.unmount();
 			} catch (err) {
-				Logger.warn(this.plugin.pluginName, "Failed to unmount header:", err);
+				Logger.warn("Failed to unmount header:", err);
 			}
 		}
 		this.headerRoots.clear();
@@ -804,29 +795,28 @@ class UIManager {
 			el.remove();
 		}
 	}
+	_EditorComponent = ({ initialName, initialColor, valuesRef }) => {
+		const [name, setName] = React.useState(initialName);
+		const [color, setColor] = React.useState(initialColor);
+		return React.createElement(
+			"div",
+			{ className: "betterpindms-modal-editor" },
+			[
+				this._createModalInputSection("Category Name", name, setName, (val) => { valuesRef.current.name = val; }),
+				this._createModalColorSection(color, setColor, (val) => { valuesRef.current.color = val; })
+			]
+		);
+	};
 	_showCategoryModal(title, confirmText, initialName, initialColor, callback) {
-		let newName = initialName;
-		let newColor = initialColor || DEFAULT_COLOR;
-		const EditorComponent = () => {
-			const [name, setName] = React.useState(initialName);
-			const [color, setColor] = React.useState(initialColor || DEFAULT_COLOR);
-			return React.createElement(
-				"div",
-				{ className: "betterpindms-modal-editor" },
-				[
-					this._createModalInputSection("Category Name", name, setName, (val) => { newName = val; }),
-					this._createModalColorSection(color, setColor, (val) => { newColor = val; })
-				]
-			);
-		};
+		const valuesRef = { current: { name: initialName, color: initialColor || DEFAULT_COLOR } };
 		UI.showConfirmationModal(
 			title,
-			React.createElement(EditorComponent),
+			React.createElement(this._EditorComponent, { initialName, initialColor: initialColor || DEFAULT_COLOR, valuesRef }),
 			{
 				confirmText,
 				cancelText: "Cancel",
 				onConfirm: () => {
-					if (newName) callback(newName, newColor);
+					if (valuesRef.current.name) callback(valuesRef.current.name, valuesRef.current.color);
 				}
 			}
 		);
@@ -837,37 +827,38 @@ class UIManager {
 	showCategoryEditModal(category, callback) {
 		this._showCategoryModal("Edit Category", "Save", category.name, category.color || DEFAULT_COLOR, callback);
 	}
+	_PickerComponent = ({ categories, selectionRef }) => {
+		const [val, setVal] = React.useState("");
+		const names = React.useMemo(() => categories.map((c, i) => `${i + 1}. ${c.name}`).join("\n"), [categories]);
+		return React.createElement("div", {}, [
+			React.createElement("div", { key: "label", className: "betterpindms-quickpicker-label" }, "Select category by number:"),
+			React.createElement("div", { key: "list", className: "betterpindms-quickpicker-list" }, names),
+			React.createElement("input", {
+				key: "input",
+				type: "number",
+				min: 1,
+				max: categories.length,
+				value: val,
+				onChange: (e) => {
+					setVal(e.target.value);
+					selectionRef.current = e.target.value;
+				},
+				className: "betterpindms-input-modal-field",
+				autoFocus: true
+			})
+		]);
+	};
 	showQuickCategoryPicker(categories, callback) {
 		if (!categories.length) return;
-		const names = categories.map((c, i) => `${i + 1}. ${c.name}`).join("\n");
-		let selection = "";
-		const PickerComponent = () => {
-			const [val, setVal] = React.useState("");
-			return React.createElement("div", {}, [
-				React.createElement("div", { className: "betterpindms-quickpicker-label" }, "Select category by number:"),
-				React.createElement("div", { className: "betterpindms-quickpicker-list" }, names),
-				React.createElement("input", {
-					type: "number",
-					min: 1,
-					max: categories.length,
-					value: val,
-					onChange: (e) => {
-						setVal(e.target.value);
-						selection = e.target.value;
-					},
-					className: "betterpindms-input-modal-field",
-					autoFocus: true
-				})
-			]);
-		};
+		const selectionRef = { current: "" };
 		UI.showConfirmationModal(
 			"Quick Category Picker",
-			React.createElement(PickerComponent),
+			React.createElement(this._PickerComponent, { categories, selectionRef }),
 			{
 				confirmText: "Go",
 				cancelText: "Cancel",
 				onConfirm: () => {
-					const index = Number.parseInt(selection, 10) - 1;
+					const index = Number.parseInt(selectionRef.current, 10) - 1;
 					if (index >= 0 && index < categories.length) {
 						callback(categories[index]);
 					}
@@ -1020,7 +1011,7 @@ class ShortcutManager {
 			!!mods.meta === !!evt.metaKey
 		);
 		const handleSimpleShortcut = (binding, callback) => {
-			if (!binding?.enabled) return false;
+			if (!binding.enabled) return false;
 			const parsed = parseBinding(binding);
 			if (!parsed) return false;
 			if (!parsed.mainKey) return false;
@@ -1038,7 +1029,7 @@ class ShortcutManager {
 			return;
 		}
 		const jump = shortcuts.jumpCategory;
-		if (jump?.enabled) {
+		if (jump.enabled) {
 			const parsed = parseBinding(jump);
 			if (parsed && modifiersMatch(parsed.mods, e)) {
 				const key = String(e.key || "");
@@ -1072,19 +1063,17 @@ module.exports = class BetterPinDMs {
 		this._updatePending = null;
 		this._dmListForceUpdate = null;
 		this._originalGetPrivateChannelIds = null;
-		this._DMListClass = null;
 		this._scrollPatchTimeout = null;
 		this._scrollToChannelPatched = false;
 		this._flushUpdatesDebounced = debounce(() => {
 			this._flushPendingUpdates();
-		}, TIMEOUTS.UPDATE_DEBOUNCE);
+		}, 0);
 		this.updateManager = new UpdateManager(
 			this.pluginName,
 			this.meta.version,
 			GITHUB_REPO
 		);
 		this._running = false;
-		this._timeouts = new Set();
 		this._dragEl = null;
 		this._onDragEnd = this._handleDragEnd.bind(this);
 		this._dmListPatchState = {
@@ -1140,25 +1129,21 @@ module.exports = class BetterPinDMs {
 			return sectionElement;
 		};
 	}
-	//#region Metadata
-	getName() { return this.meta.name; }
-	getAuthor() { return this.meta.author; }
-	getVersion() { return this.meta.version; }
-	getDescription() { return this.meta.description; }
-	//#endregion Metadata
 	//#region Lifecycle
 	start() {
+		this.loadSettings();
+		this.updateManager.start(this.settings.autoUpdate);
 		try {
 			this._dmListPatched = false;
 			this._innerClassPatched = false;
 			this._dmListFallbackPatched = false;
 			this._guildDmPatched = false;
 			this._running = true;
-			Logger.info(this.pluginName, `Starting v${this.meta.version} (React Injection Mode)`);
-			this.loadSettings();
+			Logger.info(`Starting v${this.meta.version} (React Injection Mode)`);
 			this.loadCategories();
 			this.loadPins();
-			this.storeService = new DiscordStoreService(this.pluginName);
+			this.categoryStore = new BdApi.Utils.Store();
+			this.storeService = new DiscordStoreService();
 			this.storeService.init();
 			this.uiManager = new UIManager(this);
 			this.shortcutManager = new ShortcutManager(this);
@@ -1171,24 +1156,21 @@ module.exports = class BetterPinDMs {
 			this._patchGuildDmComponent();
 			this.storeService.emitAllChanges();
 			this.shortcutManager.start();
-			this.updateManager.start(this.settings.autoUpdate);
 			this.forceUpdate({ immediate: true });
 		} catch (err) {
-			Logger.error(this.pluginName, "Failed to start", err);
+			Logger.error("Failed to start", err);
 			UI.showToast(`${this.pluginName}: Failed to start`, { type: "error" });
 		}
 	}
 	stop() {
 		try {
-			Logger.info(this.pluginName, "Stopping");
+			Logger.info("Stopping");
 			this._running = false;
 			if (this._scrollPatchTimeout) {
 				clearTimeout(this._scrollPatchTimeout);
 				this._scrollPatchTimeout = null;
 			}
-			if (this._flushUpdatesDebounced?.cancel) {
-				this._flushUpdatesDebounced.cancel();
-			}
+			this._flushUpdatesDebounced.cancel();
 			document.removeEventListener("dragend", this._onDragEnd, true);
 			this._handleDragEnd();
 			if (this.shortcutManager) this.shortcutManager.stop();
@@ -1198,18 +1180,17 @@ module.exports = class BetterPinDMs {
 				this._settingsRoot = null;
 			}
 			for (const unpatch of this.patches) {
-				try { unpatch(); } catch (err) { Logger.warn(this.pluginName, "Failed to unpatch", err); }
+				try { unpatch(); } catch (err) { Logger.warn("Failed to unpatch", err); }
 			}
 			this.patches = [];
-			this._DMListClass = null;
-			this._scrollToChannelPatched = false;
+				this._scrollToChannelPatched = false;
 			this._originalUnreadIds = null;
-			this.storeService?.emitAllChanges?.();
+			this.storeService?.emitAllChanges();
 			DOM.removeStyle(CONFIG.cssId);
 			this.updateManager.stop();
 			if (this._dmListForceUpdate) this._dmListForceUpdate();
 		} catch (err) {
-			Logger.error(this.pluginName, "Error during stop", err);
+			Logger.error("Error during stop", err);
 		}
 	}
 	//#endregion Lifecycle
@@ -1228,19 +1209,16 @@ module.exports = class BetterPinDMs {
 		];
 		let moduleWithKey = null;
 		for (const filter of filterCandidates) {
-			try {
-				const result = Webpack.getWithKey(filter);
-				if (result) {
-					moduleWithKey = result;
-					break;
-				}
-			} catch { }
+			const result = Webpack.getWithKey(filter);
+			if (result) {
+				moduleWithKey = result;
+				break;
+			}
 		}
 		if (moduleWithKey) {
 			const [PrivateChannelsModule, exportKey] = moduleWithKey;
-			Logger.info(this.pluginName, `Found PrivateChannelsList module via Webpack.getWithKey()! Key: ${exportKey}`);
+			Logger.info(`Found PrivateChannelsList module via Webpack.getWithKey()! Key: ${exportKey}`);
 			const unpatchWrapper = Patcher.after(
-				this.pluginName,
 				PrivateChannelsModule,
 				exportKey,
 				(_, __, returnValue) => {
@@ -1254,7 +1232,7 @@ module.exports = class BetterPinDMs {
 							if (inner?.type) this._patchInnerListClass(inner.type);
 						}
 					} catch (err) {
-						Logger.error(this.pluginName, "Error finding inner DM List Class", err);
+						Logger.error("Error finding inner DM List Class", err);
 					}
 					return returnValue;
 				}
@@ -1262,7 +1240,7 @@ module.exports = class BetterPinDMs {
 			this.patches.push(unpatchWrapper);
 			this._dmListPatched = true;
 		}
-		if (!this._innerClassPatched && ReactUtils?.getInternalInstance) {
+		if (!this._innerClassPatched && ReactUtils.getInternalInstance) {
 			const selectors = ["[data-list-id^='private-channels-uid']", "[class^='privateChannels'] [data-list-id]"];
 			let domList = null;
 			for (const s of selectors) {
@@ -1271,7 +1249,7 @@ module.exports = class BetterPinDMs {
 			}
 			if (domList) {
 				try {
-					Logger.info(this.pluginName, "Attempting Fiber Hot-Patch...");
+					Logger.info("Attempting Fiber Hot-Patch...");
 					const fiber = ReactUtils.getInternalInstance(domList);
 					const found = findInTree(
 						fiber,
@@ -1285,18 +1263,17 @@ module.exports = class BetterPinDMs {
 							found.stateNode.forceUpdate();
 						}
 						this._dmListPatched = true;
-						Logger.info(this.pluginName, "Fiber Hot-Patch successful!");
+						Logger.info("Fiber Hot-Patch successful!");
 					}
 				} catch (err) {
-					Logger.error(this.pluginName, "Fiber Hot-Patch failed", err);
+					Logger.error("Fiber Hot-Patch failed", err);
 				}
 			}
 		}
 	}
 	_patchInnerListClass(ListClass) {
-		Logger.info(this.pluginName, "Found Inner List Class! Patching prototype...");
+		Logger.info("Found Inner List Class! Patching prototype...");
 		const unpatch = Patcher.after(
-			this.pluginName,
 			ListClass.prototype,
 			"render",
 			(thisObject, _, returnValue) => {
@@ -1328,15 +1305,13 @@ module.exports = class BetterPinDMs {
 			start = start?.return;
 		}
 		if (!instance) {
-			Logger.warn(this.pluginName, "Could not find DM list class instance for scrollToChannel patch");
+			Logger.warn("Could not find DM list class instance for scrollToChannel patch");
 			return;
 		}
 		const DMListClass = instance.constructor;
 		if (this._scrollToChannelPatched) return;
 		const getPluginState = () => this._dmListPatchState;
-		this._DMListClass = DMListClass;
 		const unpatch = Patcher.instead(
-			this.pluginName,
 			DMListClass.prototype,
 			"scrollToChannel",
 			(thisObj, [channelId], original) => {
@@ -1371,11 +1346,11 @@ module.exports = class BetterPinDMs {
 		);
 		this.patches.push(unpatch);
 		this._scrollToChannelPatched = true;
-		Logger.info(this.pluginName, "Patched scrollToChannel via BdApi.Patcher");
+		Logger.info("Patched scrollToChannel via BdApi.Patcher");
 	}
 	_activateDmListFallback(reason) {
 		if (this._dmListFallbackPatched || this._dmListPatched) return;
-		Logger.warn(this.pluginName, `UI DM list patch failed; using fallback reorder only. Reason: ${reason}`);
+		Logger.warn(`UI DM list patch failed; using fallback reorder only. Reason: ${reason}`);
 		UI.showToast(
 			"[BetterPinDMs] UI patch failed; using fallback (reorder only). Category headers/drag UI may be unavailable until Discord UI changes are handled.",
 			{ type: "warning", timeout: 8000 }
@@ -1387,12 +1362,11 @@ module.exports = class BetterPinDMs {
 	_patchPrivateChannelsListFallback() {
 		const sortStore = this.storeService.getRawStore("PrivateChannelSortStore");
 		if (!sortStore?.getPrivateChannelIds) {
-			Logger.error(this.pluginName, "Could not find PrivateChannelSortStore for fallback");
+			Logger.error("Could not find PrivateChannelSortStore for fallback");
 			return false;
 		}
 		this._originalGetPrivateChannelIds = sortStore.getPrivateChannelIds.bind(sortStore);
 		const unpatch = Patcher.after(
-			this.pluginName,
 			sortStore,
 			"getPrivateChannelIds",
 			(_, _args, ret) => {
@@ -1400,14 +1374,14 @@ module.exports = class BetterPinDMs {
 					if (this._dmListPatched) return ret;
 					return this._reorderChannelIds(ret);
 				} catch (err) {
-					Logger.error(this.pluginName, "getPrivateChannelIds patch error", err);
+					Logger.error("getPrivateChannelIds patch error", err);
 					return ret;
 				}
 			}
 		);
 		this.patches.push(unpatch);
 		this._dmListForceUpdate = () => this.storeService.emitPrivateChannelSortChange();
-		Logger.info(this.pluginName, "Using fallback store patching method");
+		Logger.info("Using fallback store patching method");
 		return true;
 	}
 	_reorderChannelIds(originalIds) {
@@ -1433,7 +1407,7 @@ module.exports = class BetterPinDMs {
 	_modifyDmListRender(componentInstance, returnValue) {
 		const originalProps = componentInstance.props;
 		const originalIds = originalProps.privateChannelIds;
-		if (!originalIds?.length) return returnValue;
+		if (!originalIds.length) return returnValue;
 		const { pinnedRows, unpinnedList } = this._calculateSortedList(originalIds);
 		if (!React.isValidElement(returnValue) || typeof returnValue.props.children !== "function") {
 			return returnValue;
@@ -1461,7 +1435,7 @@ module.exports = class BetterPinDMs {
 	_applyListPatch(listElement, originalIds, pinnedRows, unpinnedList) {
 		if (!React.isValidElement(listElement)) return listElement;
 		const props = listElement.props;
-		if (!props?.sections || props.sections.length < 2) return listElement;
+		if (!props.sections || props.sections.length < 2) return listElement;
 		if (typeof props.renderRow !== "function") return listElement;
 		const originalSec0Count = props.sections[0];
 		const pinnedRowCount = pinnedRows.length;
@@ -1538,11 +1512,7 @@ module.exports = class BetterPinDMs {
 			};
 			if (styleFromArgs && !prev.style) nextProps.style = styleFromArgs;
 			nextProps.key = stableKey;
-			try {
-				return React.cloneElement(el, nextProps);
-			} catch (err) {
-				Logger.warn(this.pluginName, "Failed to clone element, using wrapper fallback", err);
-			}
+			return React.cloneElement(el, nextProps);
 		}
 		return React.createElement(
 			"div",
@@ -1558,9 +1528,8 @@ module.exports = class BetterPinDMs {
 	_composeHandler(existing, added) {
 		if (typeof existing !== "function") return added;
 		if (typeof added !== "function") return existing;
-		const pluginName = this.pluginName;
 		return function composed(e) {
-			try { existing(e); } catch (err) { Logger.warn(pluginName, "Composed handler error", err); }
+			existing(e);
 			return added(e);
 		};
 	}
@@ -1571,10 +1540,10 @@ module.exports = class BetterPinDMs {
 		this._dragEl = e.currentTarget;
 		e.dataTransfer.setData("text/plain", JSON.stringify({ type, id }));
 		e.dataTransfer.effectAllowed = "move";
-		if (this._dragEl?.style) this._dragEl.style.opacity = "0.5";
+		this._dragEl.style.opacity = "0.5";
 	}
 	_cleanupDragVisuals() {
-		if (this._dragEl?.style) this._dragEl.style.opacity = "";
+		if (this._dragEl) this._dragEl.style.opacity = "";
 		this._dragEl = null;
 		const selector = DRAG_CLASSES.map(c => `.${c}`).join(", ");
 		for (const el of document.querySelectorAll(selector)) {
@@ -1734,10 +1703,7 @@ module.exports = class BetterPinDMs {
 		if (this._guildDmPatched) return;
 		const want = ["treeItemProps", "statusIndicatorsEnabled", "isCurrentUserInThisDMCall"];
 		const isGuildItem = (v) => {
-			if (!v || typeof v !== "object") return false;
-			if (!v.$$typeof || typeof v.render !== "function") return false;
-			const src = Function.prototype.toString.call(v.render);
-			return want.every((s) => src.includes(s));
+			return v && typeof v === "object" && v.$$typeof && typeof v.render === "function";
 		};
 		const pickGuildItem = (mod) => {
 			if (!mod) return null;
@@ -1752,12 +1718,12 @@ module.exports = class BetterPinDMs {
 		};
 		const patch = (GuildItem) => {
 			if (!this._running || this._guildDmPatched || !GuildItem) return;
-			Logger.info(this.pluginName, "Found Guild DM item via Webpack. Patching...");
-			const unpatch = Patcher.after(this.pluginName, GuildItem, "render", (_t, args, ret) => {
+			Logger.info("Found Guild DM item via Webpack. Patching...");
+			const unpatch = Patcher.after(GuildItem, "render", (_t, args, ret) => {
 				try {
 					if (ret) return this._processGuildDirectMessage({ props: args?.[0] }, ret);
 				} catch (err) {
-					Logger.error(this.pluginName, "Guild DM render error", err);
+					Logger.error("Guild DM render error", err);
 				}
 				return ret;
 			});
@@ -1775,7 +1741,7 @@ module.exports = class BetterPinDMs {
 		Webpack.waitForModule(filter, { searchExports: true })
 			.then((mod) => patch(pickGuildItem(mod)))
 			.catch((err) => {
-				Logger.warn(this.pluginName, "Failed to locate Guild DM module via Webpack.waitForModule", err);
+				Logger.warn("Failed to locate Guild DM module via Webpack.waitForModule", err);
 			});
 	}
 	_processGuildDirectMessage(instance, returnValue) {
@@ -1799,11 +1765,11 @@ module.exports = class BetterPinDMs {
 	//#endregion Patching
 	//#region Data Management
 	loadSettings() {
-		const saved = Data.load(this.pluginName, "settings") || {};
+		const saved = Data.load("settings") || {};
 		this.settings = this._migrateSettings(saved);
 	}
 	saveSettings() {
-		Data.save(this.pluginName, "settings", this.settings);
+		Data.save("settings", this.settings);
 	}
 	updateSetting(key, value) {
 		if (this.settings[key] === value) return;
@@ -1849,12 +1815,12 @@ module.exports = class BetterPinDMs {
 			if (Object.hasOwn(saved, "autoUpdate")) {
 				migrated.autoUpdate = saved.autoUpdate;
 			}
-			migrated.shortcutTogglePinEnabled = saved.shortcutTogglePinEnabled ?? defaults.shortcutTogglePinEnabled;
-			migrated.shortcutTogglePinKeys = Array.isArray(saved.shortcutTogglePinKeys) ? saved.shortcutTogglePinKeys : defaults.shortcutTogglePinKeys;
-			migrated.shortcutQuickPickerEnabled = saved.shortcutQuickPickerEnabled ?? defaults.shortcutQuickPickerEnabled;
-			migrated.shortcutQuickPickerKeys = Array.isArray(saved.shortcutQuickPickerKeys) ? saved.shortcutQuickPickerKeys : defaults.shortcutQuickPickerKeys;
-			migrated.shortcutJumpCategoryEnabled = saved.shortcutJumpCategoryEnabled ?? defaults.shortcutJumpCategoryEnabled;
-			migrated.shortcutJumpCategoryKeys = Array.isArray(saved.shortcutJumpCategoryKeys) ? saved.shortcutJumpCategoryKeys : defaults.shortcutJumpCategoryKeys;
+			for (const name of ["TogglePin", "QuickPicker", "JumpCategory"]) {
+				const enabledKey = `shortcut${name}Enabled`;
+				const keysKey = `shortcut${name}Keys`;
+				migrated[enabledKey] = saved[enabledKey] ?? defaults[enabledKey];
+				migrated[keysKey] = Array.isArray(saved[keysKey]) ? saved[keysKey] : defaults[keysKey];
+			}
 			return migrated;
 		}
 		const safeSaved = Object.create(null);
@@ -1867,42 +1833,36 @@ module.exports = class BetterPinDMs {
 		return { ...defaults, ...safeSaved };
 	}
 	loadCategories() {
-		const saved = Data.load(this.pluginName, "categories") || {};
+		const saved = Data.load("categories") || {};
 		const custom = Object.create(null);
 		if (saved.custom && typeof saved.custom === "object") {
 			for (const key of Object.keys(saved.custom)) {
 				if (this._isUnsafeKey(key)) continue;
 				const cat = saved.custom[key];
 				if (!cat || typeof cat !== "object") continue;
-				const id = (typeof cat.id === "string" && !this._isUnsafeKey(cat.id)) ? cat.id : key;
-				custom[id] = {
-					id,
-					name: typeof cat.name === "string" ? cat.name : `Category ${id}`,
-					color: typeof cat.color === "string" ? cat.color : DEFAULT_COLOR,
-					pos: typeof cat.pos === "number" ? cat.pos : 0,
-					collapsed: !!cat.collapsed,
-					dms: filterStringArray(cat.dms)
-				};
+				const safe = this._buildSafeCategory(key, cat);
+				custom[safe.id] = safe;
 			}
 		}
 		this.categories = { custom };
 	}
 	saveCategories() {
-		Data.save(this.pluginName, "categories", this.categories);
+		Data.save("categories", this.categories);
 	}
 	_saveCategoriesAndRefresh() {
 		this.saveCategories();
+		this.categoryStore.emitChange();
 		this.forceUpdate({ dmList: true });
 	}
 	loadPins() {
-		const saved = Data.load(this.pluginName, "pinned") || {};
+		const saved = Data.load("pinned") || {};
 		this.pins = {
 			channelList: Array.isArray(saved.channelList) ? saved.channelList : [],
 			guildList: Array.isArray(saved.guildList) ? saved.guildList : []
 		};
 	}
 	savePins() {
-		Data.save(this.pluginName, "pinned", this.pins);
+		Data.save("pinned", this.pins);
 	}
 	//#endregion Data Management
 	//#region Category Logic
@@ -2091,7 +2051,7 @@ module.exports = class BetterPinDMs {
 	//#region Context Menus
 	_patchContextMenus() {
 		const patch = (tree, props) => {
-			if (!tree || !props?.channel) return;
+			if (!tree || !props.channel) return;
 			if ([CHANNEL_TYPES.DM, CHANNEL_TYPES.GROUP_DM].includes(props.channel.type)) {
 				this._injectContextSubmenu(tree, props.channel.id);
 			}
@@ -2219,7 +2179,7 @@ module.exports = class BetterPinDMs {
 				align: "top"
 			});
 		} catch (err) {
-			Logger.error(this.pluginName, "Category context menu error", err);
+			Logger.error("Category context menu error", err);
 		}
 	}
 	//#endregion Context Menus
@@ -2246,7 +2206,6 @@ module.exports = class BetterPinDMs {
 		if (readStore?.getUnreadPrivateChannelIds) {
 			this._originalUnreadIds = readStore.getUnreadPrivateChannelIds.bind(readStore);
 			this.patches.push(Patcher.after(
-				this.pluginName,
 				readStore,
 				"getUnreadPrivateChannelIds",
 				(_, __, ret) => {
@@ -2418,7 +2377,7 @@ module.exports = class BetterPinDMs {
 				color: this._hexToRgbaArray(cat.color || DEFAULT_COLOR)
 			};
 		}
-		const guildList = filterStringArray(this.pins?.guildList);
+		const guildList = filterStringArray(this.pins.guildList);
 		const pinnedForUser = { channelList, guildList };
 		return { [userId]: pinnedForUser };
 	}
@@ -2438,17 +2397,14 @@ module.exports = class BetterPinDMs {
 		for (const [rawId, cat] of Object.entries(channelList)) {
 			if (this._isUnsafeKey(rawId)) continue;
 			if (!cat || typeof cat !== "object") continue;
-			const id = (typeof cat.id === "string" && !this._isUnsafeKey(cat.id)) ? cat.id : rawId;
-			const hex = this._rgbaToHex(cat.color);
-			const dms = filterStringArray(cat.dms);
-			custom[id] = {
-				id,
-				name: typeof cat.name === "string" ? cat.name : `${DEFAULT_CATEGORY_PREFIX}${fallbackPos + 1}`,
-				color: hex,
-				pos: typeof cat.pos === "number" ? cat.pos : fallbackPos++,
-				collapsed: !!cat.collapsed,
-				dms
+			const normalized = {
+				...cat,
+				color: this._rgbaToHex(cat.color),
+				name: typeof cat.name === "string" ? cat.name : `${DEFAULT_CATEGORY_PREFIX}${fallbackPos + 1}`
 			};
+			const safe = this._buildSafeCategory(rawId, normalized, fallbackPos);
+			if (typeof cat.pos !== "number") fallbackPos++;
+			custom[safe.id] = safe;
 		}
 		this.categories = { custom };
 		this.pins = { channelList: [], guildList: filterStringArray(pinnedForUser?.guildList) };
@@ -2472,15 +2428,8 @@ module.exports = class BetterPinDMs {
 				if (this._isUnsafeKey(key)) continue;
 				const cat = srcCustom[key];
 				if (!cat || typeof cat !== "object") continue;
-				const id = (typeof cat.id === "string" && !this._isUnsafeKey(cat.id)) ? cat.id : key;
-				custom[id] = {
-					id,
-					name: typeof cat.name === "string" ? cat.name : `Category ${id}`,
-					color: typeof cat.color === "string" ? cat.color : DEFAULT_COLOR,
-					pos: typeof cat.pos === "number" ? cat.pos : 0,
-					collapsed: !!cat.collapsed,
-					dms: filterStringArray(cat.dms)
-				};
+				const safe = this._buildSafeCategory(key, cat);
+				custom[safe.id] = safe;
 			}
 		}
 		this.categories = { custom };
@@ -2492,6 +2441,17 @@ module.exports = class BetterPinDMs {
 	}
 	_isUnsafeKey(key) {
 		return key === "__proto__" || key === "prototype" || key === "constructor";
+	}
+	_buildSafeCategory(key, cat, fallbackPos = 0) {
+		const id = (typeof cat.id === "string" && !this._isUnsafeKey(cat.id)) ? cat.id : key;
+		return {
+			id,
+			name: typeof cat.name === "string" ? cat.name : `Category ${id}`,
+			color: typeof cat.color === "string" ? cat.color : DEFAULT_COLOR,
+			pos: typeof cat.pos === "number" ? cat.pos : fallbackPos,
+			collapsed: !!cat.collapsed,
+			dms: filterStringArray(cat.dms)
+		};
 	}
 	exportConfig() {
 		try {
@@ -2508,7 +2468,7 @@ module.exports = class BetterPinDMs {
 			URL.revokeObjectURL(url);
 			UI.showToast("Configuration exported (PinDMs-compatible)", { type: "success" });
 		} catch (err) {
-			Logger.error(this.pluginName, "Export config failed", err);
+			Logger.error("Export config failed", err);
 			UI.showToast("Failed to export configuration", { type: "error" });
 		}
 	}
@@ -2533,7 +2493,7 @@ module.exports = class BetterPinDMs {
 				this.forceUpdate({ immediate: true });
 				UI.showToast("Configuration imported successfully", { type: "success" });
 			} catch (err) {
-				Logger.error(this.pluginName, "Import config failed", err);
+				Logger.error("Import config failed", err);
 				UI.showToast("Failed to import configuration", { type: "error" });
 			}
 		};
@@ -2545,9 +2505,6 @@ module.exports = class BetterPinDMs {
 		DOM.addStyle(CONFIG.cssId, `
 			/* --- Layout & Animation --- */
 			.betterpindms-virtual-header { padding: 0 8px; box-sizing: border-box; position: relative; /* Needed for drop indicators */ }
-			.betterpindms-group-content { display: flex; flex-direction: column; }
-			.betterpindms-group-content.collapsed { max-height: 0; opacity: 0; }
-			.betterpindms-group-content.expanded { opacity: 1; }
 			/* --- Drag & Drop Wrappers --- */
 			/* This allows DMs to have borders/pseudo-elements for drag indicators */
 			.betterpindms-draggable-wrapper { display: block; position: relative;  }
@@ -2556,8 +2513,6 @@ module.exports = class BetterPinDMs {
 				position: relative; 
 			}
 			.betterpindms-recent-pinned::after { content: "\\1F4CC"; position: absolute; top: 2px; right: 2px; font-size: 10px; line-height: 1; z-index: 10; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8)); pointer-events: none; background: rgba(0, 0, 0, 0.6); border-radius: 4px; padding: 1px; }
-			/* Clean up old class */
-			.betterpindms-pinbadge { display: none; }
 			/* --- Drop Indicators --- */
 			/* Top Line */
 			.betterpindms-drop-target-top::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; background-color: var(--background-brand,#5865F2);  z-index: 1000; pointer-events: none; }
