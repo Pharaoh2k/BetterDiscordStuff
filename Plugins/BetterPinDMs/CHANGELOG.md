@@ -1,5 +1,15 @@
 # [BetterPinDMs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterPinDMs "BetterPinDMs") Changelog
 
+### 2.2.0
+- Updated to match Discord changes
+- Modernized BdApi integration using new constructor pattern
+- Improved changelog system with better error handling
+- Enhanced category state management in settings to be fully reactive.
+- Fixed modal value handling in category editor and quick picker
+- Improved chevron icon loading reliability
+- Code cleanup: removed unused constants, properties, and deprecated code
+- Simplified error handling and logging
+
 ### 2.1.0
 - Improved code quality and performance
 
