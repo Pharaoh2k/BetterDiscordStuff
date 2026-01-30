@@ -2,7 +2,7 @@
  * @name BetterPinDMs
  * @author Pharaoh2k
  * @description Enhanced DM pinning with category headers, drag & drop, unread tracking, hotkeys, import/export (from similar plugins too), and smart categories. Pinned DMs are shown in a separate PINNED DMs section above "Direct Messages".
- * @version 2.2.0
+ * @version 2.2.1
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterPinDMs/BetterPinDMs.plugin.js
@@ -72,7 +72,7 @@ const filterStringArray = (arr) => Array.isArray(arr) ? arr.filter(x => typeof x
 //#region BdApi destructuring & Utils helpers
 const { React, ReactDOM, UI, DOM, Data, Patcher, Webpack, Logger, ContextMenu, Utils, Hooks, Net, Plugins, Components, ReactUtils } = new BdApi("BetterPinDMs");
 const { Filters } = Webpack;
-const { className, debounce, findInTree } = Utils;
+const { className, findInTree } = Utils;
 //#endregion BdApi destructuring
 //#region Update Manager
 class UpdateManager {
@@ -554,7 +554,7 @@ class UIManager {
 	}
 	CustomCategoriesSection = () => {
 		const categoriesData = Hooks.useStateFromStores([this.plugin.categoryStore], () => {
-			return {...this.plugin.categories, custom: {...(this.plugin.categories?.custom ?? {})}};
+			return {...this.plugin.categories, custom: {...this.plugin.categories?.custom}};
 		});
 		const categories = Object.values(categoriesData?.custom ?? {}).sort((a, b) => (a.pos || 0) - (b.pos || 0));
 		return React.createElement(
@@ -1065,9 +1065,14 @@ module.exports = class BetterPinDMs {
 		this._originalGetPrivateChannelIds = null;
 		this._scrollPatchTimeout = null;
 		this._scrollToChannelPatched = false;
-		this._flushUpdatesDebounced = debounce(() => {
-			this._flushPendingUpdates();
-		}, 0);
+		this._PatchedBClass = null;
+		this._PatchedBOrigType = null;
+		this._flushUpdatesDebounced = (() => {
+			let tid = null;
+			const fn = () => { clearTimeout(tid); tid = setTimeout(() => this._flushPendingUpdates(), 0); };
+			fn.cancel = () => { clearTimeout(tid); tid = null; };
+			return fn;
+		})();
 		this.updateManager = new UpdateManager(
 			this.pluginName,
 			this.meta.version,
@@ -1157,6 +1162,7 @@ module.exports = class BetterPinDMs {
 			this.storeService.emitAllChanges();
 			this.shortcutManager.start();
 			this.forceUpdate({ immediate: true });
+			this._remountDmList();
 		} catch (err) {
 			Logger.error("Failed to start", err);
 			UI.showToast(`${this.pluginName}: Failed to start`, { type: "error" });
@@ -1189,6 +1195,7 @@ module.exports = class BetterPinDMs {
 			DOM.removeStyle(CONFIG.cssId);
 			this.updateManager.stop();
 			if (this._dmListForceUpdate) this._dmListForceUpdate();
+			this._remountDmList();
 		} catch (err) {
 			Logger.error("Error during stop", err);
 		}
@@ -1223,16 +1230,57 @@ module.exports = class BetterPinDMs {
 				exportKey,
 				(_, __, returnValue) => {
 					try {
-						if (!this._innerClassPatched) {
-							const inner = findInTree(
-								returnValue,
-								n => n?.type?.prototype?.render && hasPrivateIdsProp(n),
-								{ walkable: ["props", "children"] }
-							);
-							if (inner?.type) this._patchInnerListClass(inner.type);
+						const inner = findInTree(
+							returnValue,
+							n => n?.type?.prototype?.render && hasPrivateIdsProp(n),
+							{ walkable: ["props", "children"] }
+						);
+						if (inner?.type) {
+							if (!this._PatchedBClass || this._PatchedBOrigType !== inner.type) {
+								this._PatchedBOrigType = inner.type;
+								this._PatchedBClass = class PatchedDMList extends inner.type {
+									render() {
+										const result = super.render();
+										PatchedDMList._plugin._dmListForceUpdate = () => this.forceUpdate();
+										return PatchedDMList._plugin._modifyDmListRender(this, result);
+									}
+									scrollToChannel(channelId) {
+										const st = PatchedDMList._plugin._dmListPatchState;
+										let visualIndex = -1;
+										if (st?.pinnedRows && st?.unpinnedList) {
+											let dmIdx = 0;
+											for (const row of st.pinnedRows) {
+												if (row.type === 'dm') {
+													if (row.dmId === channelId) { visualIndex = dmIdx; break; }
+													dmIdx++;
+												}
+											}
+											if (visualIndex < 0) {
+												const unpinnedIdx = st.unpinnedList.indexOf(channelId);
+												if (unpinnedIdx >= 0) visualIndex = dmIdx + unpinnedIdx;
+											}
+										}
+										const origIndex = this.props?.privateChannelIds?.indexOf(channelId) ?? -1;
+										if (visualIndex >= 0 && visualIndex !== origIndex) {
+											const { padding = 0 } = this.props;
+											const { preRenderedChildren = 0 } = this.state;
+											const scrollPos = 44 * (visualIndex + preRenderedChildren) + padding;
+											this._list?.scrollIntoViewRect({
+												start: Math.max(scrollPos - 8, 0),
+												end: scrollPos + 44 + 8
+											});
+											return;
+										}
+										return super.scrollToChannel(channelId);
+									}
+								};
+								this._PatchedBClass._plugin = this;
+							}
+							Object.defineProperty(inner, 'type', { value: this._PatchedBClass, configurable: true });
+							this._innerClassPatched = true;
 						}
 					} catch (err) {
-						Logger.error("Error finding inner DM List Class", err);
+						Logger.error("Error patching inner DM List Class", err);
 					}
 					return returnValue;
 				}
@@ -1249,104 +1297,22 @@ module.exports = class BetterPinDMs {
 			}
 			if (domList) {
 				try {
-					Logger.info("Attempting Fiber Hot-Patch...");
 					const fiber = ReactUtils.getInternalInstance(domList);
 					const found = findInTree(
 						fiber,
-						n => n?.type?.prototype?.render && n?.memoizedProps?.privateChannelIds != null,
+						n => n?.memoizedProps?.privateChannelIds != null,
 						{ walkable: ["return"] }
 					);
-					if (found?.type) {
-						this._patchInnerListClass(found.type);
-						if (found.stateNode?.forceUpdate) {
-							this._dmListForceUpdate = () => found.stateNode.forceUpdate();
-							found.stateNode.forceUpdate();
-						}
+					if (found?.stateNode?.forceUpdate) {
+						this._dmListForceUpdate = () => found.stateNode.forceUpdate();
+						found.stateNode.forceUpdate();
 						this._dmListPatched = true;
-						Logger.info("Fiber Hot-Patch successful!");
 					}
 				} catch (err) {
-					Logger.error("Fiber Hot-Patch failed", err);
+					Logger.error("Fiber force-update failed", err);
 				}
 			}
 		}
-	}
-	_patchInnerListClass(ListClass) {
-		Logger.info("Found Inner List Class! Patching prototype...");
-		const unpatch = Patcher.after(
-			ListClass.prototype,
-			"render",
-			(thisObject, _, returnValue) => {
-				this._dmListForceUpdate = () => thisObject.forceUpdate();
-				return this._modifyDmListRender(thisObject, returnValue);
-			}
-		);
-		this.patches.push(unpatch);
-		this._innerClassPatched = true;
-		this.storeService.emitPrivateChannelSortChange();
-		this._scrollPatchTimeout = setTimeout(() => this._patchScrollToChannel(), 100);
-	}
-	_patchScrollToChannel() {
-		if (!this._running) return;
-		const dmList = document.querySelector('[class*="privateChannels"]');
-		if (!dmList) return;
-		const fiber = ReactUtils.getInternalInstance(dmList);
-		if (!fiber) return;
-		const findDown = (node, visited = new WeakSet()) => {
-			if (!node || visited.has(node)) return null;
-			visited.add(node);
-			if (node.stateNode?.scrollToChannel) return node.stateNode;
-			return findDown(node.child, visited) || findDown(node.sibling, visited);
-		};
-		let instance = null;
-		let start = fiber;
-		for (let i = 0; i < 5 && !instance; i++) {
-			instance = findDown(start);
-			start = start?.return;
-		}
-		if (!instance) {
-			Logger.warn("Could not find DM list class instance for scrollToChannel patch");
-			return;
-		}
-		const DMListClass = instance.constructor;
-		if (this._scrollToChannelPatched) return;
-		const getPluginState = () => this._dmListPatchState;
-		const unpatch = Patcher.instead(
-			DMListClass.prototype,
-			"scrollToChannel",
-			(thisObj, [channelId], original) => {
-				const st = getPluginState();
-				let visualIndex = -1;
-				if (st?.pinnedRows && st?.unpinnedList) {
-					let dmIdx = 0;
-					for (const row of st.pinnedRows) {
-						if (row.type === 'dm') {
-							if (row.dmId === channelId) { visualIndex = dmIdx; break; }
-							dmIdx++;
-						}
-					}
-					if (visualIndex < 0) {
-						const unpinnedIdx = st.unpinnedList.indexOf(channelId);
-						if (unpinnedIdx >= 0) visualIndex = dmIdx + unpinnedIdx;
-					}
-				}
-				const origIndex = thisObj.props?.privateChannelIds?.indexOf(channelId) ?? -1;
-				if (visualIndex >= 0 && visualIndex !== origIndex) {
-					const { padding = 0 } = thisObj.props;
-					const { preRenderedChildren = 0 } = thisObj.state;
-					const scrollPos = 44 * (visualIndex + preRenderedChildren) + padding;
-					thisObj._list?.scrollIntoViewRect({
-						start: Math.max(scrollPos - 8, 0),
-						end: scrollPos + 44 + 8
-					});
-					return;
-				}
-				return original.call(thisObj, channelId);
-			}
-		);
-		this.patches.push(unpatch);
-		this._scrollToChannelPatched = true;
-		Logger.info("Patched scrollToChannel via BdApi.Patcher");
 	}
 	_activateDmListFallback(reason) {
 		if (this._dmListFallbackPatched || this._dmListPatched) return;
@@ -2190,6 +2156,22 @@ module.exports = class BetterPinDMs {
 			this._updatePending = null;
 		}
 	}
+	_remountDmList() {
+		const dmNav = document.querySelector('[class*="privateChannels"]');
+		if (!dmNav) return;
+		const fiberRoot = ReactUtils.getInternalInstance(dmNav);
+		for (let current = fiberRoot; current; current = current.return) {
+			const { stateNode } = current;
+			if (!stateNode?.forceUpdate || !stateNode?.render) continue;
+			const fragmentKey = String(Math.random());
+			const restore = Patcher.instead(stateNode, "render", (_, args, originalRender) => {
+				restore();
+				return React.createElement(React.Fragment, { key: fragmentKey }, originalRender(...args));
+			});
+			stateNode.forceUpdate();
+			return;
+		}
+	}	
 	forceUpdate(updates = {}) {
 		if (updates.immediate) {
 			if (updates.dmList !== false && this._dmListForceUpdate) this._dmListForceUpdate();
