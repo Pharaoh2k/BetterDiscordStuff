@@ -5,8 +5,8 @@
   "version": "2.0.0",
   "status": "Active",
   "workingStatus": "Working",
-  "lastUpdated": "2025-02-09",
-  "releaseDate": "2023-09-05",
+  "lastUpdated": "2026-02-09",
+  "releaseDate": "2025-01-01",
   "features": [
     "Download voice messages and audio attachments with multiple modes (direct, save-as, browser)",
     "Instant format conversion to WAV (uncompressed) or M4A/AAC",
