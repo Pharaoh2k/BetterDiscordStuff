@@ -1,0 +1,30 @@
+{
+  "name": "AudioToolbox",
+  "description": "A complete audio toolkit for voice messages and audio attachments - download with instant format conversions (WAV, M4A/AAC), EQ presets, playback speed, basic and A/B looping, queue mode, batch and auto-download, and custom filenames.",
+  "author": "Pharaoh2k",
+  "version": "2.0.0",
+  "status": "Active",
+  "workingStatus": "Working",
+  "lastUpdated": "2025-02-09",
+  "releaseDate": "2023-09-05",
+  "features": [
+    "Download voice messages and audio attachments with multiple modes (direct, save-as, browser)",
+    "Instant format conversion to WAV (uncompressed) or M4A/AAC",
+    "Custom filename templates with tokens ({author}, {date}, {time}, {duration}, {channel}, {messageId})",
+    "Playback speed control (0.5x, 0.75x, 1x, 1.25x, 1.5x, 2x, 3x)",
+    "Professional EQ presets (Bass Boost, Treble Boost, Voice Enhance, Bass Cut)",
+    "Basic loop mode for continuous playback",
+    "A/B loop mode for precise section repetition",
+    "Queue mode for automatic sequential playback",
+    "Batch download all cached audio from a channel",
+    "Auto-download for specific channels",
+    "Download history tracking (up to 200 entries)",
+    "Inline controls (loop button and menu) on audio messages",
+    "Context menu integration for quick access",
+    "Automatic updates with changelog display",
+    "Discord theme integration for seamless UI"
+  ],
+  "sourceUrl": "https://github.com/Pharaoh2k/BetterDiscordStuff/tree/main/Plugins/AudioToolbox",
+  "changelogUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/AudioToolbox/CHANGELOG.md",
+  "downloadUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/AudioToolbox/AudioToolbox.plugin.js"
+}
