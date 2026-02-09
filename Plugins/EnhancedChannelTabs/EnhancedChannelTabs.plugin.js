@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 5.0.10
+ * @version 5.0.11
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
@@ -323,7 +323,7 @@ class StyleManager {
 		return `		
 			.enhancedChannelTabs-input .bd-text-input { border: 1px solid var(--input-border-hover); width: 100%; }
 			.enhancedChannelTabs-tabNav { display:none; }
-			div:has(> div > #enhancedChannelTabs-container) { grid-template-rows: [top] auto [titleBarEnd] min-content [noticeEnd] 1fr [end]; }
+			.ect-app-grid { grid-template-rows: [top] auto [titleBarEnd] min-content [noticeEnd] 1fr [end]; }
 			${noDragClasses.map((x) => `.${x}`).join(", ")} { -webkit-app-region: no-drag; }
 			.${systemBarClasses.systemBar}, .enhancedChannelTabs-trailing { --custom-app-top-bar-height: 2rem; }
 			#enhancedChannelTabs-container { z-index: 1000; background: none; flex: 1; max-width: 100vw; }
@@ -5797,7 +5797,16 @@ module.exports = class EnhancedChannelTabs {
 		};
 		rerenderTitleBar("start");
 		setTimeout(() => rerenderTitleBar("start-late"), 50);
+		const applyGridClass = () => {
+			const container = document.getElementById("enhancedChannelTabs-container");
+			const gridParent = container?.parentElement?.parentElement;
+			if (gridParent) {
+				gridParent.classList.add("ect-app-grid");
+			}
+		};
+		setTimeout(applyGridClass, 100);
 		patches.push(() => {
+			document.querySelector(".ect-app-grid")?.classList.remove("ect-app-grid");
 			rerenderTitleBar("stop");
 			setTimeout(() => rerenderTitleBar("stop-late"), 50);
 		});
