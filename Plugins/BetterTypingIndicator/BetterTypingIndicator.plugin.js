@@ -1,6 +1,6 @@
 /**
  * @name BetterTypingIndicator
- * @version 2.9.6
+ * @version 2.9.7
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/edit/main/Plugins/BetterTypingIndicator/BetterTypingIndicator.plugin.js
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BetterTypingIndicator/BetterTypingIndicator.plugin.js
@@ -15,8 +15,7 @@
  * Contributions are welcome via GitHub pull requests. 
  * Please ensure submissions align with the project's guidelines and coding standards.
 */
-const PLUGIN_NAME = "BetterTypingIndicator";
-const { Data, DOM, React, ReactDOM, UI, Webpack, Utils, Hooks, Net, Logger, Plugins } = BdApi;
+const { Data, DOM, React, ReactDOM, UI, Webpack, Utils, Hooks, Net, Logger, Plugins } = new BdApi("BetterTypingIndicator");
 const TYPES = { CHANNEL: 'channel', GUILD: 'guild', FOLDER: 'folder', HOME: 'home' };
 const TYPING_EVENTS = ['TYPING_START', 'TYPING_STOP', 'MESSAGE_CREATE'];
 const CONFIG = {
@@ -200,233 +199,199 @@ const VISUAL_SETTINGS_KEYS = [
     'showCount', 'tooltipStyle', 'includeBlocked'
 ];
 class UpdateManager {
-    /* using Net, UI, Logger, Data, Plugins, Utils from BdApi */
-    constructor(pluginName, version, github = GITHUB_REPO) {
-        this.name = pluginName;
-        this.version = version;
-        const [user, repo] = github.split('/');
-        this.urls = {
-            plugin: `https://raw.githubusercontent.com/${user}/${repo}/main/Plugins/${pluginName}/${pluginName}.plugin.js`,
-            changelog: `https://raw.githubusercontent.com/${user}/${repo}/main/Plugins/${pluginName}/CHANGELOG.md`
-        };
-        this.timer = null;
-        this.notification = null;
-        this._initialTimeout = null;
-    }
-    async start(autoUpdate = true) {
-        this.stop();
-        if (autoUpdate) {
-            this._initialTimeout = setTimeout(() => this.check(true), 15000);
-            this.timer = setInterval(() => this.check(true), 24 * 60 * 60 * 1000);
-        }
-        this.showChangelog();
-    }
-    stop() {
-        if (this._initialTimeout) {
-            clearTimeout(this._initialTimeout);
-            this._initialTimeout = null;
-        }
-        clearInterval(this.timer);
-        this.timer = null;
-        this._closeNotification();
-    }
-    _closeNotification() {
-        if (!this.notification) return;
-        if (typeof this.notification === "function") this.notification();
-        else if (this.notification.close) this.notification.close();
-        this.notification = null;
-    }
-    async check(silent = false) {
-        try {
-            const res = await Net.fetch(this.urls.plugin);
-            if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
-            const text = await res.text();
-            const validated = this._validateRemotePluginText(text);
-            if (!validated.ok) throw new Error(`Remote plugin validation failed: ${validated.reason}`);
-            const version = validated.version;
-            if (this.isNewer(version)) {
-                this.showUpdateNotice(version, text);
-            } else if (!silent) {
-                UI.showToast(`[${this.name}] You're up to date.`, { type: "info" });
-            }
-        } catch (e) {
-            Logger.error(this.name, "Update check failed:", e);
-            if (!silent) UI.showToast(`[${this.name}] Update check failed`, { type: "error" });
-        }
-    }
-    showUpdateNotice(version, text) {
-        this._closeNotification();
-        const handle = UI.showNotification?.({
-            id: `bd-plugin-update:${this.name}`,
-            title: `${this.name}`,
-            content: `v${version} is available`,
-            type: "info",
-            duration: 6000000,
-            actions: [
-                {
-                    label: "Update",
-                    onClick: () => {
-                        this._closeNotification();
-                        this.applyUpdate(text, version);
-                    },
-                },
-                {
-                    label: "Dismiss",
-                    onClick: () => this._closeNotification(),
-                },
-            ],
-            onClose: () => {
-                if (this.notification === handle) this.notification = null;
-            },
-        }) ?? UI.showNotice(`${this.name} v${version} is available`, {
-            type: "info",
-            buttons: [
-                {
-                    label: "Update",
-                    onClick: (closeOrEvent) => {
-                        if (typeof closeOrEvent === "function") closeOrEvent();
-                        else this._closeNotification();
-                        this.applyUpdate(text, version);
-                    },
-                },
-                {
-                    label: "Dismiss",
-                    onClick: (closeOrEvent) => {
-                        if (typeof closeOrEvent === "function") closeOrEvent();
-                        else this._closeNotification();
-                    },
-                },
-            ],
-        });
-        this.notification = handle;
-    }
-    applyUpdate(text, version) {
-        try {
-            const validated = this._validateRemotePluginText(text);
-            if (!validated.ok) {
-                UI.showToast(`Update blocked: ${validated.reason}`, { type: "error", timeout: 8000 });
-                return;
-            }
-            const nextVersion = validated.version ?? version;
-            require("fs").writeFileSync(__filename, text);
-            UI.showToast(`Updated to v${nextVersion}. Reloading...`, { type: "success" });
-            setTimeout(() => {
-                try {
-                    Plugins.reload(this.name);
-                } catch {
-                    UI.showToast("Please reload Discord (Ctrl+R)", { type: "info", timeout: 0 });
-                }
-            }, 100);
-        } catch (e) {
-            Logger.error(this.name, "Update failed:", e);
-            UI.showToast("Update failed", { type: "error" });
-        }
-    }
-    async showChangelog() {
-        const last = Data.load(this.name, 'version');
-        Logger.info(this.name, `showChangelog: last=${last}, current=${this.version}`);
-        if (last === this.version) { Logger.info(this.name, "Skipping: versions match"); return; }
-        Data.save(this.name, 'version', this.version);
-        if (!last) { Logger.info(this.name, "Skipping: fresh install"); return; }
-        try {
-            const res = await Net.fetch(this.urls.changelog);
-            Logger.info(this.name, `Changelog fetch status: ${res.status}`);
-            if (res.status !== 200) return;
-            const md = await res.text();
-            const changes = this.parseChangelog(md, last, this.version);
-            Logger.info(this.name, "Parsed changes:", changes);
-            if (changes.length === 0) return;
-            UI.showChangelogModal({ title: this.name, subtitle: `Version ${this.version}`, changes });
-        } catch (e) { Logger.error(this.name, "Changelog error:", e); }
-    }
-    async showFullChangelog() {
-        try {
-            const res = await Net.fetch(this.urls.changelog);
-            if (res.status !== 200) throw new Error("Failed to fetch changelog");
-            const md = await res.text();
-            const changes = this.parseChangelog(md, "0.0.0", this.version);
-            UI.showChangelogModal({
-                title: this.name,
-                subtitle: `All Changes`,
-                changes: changes.length ? changes : [{ title: "No changes found", items: [] }]
-            });
-        } catch {
-            UI.showToast("Could not fetch changelog", { type: "error" });
-        }
-    }
-    parseChangelog(md, from, to) {
-        const versions = this._parseChangelogVersions(md);
-        const relevant = versions.filter(
-            v => this.isNewer(v.version, from) && !this.isNewer(v.version, to)
-        );
-        const getType = (lower) => {
-            if (lower.includes("fix")) return "fixed";
-            if (lower.includes("add") || lower.includes("initial")) return "added";
-            if (lower.includes("improv") || lower.includes("updat")) return "improved";
-            return "other";
-        };
-        const sections = [
-            ["New Features", "added", "added"],
-            ["Improvements", "improved", "improved"],
-            ["Bug Fixes", "fixed", "fixed"],
-            ["Other Changes", "other", "progress"]
-        ];
-        const result = [];
-        for (const v of relevant) {
-            const grouped = { added: [], improved: [], fixed: [], other: [] };
-            for (const item of v.items) {
-                grouped[getType(item.toLowerCase())].push(item);
-            }
-            result.push({ title: `Version ${v.version}`, type: "", items: [] });
-            for (const [title, key, type] of sections) {
-                if (grouped[key].length) {
-                    result.push({ title, type, items: grouped[key] });
-                }
-            }
-        }
-        return result;
-    }
-    _parseChangelogVersions(md) {
-        const lines = md.split("\n");
-        const versions = [];
-        let current = null;
-        let items = [];
-        const push = () => {
-            if (!current) return;
-            versions.push({ version: current, items });
-            items = [];
-        };
-        for (const line of lines) {
-            const ver = line.match(/^###\s+([\d.]+)/)?.[1];
-            if (ver) {
-                push();
-                current = ver;
-                continue;
-            }
-            if (!current) continue;
-            const trimmed = line.trim();
-            if (!trimmed.startsWith("-")) continue;
-            const item = trimmed.substring(1).trim();
-            if (item) items.push(item);
-        }
-        push();
-        return versions;
-    }
-    isNewer(remoteVersion, localVersion = this.version) {
-        return Utils.semverCompare(localVersion, remoteVersion) > 0;
-    }
-    _validateRemotePluginText(text) {
-        if (typeof text !== "string") return { ok: false, reason: "Not a string" };
-        if (text.length < 800) return { ok: false, reason: "File too small" };
-        const remoteName = text.match(/@name\s+([^\n\r]+)/)?.[1]?.trim();
-        if (!remoteName) return { ok: false, reason: "Missing @name" };
-        if (remoteName !== this.name) return { ok: false, reason: `Unexpected @name (${remoteName})` };
-        const remoteVersion = text.match(/@version\s+([\d.]+)/)?.[1];
-        if (!remoteVersion) return { ok: false, reason: "Missing @version" };
-        if (!text.includes("module.exports")) return { ok: false, reason: "Missing module.exports" };
-        if (!text.includes("@updateUrl")) return { ok: false, reason: "Missing @updateUrl header" };
-        return { ok: true, version: remoteVersion };
-    }
+	/* using Net, UI, Logger, Data, Plugins, Utils from BdApi */
+	constructor(pluginName, version, github = CONFIG.github) {
+		this.name = pluginName;
+		this.version = version;
+		const [user, repo] = github.split('/');
+		this.urls = {
+			plugin: `https://raw.githubusercontent.com/${user}/${repo}/main/Plugins/${pluginName}/${pluginName}.plugin.js`,
+			changelog: `https://raw.githubusercontent.com/${user}/${repo}/main/Plugins/${pluginName}/CHANGELOG.md`
+		};
+		this.timer = null;
+		this.notification = null;
+		this._initialTimeout = null;
+	}
+	async start(autoUpdate = true) {
+		this.stop();
+		if (autoUpdate) {
+			this._initialTimeout = setTimeout(() => this.check(true), 15000);
+			this.timer = setInterval(() => this.check(true), 24 * 60 * 60 * 1000);
+		}
+		this.showChangelog();
+	}
+	stop() {
+		if (this._initialTimeout) {
+			clearTimeout(this._initialTimeout);
+			this._initialTimeout = null;
+		}
+		clearInterval(this.timer);
+		this.timer = null;
+		this._closeNotification();
+	}
+	_closeNotification() {
+		if (!this.notification) return;
+		if (typeof this.notification === "function") this.notification();
+		else if (this.notification.close) this.notification.close();
+		this.notification = null;
+	}
+	async check(silent = false) {
+		try {
+			const res = await Net.fetch(this.urls.plugin);
+			if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
+			const text = await res.text();
+			const validated = this._validateRemotePluginText(text);
+			if (!validated.ok) throw new Error(`Remote plugin validation failed: ${validated.reason}`);
+			const version = validated.version;
+			if (this.isNewer(version)) {
+				this.showUpdateNotice(version, text);
+			} else if (!silent) {
+				UI.showToast(`[${this.name}] You're up to date.`, { type: "info" });
+			}
+		} catch (e) {
+			Logger.error("Update check failed:", e);
+			if (!silent) UI.showToast(`[${this.name}] Update check failed`, { type: "error" });
+		}
+	}
+	showUpdateNotice(version, text) {
+		this._closeNotification();
+		const handle = UI.showNotification({
+			id: `bd-plugin-update:${this.name}`,
+			title: `${this.name}`,
+			content: `v${version} is available`,
+			type: "info",
+			duration: 6000000,
+			actions: [
+				{
+					label: "Update",
+					onClick: () => {
+						this._closeNotification();
+						this.applyUpdate(text);
+					},
+				},
+				{
+					label: "Dismiss",
+					onClick: () => this._closeNotification(),
+				},
+			],
+			onClose: () => {
+				if (this.notification === handle) this.notification = null;
+			},
+		});
+		this.notification = handle;
+	}
+	applyUpdate(text) {
+		try {
+			const validated = this._validateRemotePluginText(text);
+			if (!validated.ok) {
+				UI.showToast(`[${this.name}] Update blocked: ${validated.reason}`, { type: "error", timeout: 8000 });
+				return;
+			}
+			const nextVersion = validated.version;
+			require("fs").writeFileSync(__filename, text);
+			UI.showToast(`[${this.name}] Updated to v${nextVersion}. Reloading...`, { type: "success" });
+			setTimeout(() => {
+				try {
+					Plugins.reload(this.name);
+				} catch {
+					UI.showToast(`[${this.name}] Please reload Discord (Ctrl+R)`, { type: "info", timeout: 0 });
+				}
+			}, 100);
+		} catch (e) {
+			Logger.error("Update failed:", e);
+			UI.showToast(`[${this.name}] Update failed`, { type: "error" });
+		}
+	}
+	async showChangelog() {
+		const last = Data.load('version');
+		Logger.info(`showChangelog: last=${last}, current=${this.version}`);
+		if (last === this.version) { Logger.info("Skipping: versions match"); return; }
+		Data.save('version', this.version);
+		if (!last) { Logger.info("Skipping: fresh install"); return; }
+		try {
+			const res = await Net.fetch(this.urls.changelog);
+			Logger.info(`Changelog fetch status: ${res.status}`);
+			if (res.status !== 200) return;
+			const md = await res.text();
+			const changes = this.parseChangelog(md, last, this.version);
+			Logger.info("Parsed changes:", changes);
+			if (changes.length === 0) return;
+			UI.showChangelogModal({ title: this.name, subtitle: `Version ${this.version}`, changes });
+		} catch (e) { Logger.error("Changelog error:", e); }
+	}
+	parseChangelog(md, from, to) {
+		const versions = this._parseChangelogVersions(md);
+		const relevant = versions.filter(
+			v => this.isNewer(v.version, from) && !this.isNewer(v.version, to)
+		);
+		const getType = (lower) => {
+			if (lower.includes("fix")) return "fixed";
+			if (lower.includes("add") || lower.includes("initial")) return "added";
+			if (lower.includes("improv") || lower.includes("updat")) return "improved";
+			return "other";
+		};
+		const sections = [
+			["New Features", "added", "added"],
+			["Improvements", "improved", "improved"],
+			["Bug Fixes", "fixed", "fixed"],
+			["Other Changes", "other", "progress"]
+		];
+		const result = [];
+		for (const v of relevant) {
+			const grouped = { added: [], improved: [], fixed: [], other: [] };
+			for (const item of v.items) {
+				grouped[getType(item.toLowerCase())].push(item);
+			}
+			result.push({ title: `Version ${v.version}`, type: "", items: [] });
+			for (const [title, key, type] of sections) {
+				if (grouped[key].length) {
+					result.push({ title, type, items: grouped[key] });
+				}
+			}
+		}
+		return result;
+	}
+	_parseChangelogVersions(md) {
+		const lines = md.split("\n");
+		const versions = [];
+		let current = null;
+		let items = [];
+		const push = () => {
+			if (!current) return;
+			versions.push({ version: current, items });
+			items = [];
+		};
+		for (const line of lines) {
+			const ver = line.match(/^###\s+([\d.]+)/)?.[1];
+			if (ver) {
+				push();
+				current = ver;
+				continue;
+			}
+			if (!current) continue;
+			const trimmed = line.trim();
+			if (!trimmed.startsWith("-")) continue;
+			const item = trimmed.substring(1).trim();
+			if (item) items.push(item);
+		}
+		push();
+		return versions;
+	}
+	isNewer(remoteVersion, localVersion = this.version) {
+		return Utils.semverCompare(localVersion, remoteVersion) > 0;
+	}
+	_validateRemotePluginText(text) {
+		if (typeof text !== "string") return { ok: false, reason: "Not a string" };
+		if (text.length < 800) return { ok: false, reason: "File too small" };
+		const remoteName = text.match(/@name\s+([^\n\r]+)/)?.[1]?.trim();
+		if (!remoteName) return { ok: false, reason: "Missing @name" };
+		if (remoteName !== this.name) return { ok: false, reason: `Unexpected @name (${remoteName})` };
+		const remoteVersion = text.match(/@version\s+([\d.]+)/)?.[1];
+		if (!remoteVersion) return { ok: false, reason: "Missing @version" };
+		if (!text.includes("module.exports")) return { ok: false, reason: "Missing module.exports" };
+		if (!text.includes("@updateUrl")) return { ok: false, reason: "Missing @updateUrl header" };
+		return { ok: true, version: remoteVersion };
+	}
 }
 const getConfigWithCurrentValues = (current, defaults = CONFIG.defaultConfig) => {
     return defaults.map(opt => ({
@@ -443,14 +408,12 @@ const Modules = {
     MutedStore: Webpack.getStore("UserGuildSettingsStore"),
     FolderStore: Webpack.getStore("SortedGuildStore"),
     PresenceStore: Webpack.getStore("PresenceStore"),
-    SelectedChannelStore: Webpack.getStore("SelectedChannelStore"),
-    GuildChannelStore: Webpack.getStore("GuildChannelStore"),
 };
 const STYLES = `
-.typing-indicator-container, .guild-typing-container, .folder-typing-container, .home-typing-container, .channel-typing-container { contain: layout paint style; }
+.typing-indicator-container { contain: layout paint style; }
 .bti-indicator-inner { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
-.typing-indicator-dots, .guild-typing-dots, .folder-typing-dots, .home-typing-dots, .channel-typing-dots { transform: scale(0.8); }
-.typing-indicator-svg, .guild-typing-svg, .folder-typing-svg, .home-typing-svg { opacity: 1; }
+.bti-dots { transform: scale(0.8); }
+.bti-svg { opacity: 1; }
 .typing-indicator-container { display: flex; align-items: center; justify-content: center; margin-left: 4px; position: relative !important; z-index: 100 !important; }
 .guild-typing-container, .folder-typing-container, .home-typing-container { position: absolute !important; bottom: 1px !important; right: 2px !important; z-index: 9999999 !important; pointer-events: none !important; display: flex !important; align-items: center !important; justify-content: center !important; background: var(--indicator-background, #18191c) !important; border-radius: 10px !important; padding: 1px 1px !important; transform: scale(0.9) !important; min-width: 32px !important; min-height: 7px !important; width: auto !important; }
 @keyframes typingBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
@@ -482,6 +445,8 @@ body[data-bti-hidden="true"] .bti-dot, body[data-bti-hidden="true"] [data-animat
 .typing-avatar-container + .typing-avatar-container { margin-left: -4px; }
 .bti-tooltip-container img { border-radius: inherit !important; clip-path: inherit !important; }
 @media (prefers-reduced-motion: reduce) { .bti-dot, [data-animation] { animation: none !important; } }
+.bti-settings-panel, .bti-settings-panel * { color: var(--text-default, #dcddde) !important; }
+.bti-settings-panel h1, .bti-settings-panel h2, .bti-settings-panel h3 { color: var(--mobile-text-heading-primary, #ffffff) !important; }
 `;
 class ErrorBoundary extends React.Component {
     constructor(props) {
@@ -523,8 +488,9 @@ const getDefaultAvatarIndex = (user) => {
     }
     return Number(user.discriminator) % 5;
 };
+const displayName = (user) => user.globalName || user.username;
 const getAvatarURL = (user, size = 32) => {
-    if (user?.avatar) {
+    if (user.avatar) {
         const ext = user.avatar.startsWith("a_") ? "gif" : "webp";
         return `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.${ext}?size=${size}`;
     }
@@ -561,6 +527,12 @@ const getAvatarStyle = (size, avatarStyle, indicatorBackground) => {
             undefined
     };
 };
+const createAvatarImg = (user, size, style, extraProps = {}) => React.createElement('img', {
+    src: getAvatarURL(user, size),
+    alt: `${displayName(user)}'s avatar`,
+    style,
+    ...extraProps
+});
 const BetterTypingIndicatorComponent = React.memo((props) => {
     const { type, users, settings, tooltipId } = props;
     const [isHovered, setIsHovered] = React.useState(false);
@@ -568,7 +540,7 @@ const BetterTypingIndicatorComponent = React.memo((props) => {
     const indicatorRef = React.useRef(null);
     const hideTimeout = React.useRef(null);
     const mountedRef = React.useRef(true);
-    const userCount = React.useMemo(() => Object.keys(users || {}).length, [users]);
+    const userCount = React.useMemo(() => Object.keys(users).length, [users]);
     const tooltipText = React.useMemo(() => getTooltipText(users), [users]);
     const tooltipContent = React.useMemo(() => getTooltipContent(users, settings), [users, settings]);
     const avatarStyleObj = React.useMemo(
@@ -577,18 +549,13 @@ const BetterTypingIndicatorComponent = React.memo((props) => {
     );
     const createAvatarElement = React.useCallback((user) => {
         if (!settings.showAvatarsInIndicator) return null;
-        const userStatus = Modules.PresenceStore?.getStatus(user.id) || "offline";
+        const userStatus = Modules.PresenceStore.getStatus(user.id) || "offline";
         return React.createElement("div", {
             key: user.id,
             className: "typing-avatar-container",
             style: { position: "relative", marginRight: "4px" }
         }, [
-            React.createElement("img", {
-                key: 'avatar',
-                src: getAvatarURL(user, settings.avatarSize || 16),
-                alt: `${user.globalName || user.username}'s avatar`,
-                style: avatarStyleObj
-            }),
+            createAvatarImg(user, settings.avatarSize || 16, avatarStyleObj, { key: 'avatar' }),
             settings.showAvatarStatus && React.createElement("div", {
                 key: 'status',
                 className: "typing-status-dot",
@@ -604,7 +571,7 @@ const BetterTypingIndicatorComponent = React.memo((props) => {
                 }
             })
         ]);
-    }, [settings.showAvatarsInIndicator, settings.showAvatarStatus, settings.indicatorBackground, avatarStyleObj]);
+    }, [settings.showAvatarsInIndicator, settings.showAvatarStatus, settings.indicatorBackground, settings.avatarSize, avatarStyleObj]);
     const indicatorElement = React.useMemo(() => {
         if (settings.showCount && userCount > 0) {
             return React.createElement('div', {
@@ -622,19 +589,19 @@ const BetterTypingIndicatorComponent = React.memo((props) => {
                     key: 'avatars',
                     className: 'typing-avatars-container',
                     style: { display: 'flex', alignItems: 'center', marginRight: '4px' }
-                }, Object.values(users || {}).map(user => createAvatarElement(user)))
+                }, Object.values(users).map(user => createAvatarElement(user)))
             );
         }
         containerContent.push(
             React.createElement('div', {
                 key: 'dots',
-                className: `${type}-typing-dots`,
+                className: `${type}-typing-dots bti-dots`,
                 style: { '--indicator-background': settings.indicatorBackground }
             },
                 React.createElement('svg', {
                     width: 24.5,
                     height: 7,
-                    className: `${type}-typing-svg`,
+                    className: `${type}-typing-svg bti-svg`,
                     style: { marginRight: '0px' }
                 },
                     [3.5, 12.25, 19].map((cx, i) => {
@@ -719,21 +686,20 @@ const BetterTypingIndicatorComponent = React.memo((props) => {
     );
 });
 const useMergedSettings = (baseSettings) => {
-    const storedSettings = Hooks?.useData ? Hooks.useData(PLUGIN_NAME, "settings") : null;
+    const storedSettings = Hooks.useData("settings");
     return React.useMemo(() => mergeSettings(baseSettings, storedSettings), [baseSettings, storedSettings]);
 };
 const BetterTypingIndicatorWrapper = ({ type, targetId, settings, users, tooltipId }) => {
     const mergedSettings = useMergedSettings(settings);
-    const channelUsers = (type === TYPES.CHANNEL && Hooks?.useStateFromStores)
-        ? Hooks.useStateFromStores(
-            [Modules.TypingStore, Modules.UserStore, Modules.RelationshipStore],
-            () => {
-                const current = Modules.TypingStore.getTypingUsers(targetId);
-                return filterTypingUsers(current, mergedSettings, Modules);
-            },
-            [targetId, mergedSettings.includeBlocked]
-        )
-        : null;
+    const channelUsers = Hooks.useStateFromStores(
+        [Modules.TypingStore, Modules.UserStore, Modules.RelationshipStore],
+        () => {
+            if (type !== TYPES.CHANNEL) return null;
+            const current = Modules.TypingStore.getTypingUsers(targetId);
+            return filterTypingUsers(current, mergedSettings, Modules);
+        },
+        [type, targetId, mergedSettings.includeBlocked]
+    );
     const effectiveUsers = type === TYPES.CHANNEL ? (channelUsers ?? users) : users;
     if (!effectiveUsers) return null;
     if (type === TYPES.CHANNEL && Object.keys(effectiveUsers).length === 0) return null;
@@ -745,193 +711,70 @@ const BetterTypingIndicatorWrapper = ({ type, targetId, settings, users, tooltip
     });
 };
 const getTooltipContent = (users, settings) => {
-    if (!users || !Object.keys(users).length) {
+    const userList = Object.values(users);
+    const count = userList.length;
+    if (!users || !count) {
         return React.createElement('div', null, 'Someone is typing...');
     }
     if (settings.tooltipStyle === 'none') return null;
     if (settings.tooltipStyle === "avatars") {
         const size = settings.avatarSize || 24;
-        let radius;
-        if (settings.avatarStyle === "circle") {
-            radius = "50%";
-        } else if (settings.avatarStyle === "square") {
-            radius = "4px";
-        } else {
-            radius = undefined;
-        }
+        const tooltipAvatarStyle = { ...getAvatarStyle(size, settings.avatarStyle, settings.indicatorBackground), border: undefined };
         return React.createElement("div", { className: "bti-tooltip-container avatars-only" }, [
             React.createElement("div", {
                 key: 'avatar-row',
                 style: { display: "flex", alignItems: "center", gap: "2px" }
             },
-                Object.values(users).map(user =>
-                    React.createElement("img", {
-                        key: user.id,
-                        src: getAvatarURL(user, size),
-                        alt: `${user.globalName || user.username}'s avatar`,
-                        style: {
-                            width: `${size}px`,
-                            height: `${size}px`,
-                            objectFit: "cover",
-                            borderRadius: radius,
-                            clipPath: settings.avatarStyle === "hexagon" ?
-                                "polygon(25% 6.7%, 75% 6.7%, 100% 50%, 75% 93.3%, 25% 93.3%, 0% 50%)" :
-                                undefined
-                        }
-                    })
+                userList.map(user =>
+                    createAvatarImg(user, size, tooltipAvatarStyle, { key: user.id })
                 )
             ),
             React.createElement("span", {
                 key: 'typing-text',
                 style: { marginLeft: "2px", whiteSpace: "nowrap" }
-            }, Object.keys(users).length > 1 ? "are typing…" : "is typing…")
+            }, count > 1 ? "are typing..." : "is typing...")
         ]);
     }
-    const singleUserTypingText = Object.keys(users).length === 1 ? ' is typing...' : null;
+    const singleUserTypingText = count === 1 ? ' is typing...' : null;
     return React.createElement('div', { className: 'bti-tooltip-container' },
-        Object.values(users).map(user =>
+        userList.map(user =>
             React.createElement('div', {
                 className: 'bti-user-row',
                 key: user.id,
                 style: { display: 'flex', alignItems: 'center', gap: '8px' }
             },
                 settings.tooltipStyle === 'both' ?
-                    React.createElement('img', {
-                        className: 'bti-user-avatar',
-                        src: getAvatarURL(user, 24),
-                        alt: `${user.globalName || user.username}'s avatar`,
-                        style: { width: '24px', height: '24px', borderRadius: '50%' }
-                    }) : null,
+                    createAvatarImg(user, 24, undefined, { className: 'bti-user-avatar' }) : null,
                 (settings.tooltipStyle === 'both' || settings.tooltipStyle === 'names') ?
-                    React.createElement('span', null, user.globalName || user.username, singleUserTypingText) : null
+                    React.createElement('span', null, displayName(user), singleUserTypingText) : null
             )
         ),
-        (settings.tooltipStyle === 'both' || settings.tooltipStyle === 'names') && Object.keys(users).length > 1 ?
+        (settings.tooltipStyle === 'both' || settings.tooltipStyle === 'names') && count > 1 ?
             React.createElement('div', { className: 'bti-typing-text', style: { marginTop: '4px' } }, ' are typing...') : null
     );
 };
-const SettingsPanel = React.memo(({ settings, onChange, modules }) => {
-    const { FormItem, FormSwitch, ColorPicker } = modules;
-    if (!FormItem || !FormSwitch) return null;
-    const components = {
-        switch: ({ id, name, note }) => {
-            const [isEnabled, setIsEnabled] = React.useState(settings[id]);
-            return React.createElement(FormSwitch, {
-                value: isEnabled,
-                checked: isEnabled,
-                note: note,
-                children: name,
-                onChange: val => { setIsEnabled(val); onChange({ [id]: val }); }
-            });
-        },
-        color: ({ id, name, note }) => {
-            const [colorValue, setColorValue] = React.useState(settings[id] || '#ffffff');
-            if (!ColorPicker) {
-                return React.createElement(FormItem, {
-                    title: name,
-                    note: note,
-                    children: React.createElement('input', {
-                        type: 'color',
-                        value: colorValue,
-                        onChange: e => { const newColor = e.target.value; setColorValue(newColor); onChange({ [id]: newColor }); }
-                    })
-                });
-            }
-            return React.createElement(FormItem, {
-                title: name,
-                note: note,
-                children: React.createElement(ColorPicker, {
-                    color: Number.parseInt(colorValue.replace('#', ''), 16),
-                    onChange: color => { const hex = '#' + color.toString(16).padStart(6, '0'); setColorValue(hex); onChange({ [id]: hex }); },
-                    suggestedColors: [],
-                    disabled: false,
-                    showEyeDropper: true
-                })
-            });
-        },
-        dropdown: ({ id, name, note, options }) => {
-            const [selectedValue, setSelectedValue] = React.useState(settings[id]);
-            return React.createElement(FormItem, {
-                title: name,
-                note: note,
-                children: React.createElement('select', {
-                    value: selectedValue,
-                    onChange: e => { const newValue = e.target.value; setSelectedValue(newValue); onChange({ [id]: newValue }); },
-                    className: 'bti-select'
-                }, options.map(opt => React.createElement('option', { key: opt.value, value: opt.value }, opt.label)))
-            });
-        },
-        slider: ({ id, name, note, min, max }) => {
-            const [sliderValue, setSliderValue] = React.useState(settings[id]);
-            return React.createElement(FormItem, {
-                title: name,
-                note: note,
-                children: React.createElement('div', { className: 'bti-slider-container' }, [
-                    React.createElement('input', {
-                        key: 'slider',
-                        type: 'range',
-                        min: min,
-                        max: max,
-                        step: 0.1,
-                        value: sliderValue,
-                        onChange: e => { const newValue = Number.parseFloat(e.target.value); setSliderValue(newValue); onChange({ [id]: newValue }); }
-                    }),
-                    React.createElement('span', { key: 'value' }, sliderValue)
-                ])
-            });
-        }
-    };
-    return React.createElement('div', { className: 'bti-settings-panel' },
-        CONFIG.defaultConfig.map(cfg => React.createElement('div', { key: cfg.id }, components[cfg.type]?.(cfg)))
-    );
-});
-const SettingsPanelContainer = ({ plugin, modules }) => {
-    const settingsFromData = Hooks?.useData ? Hooks.useData(PLUGIN_NAME, "settings") : null;
-    const mergedSettings = React.useMemo(
-        () => mergeSettings(plugin?.settings, settingsFromData),
-        [plugin, settingsFromData]
-    );
-    const handleChange = React.useCallback(patch => plugin.saveSettings(patch), [plugin]);
-    return React.createElement(SettingsPanel, { settings: mergedSettings, onChange: handleChange, modules });
-};
 const getTooltipText = (users) => {
-    if (!users || !Object.keys(users).length) return 'Someone is typing...';
-    const names = Object.values(users).map(u => u.globalName || u.username).filter(Boolean);
+    const names = Object.values(users ?? {}).map(displayName).filter(Boolean);
+    if (!names.length) return 'Someone is typing...';
     if (names.length === 1) return `${names[0]} is typing...`;
     if (names.length === 2) return `${names.join(' and ')} are typing...`;
     if (names.length === 3) return `${names[0]}, ${names[1]}, and ${names[2]} are typing...`;
     return `${names.length} people are typing...`;
 };
 const filterTypingUsers = (users, settings, modules) => {
-    try {
-        const currentUser = modules.UserStore.getCurrentUser();
-        return Object.entries(users || {})
-            .filter(([id]) => {
-                if (!currentUser) return false;
-                if (id === currentUser.id) return false;
-                if (!settings.includeBlocked && modules.RelationshipStore.isBlocked(id)) return false;
-                return true;
-            })
-            .reduce((acc, [id]) => {
-                const user = modules.UserStore.getUser(id);
-                if (user) acc[id] = user;
-                return acc;
-            }, {});
-    } catch (error) {
-        console.error('Error filtering typing users:', error);
-        return {};
-    }
-};
-const isChannelMuted = (guildId, channelId) => {
-    const M = Modules.MutedStore;
-    try {
-        if (typeof M?.isChannelMuted === 'function') {
-            return M.isChannelMuted.length >= 2
-                ? M.isChannelMuted(guildId, channelId)
-                : M.isChannelMuted(channelId);
-        }
-    } catch { }
-    return false;
+    const currentUser = modules.UserStore.getCurrentUser();
+    return Object.entries(users)
+        .filter(([id]) => {
+            if (!currentUser) return false;
+            if (id === currentUser.id) return false;
+            if (!settings.includeBlocked && modules.RelationshipStore.isBlocked(id)) return false;
+            return true;
+        })
+        .reduce((acc, [id]) => {
+            const user = modules.UserStore.getUser(id);
+            if (user) acc[id] = user;
+            return acc;
+        }, {});
 };
 const generateRenderSignature = (userIds, settings) => {
     const sortedIds = [...userIds].sort().join(',');
@@ -945,10 +788,7 @@ class BetterTypingIndicator {
         this._roots = new Map();
         this.settings = this.getSettings();
         this.handleTyping = this.handleTyping.bind(this);
-        this.cachedModules = { FormItem: null, FormSwitch: null, ColorPicker: null };
-        this._debouncedReload = (Utils && typeof Utils.debounce === "function")
-            ? Utils.debounce(() => this.reload(), 300)
-            : () => this.reload();
+        this._debouncedReload = Utils.debounce(() => this.reload(), 300);
         this._elCache = new Map();
         this._warnedSelectorMiss = new Set();
         this._didValidateModules = false;
@@ -997,39 +837,22 @@ class BetterTypingIndicator {
             this._unmountTimers.delete(rootKey);
         }
     }
-    _ensureDomAdapter() {
-        if (!this._elCache) this._elCache = new Map();
-        if (!this._warnedSelectorMiss) this._warnedSelectorMiss = new Set();
-    }
     getListItemElement(type, targetId) {
-        this._ensureDomAdapter();
         const key = type + ":" + targetId;
         let el = this._elCache.get(key);
         if (el && document.contains(el)) return el;
-        let selector;
-        if (type === TYPES.CHANNEL) {
-            selector = `[data-list-item-id="channels___${targetId}"]`;
-        } else if (type === TYPES.HOME) {
-            selector = `[data-list-item-id="${targetId}"]`;
-        } else {
-            selector = `[data-list-item-id="guildsnav___${targetId}"]`;
-        }
-        try {
-            el = document.querySelector(selector);
-            if (!el) {
-                const nodes = document.querySelectorAll('[data-list-item-id]');
-                for (const node of nodes) {
-                    const id = node.dataset.listItemId || '';
-                    if (id === `channels___${targetId}` ||
-                        id === `guildsnav___${targetId}` ||
-                        id === String(targetId)) {
-                        el = node;
-                        break;
-                    }
+        let expectedId;
+        if (type === TYPES.CHANNEL) expectedId = `channels___${targetId}`;
+        else if (type === TYPES.HOME) expectedId = String(targetId);
+        else expectedId = `guildsnav___${targetId}`;
+        el = document.querySelector(`[data-list-item-id="${expectedId}"]`);
+        if (!el) {
+            for (const node of document.querySelectorAll('[data-list-item-id]')) {
+                if ((node.dataset.listItemId || '') === expectedId) {
+                    el = node;
+                    break;
                 }
             }
-        } catch (e) {
-            console.debug('[BetterTypingIndicator] Selector error:', e.message);
         }
         if (el) {
             this._elCache.set(key, el);
@@ -1046,7 +869,6 @@ class BetterTypingIndicator {
             listItemEl;
     }
     gcElementCache() {
-        if (!this._elCache) return;
         for (const [key, el] of this._elCache) {
             if (!el || !document.contains(el)) {
                 this._elCache.delete(key);
@@ -1056,24 +878,20 @@ class BetterTypingIndicator {
     validateModulesOnce() {
         if (this._didValidateModules) return;
         this._didValidateModules = true;
-        try {
-            const missing = [];
-            for (const k in Modules) {
-                if (!Modules[k]) missing.push(k);
-            }
-            if (missing.length) {
-                console.warn('[BetterTypingIndicator] Some modules are missing or changed:', missing.join(', '));
-            }
-        } catch (e) {
-            console.debug('[BetterTypingIndicator] Error validating modules:', e.message);
+        const missing = [];
+        for (const k in Modules) {
+            if (!Modules[k]) missing.push(k);
+        }
+        if (missing.length) {
+            console.warn('[BetterTypingIndicator] Some modules are missing or changed:', missing.join(', '));
         }
     }
     getSettings() {
-        return { ...DEFAULT_SETTINGS_MAP, ...Data.load(this.meta.name, "settings") };
+        return { ...DEFAULT_SETTINGS_MAP, ...Data.load("settings") };
     }
     saveSettings(newSettings) {
         this.settings = { ...this.settings, ...newSettings };
-        Data.save(this.meta.name, "settings", this.settings);
+        Data.save("settings", this.settings);
         if (Object.hasOwn(newSettings, 'autoUpdate')) {
             if (newSettings.autoUpdate) {
                 this.updateManager.start(true);
@@ -1090,18 +908,8 @@ class BetterTypingIndicator {
     }
     async start() {
         console.log("BetterTypingIndicator Plugin started");
-        DOM.addStyle('typing-indicator-css', STYLES);
-        DOM.addStyle('bti-settings-text',
-            `.bti-settings-panel, .bti-settings-panel *{
-                color:var(--text-default,#dcddde)!important;
-            }
-            .bti-settings-panel h1, .bti-settings-panel h2, .bti-settings-panel h3{
-                color:var(--mobile-text-heading-primary,#ffffff)!important;
-            }`
-        );
-        this.initializeSettingsModules();
+        DOM.addStyle(STYLES);
         this.validateModulesOnce();
-        this._roots = this._roots || new Map();
         this._onVisibilityChange = () => {
             document.body.dataset.btiHidden = document.hidden ? 'true' : 'false';
         };
@@ -1114,8 +922,7 @@ class BetterTypingIndicator {
         }
     }
     stop() {
-        DOM.removeStyle('typing-indicator-css');
-        DOM.removeStyle('bti-settings-text');
+        DOM.removeStyle();
         this.updateManager.stop();
         if (this._onVisibilityChange) {
             document.removeEventListener('visibilitychange', this._onVisibilityChange);
@@ -1140,13 +947,6 @@ class BetterTypingIndicator {
         this.stop();
         this.start();
     }
-    initializeSettingsModules() {
-        const formItems = Webpack.getByKeys("FormItem");
-        const formSwitches = Webpack.getByKeys("FormSwitch");
-        this.cachedModules.FormItem = formItems?.FormItem;
-        this.cachedModules.FormSwitch = formSwitches?.FormSwitch;
-        this.cachedModules.ColorPicker = Webpack.getModule(m => m?.toString?.().includes('ColorPicker'));
-    }
     handleTyping(event) {
         if (event.type === 'MESSAGE_CREATE') {
             this.processTypingEvent({
@@ -1159,24 +959,20 @@ class BetterTypingIndicator {
         }
     }
     processTypingEvent(event) {
-        try {
-            if (!event?.channelId || !event?.userId) return;
-            const channel = Modules.ChannelStore.getChannel(event.channelId);
-            if (!channel) return;
-            const isMutedChannel = !this.settings.includeMuted &&
-                (Modules.MutedStore.isMuted(channel.guild_id) || isChannelMuted(channel.guild_id, channel.id));
-            if (channel.parent_id) {
-                const parentChannel = Modules.ChannelStore.getChannel(channel.parent_id);
-                if (parentChannel?.type === 15) {
-                    if (isMutedChannel) return;
-                    this.applyTypingForTypes(parentChannel, event);
-                }
+        if (!event.channelId || !event.userId) return;
+        const channel = Modules.ChannelStore.getChannel(event.channelId);
+        if (!channel) return;
+        const isMutedChannel = !this.settings.includeMuted &&
+            (Modules.MutedStore.isMuted(channel.guild_id) || Modules.MutedStore.isChannelMuted(channel.guild_id, channel.id));
+        if (channel.parent_id) {
+            const parentChannel = Modules.ChannelStore.getChannel(channel.parent_id);
+            if (parentChannel?.type === 15) {
+                if (isMutedChannel) return;
+                this.applyTypingForTypes(parentChannel, event);
             }
-            if (isMutedChannel) return;
-            this.applyTypingForTypes(channel, event);
-        } catch (error) {
-            console.error('Error processing typing event:', error);
         }
+        if (isMutedChannel) return;
+        this.applyTypingForTypes(channel, event);
     }
     applyTypingForTypes(channel, event) {
         for (const type of Object.values(TYPES)) {
@@ -1231,17 +1027,10 @@ class BetterTypingIndicator {
             typeState.delete(targetId);
         }
     }
-    hasTyping(type, targetId) {
+    getFilteredTypingUsers(type, targetId) {
         if (type === TYPES.CHANNEL) {
             const users = Modules.TypingStore.getTypingUsers(targetId);
-            const filtered = filterTypingUsers(users, this.settings, Modules);
-            return !!filtered && Object.keys(filtered).length > 0;
-        }
-        return (this.typingState.get(type)?.get(targetId)?.size || 0) > 0;
-    }
-    getTypingUsersFor(type, targetId) {
-        if (type === TYPES.CHANNEL) {
-            return Modules.TypingStore.getTypingUsers(targetId);
+            return filterTypingUsers(users, this.settings, Modules);
         }
         const ids = this.typingState.get(type)?.get(targetId);
         if (!ids || ids.size === 0) return {};
@@ -1250,11 +1039,12 @@ class BetterTypingIndicator {
             const user = Modules.UserStore.getUser(id);
             result[id] = user ?? { id, username: "", globalName: "" };
         }
-        return result;
+        return filterTypingUsers(result, this.settings, Modules);
     }
     renderOrCleanupIndicator(type, targetId, containerEl) {
         const rootKey = `${type}:${targetId}`;
-        const hasTyping = this.hasTyping(type, targetId);
+        const filteredUsers = this.getFilteredTypingUsers(type, targetId);
+        const hasTyping = Object.keys(filteredUsers).length > 0;
         if (!hasTyping) {
             const root = this._roots.get(rootKey);
             if (root) {
@@ -1290,12 +1080,11 @@ class BetterTypingIndicator {
             root = ReactDOM.createRoot(indicator);
             this._roots.set(rootKey, root);
         }
-        const users = this.getTypingUsersFor(type, targetId);
-        const filteredUsers = filterTypingUsers(users, this.settings, Modules);
         if (type === TYPES.CHANNEL && rootExists) {
             return;
         }
-        if (type !== TYPES.CHANNEL) {
+        const isChannel = type === TYPES.CHANNEL;
+        if (!isChannel) {
             const userIds = Object.keys(filteredUsers);
             const newSig = generateRenderSignature(userIds, this.settings);
             const lastSig = this._lastRenderSig.get(rootKey);
@@ -1326,10 +1115,9 @@ class BetterTypingIndicator {
         this.renderOrCleanupIndicator(type, targetId, container);
     }
     observer(arg) {
-        if (!this._roots) return;
         const mutations = Array.isArray(arg) ? arg : [arg];
         for (const m of mutations) {
-            const addedNodes = m?.addedNodes || [];
+            const addedNodes = m.addedNodes;
             for (const node of addedNodes) {
                 if (node.nodeType !== Node.ELEMENT_NODE) continue;
                 this._processNodeForIndicators(node);
@@ -1337,15 +1125,15 @@ class BetterTypingIndicator {
         }
     }
     _processNodeForIndicators(node) {
-        const channelAttr = node.getAttribute?.('data-list-item-id');
+        const channelAttr = node.dataset.listItemId;
         const isSelfChannel = channelAttr?.startsWith('channels___');
-        const channelItems = isSelfChannel ? [node] : (node.querySelectorAll?.('[data-list-item-id^="channels___"]') || []);
+        const channelItems = isSelfChannel ? [node] : node.querySelectorAll('[data-list-item-id^="channels___"]');
         for (const item of channelItems) {
             const channelId = item.dataset.listItemId.replace('channels___', '');
             if (channelId) this.scheduleUpdate(TYPES.CHANNEL, channelId);
         }
         const isSelfGuild = channelAttr?.startsWith('guildsnav___');
-        const guildItems = isSelfGuild ? [node] : (node.querySelectorAll?.('[data-list-item-id^="guildsnav___"]') || []);
+        const guildItems = isSelfGuild ? [node] : node.querySelectorAll('[data-list-item-id^="guildsnav___"]');
         for (const item of guildItems) {
             const guildId = item.dataset.listItemId.replace('guildsnav___', '');
             if (guildId) {
@@ -1361,33 +1149,26 @@ class BetterTypingIndicator {
         this.typingState.clear();
         this._pending.clear();
         this._lastRenderSig.clear();
-        if (this._roots) {
-            for (const root of this._roots.values()) {
-                try {
-                    root.unmount();
-                } catch (err) {
-                    console.error('Error unmounting React root:', err);
-                }
+        for (const root of this._roots.values()) {
+            try {
+                root.unmount();
+            } catch (err) {
+                console.error('Error unmounting React root:', err);
             }
-            this._roots.clear();
         }
+        this._roots.clear();
         for (const className of ['typing-indicator-container', 'bti-custom-tooltip']) {
             for (const el of document.querySelectorAll(`.${className}`)) {
                 el.remove();
             }
         }
-        if (this._elCache) {
-            this._elCache.clear();
-        }
+        this._elCache.clear();
     }
     getSettingsPanel() {
-        if (typeof UI.buildSettingsPanel === "function") {
-            return UI.buildSettingsPanel({
-                settings: getConfigWithCurrentValues({ ...DEFAULT_SETTINGS_MAP, ...this.settings }),
-                onChange: (_, id, value) => this.saveSettings({ [id]: value })
-            });
-        }
-        return React.createElement(SettingsPanelContainer, { plugin: this, modules: this.cachedModules });
+        return UI.buildSettingsPanel({
+            settings: getConfigWithCurrentValues(this.settings),
+            onChange: (_, id, value) => this.saveSettings({ [id]: value })
+        });
     }
 }
 module.exports = BetterTypingIndicator;
