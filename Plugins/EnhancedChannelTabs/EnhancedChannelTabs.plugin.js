@@ -43,7 +43,7 @@ THE SOFTWARE.
 const { ContextMenu, Patcher, Webpack, React, ReactDOM, DOM, ReactUtils, UI, Hooks, Utils, Net, Logger, Plugins, Components, Data } = new BdApi("EnhancedChannelTabs",);
 class UpdateManager {
 	/* using Net, UI, Logger, Data, Plugins, Utils from BdApi */
-	constructor(pluginName, version, github = GITHUB_REPO) {
+	constructor(pluginName, version, github = CONFIG.github) {
 		this.name = pluginName;
 		this.version = version;
 		const [user, repo] = github.split('/');
@@ -98,7 +98,7 @@ class UpdateManager {
 	}
 	showUpdateNotice(version, text) {
 		this._closeNotification();
-		const handle = UI.showNotification?.({
+		const handle = UI.showNotification({
 			id: `bd-plugin-update:${this.name}`,
 			title: `${this.name}`,
 			content: `v${version} is available`,
@@ -109,7 +109,7 @@ class UpdateManager {
 					label: "Update",
 					onClick: () => {
 						this._closeNotification();
-						this.applyUpdate(text, version);
+						this.applyUpdate(text);
 					},
 				},
 				{
@@ -120,48 +120,29 @@ class UpdateManager {
 			onClose: () => {
 				if (this.notification === handle) this.notification = null;
 			},
-		}) ?? UI.showNotice(`${this.name} v${version} is available`, {
-			type: "info",
-			buttons: [
-				{
-					label: "Update",
-					onClick: (closeOrEvent) => {
-						if (typeof closeOrEvent === "function") closeOrEvent();
-						else this._closeNotification();
-						this.applyUpdate(text, version);
-					},
-				},
-				{
-					label: "Dismiss",
-					onClick: (closeOrEvent) => {
-						if (typeof closeOrEvent === "function") closeOrEvent();
-						else this._closeNotification();
-					},
-				},
-			],
 		});
 		this.notification = handle;
 	}
-	applyUpdate(text, version) {
+	applyUpdate(text) {
 		try {
 			const validated = this._validateRemotePluginText(text);
 			if (!validated.ok) {
-				UI.showToast(`Update blocked: ${validated.reason}`, { type: "error", timeout: 8000 });
+				UI.showToast(`[${this.name}] Update blocked: ${validated.reason}`, { type: "error", timeout: 8000 });
 				return;
 			}
-			const nextVersion = validated.version ?? version;
+			const nextVersion = validated.version;
 			require("fs").writeFileSync(__filename, text);
-			UI.showToast(`Updated to v${nextVersion}. Reloading...`, { type: "success" });
+			UI.showToast(`[${this.name}] Updated to v${nextVersion}. Reloading...`, { type: "success" });
 			setTimeout(() => {
 				try {
 					Plugins.reload(this.name);
 				} catch {
-					UI.showToast("Please reload Discord (Ctrl+R)", { type: "info", timeout: 0 });
+					UI.showToast(`[${this.name}] Please reload Discord (Ctrl+R)`, { type: "info", timeout: 0 });
 				}
 			}, 100);
 		} catch (e) {
 			Logger.error("Update failed:", e);
-			UI.showToast("Update failed", { type: "error" });
+			UI.showToast(`[${this.name}] Update failed`, { type: "error" });
 		}
 	}
 	async showChangelog() {
@@ -180,21 +161,6 @@ class UpdateManager {
 			if (changes.length === 0) return;
 			UI.showChangelogModal({ title: this.name, subtitle: `Version ${this.version}`, changes });
 		} catch (e) { Logger.error("Changelog error:", e); }
-	}
-	async showFullChangelog() {
-		try {
-			const res = await Net.fetch(this.urls.changelog);
-			if (res.status !== 200) throw new Error("Failed to fetch changelog");
-			const md = await res.text();
-			const changes = this.parseChangelog(md, "0.0.0", this.version);
-			UI.showChangelogModal({
-				title: this.name,
-				subtitle: `All Changes`,
-				changes: changes.length ? changes : [{ title: "No changes found", items: [] }]
-			});
-		} catch {
-			UI.showToast("Could not fetch changelog", { type: "error" });
-		}
 	}
 	parseChangelog(md, from, to) {
 		const versions = this._parseChangelogVersions(md);
