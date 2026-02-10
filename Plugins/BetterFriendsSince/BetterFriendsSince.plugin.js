@@ -546,13 +546,14 @@ const BetterFriendsSince = meta => {
 		}
 	};
 
-	const start = async () => {
+	async function start() {
 		if (abortController) {
 			abortController.abort();
 			abortController = null;
 		}
 		abortController = new AbortController();
 		const signal = abortController.signal;
+		updateManager.start(settings.autoUpdate);
 		try {
 			RelationshipStore = Webpack.Stores.RelationshipStore;
 			LocaleStore = Webpack.Stores.LocaleStore;
@@ -570,7 +571,6 @@ const BetterFriendsSince = meta => {
 			}
 			patchSidebar();
 			patchProfile(signal);
-			updateManager.start(settings.autoUpdate);
 		} catch (err) {
 			if (isAbortError(err)) return;
 			Logger.error("Failed to start plugin.", err);
@@ -579,8 +579,8 @@ const BetterFriendsSince = meta => {
 				{ type: "error" }
 			);
 		}
-	};
-	const stop = () => {
+	}
+	function stop() {
 		if (abortController) {
 			abortController.abort();
 			abortController = null;
@@ -594,7 +594,7 @@ const BetterFriendsSince = meta => {
 		SidebarSectionComponent = null;
 		useBetterFriendsSince = defaultUseBetterFriendsSince;
 		getFriendSince = null;
-	};
+	}
 	const getSettingsPanel = () => {
 		return UI.buildSettingsPanel({
 			settings: [
