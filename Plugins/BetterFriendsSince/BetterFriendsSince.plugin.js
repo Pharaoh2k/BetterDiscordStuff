@@ -617,7 +617,7 @@ const BetterFriendsSince = meta => {
 					type: "button",
 					id: "viewChangelog",
 					name: "View Changelog",
-					note: "View the complete changelog for this plugin",
+					note: "View the changelog for this plugin",
 					children: "View Changelog",
 					onClick: () => updateManager.showChangelog()
 				}
