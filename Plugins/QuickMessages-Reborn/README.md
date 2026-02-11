@@ -4,7 +4,7 @@
 
 A BetterDiscord plugin that allows you to save and quickly reuse messages. Organize your frequently used text with categories and send them instantly with a right-click.
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.0.1-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Discord](https://img.shields.io/badge/discord-BetterDiscord-7289DA.svg)
 
