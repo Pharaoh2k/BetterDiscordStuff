@@ -2,10 +2,10 @@
   "name": "QuickMessages-Reborn",
   "description": "Save messages to quickly send them later. Right-click the chat bar to save or send messages. Hold Shift while clicking a message to delete it.",
   "author": "Pharaoh2k",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "status": "Active",
   "workingStatus": "Working",
-  "lastUpdated": "2025-12-19",
+  "lastUpdated": "2026-02-11",
   "releaseDate": "2025-12-19",
   "features": [
     "Save frequently used messages for instant reuse",
