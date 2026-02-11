@@ -1,5 +1,8 @@
 # [QuickMessages-Reborn](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=QuickMessages-Reborn "QuickMessages-Reborn") Changelog
 
+### 1.0.1
+- Code cleanup
+
 ### 1.0.0
 - Initial public release
 - Save messages for quick reuse via right-click context menu
