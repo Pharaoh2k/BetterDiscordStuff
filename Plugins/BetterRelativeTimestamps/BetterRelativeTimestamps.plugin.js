@@ -155,10 +155,7 @@ class UpdateManager {
 				return;
 			}
 			const nextVersion = validated.version;
-			const fs = require("fs");
-			const tmp = __filename + ".tmp";
-			fs.writeFileSync(tmp, text);
-			fs.renameSync(tmp, __filename);
+			require("fs").writeFileSync(__filename, text);
 			UI.showToast(`[${this.name}] Updated to v${nextVersion}. Reloading...`, { type: "success" });
 			setTimeout(() => {
 				try {
