@@ -48,7 +48,8 @@ class UpdateManager {
     }
     _closeNotification() {
         if (!this.notification) return;
-        this.notification();
+        if (typeof this.notification === "function") this.notification();
+        else this.notification?.close?.();
         this.notification = null;
     }
     async check(silent = false) {
