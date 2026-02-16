@@ -6,7 +6,7 @@
  * @version 1.0.0
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/ShowHiddenThings/ShowHiddenThings.plugin.js
- * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/ShowHiddenThings/ShowHiddenThings.plugin.js
+ * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/refs/heads/main/Plugins/ShoHiddenThings/ShowHiddenThings.plugin.js
  */
 /* ==========================================
  * Copyright © 2026-present Pharaoh2k. All rights reserved.
@@ -424,4 +424,5 @@ module.exports = class ShowHiddenThings {
             }
         });
     }
+
 };
