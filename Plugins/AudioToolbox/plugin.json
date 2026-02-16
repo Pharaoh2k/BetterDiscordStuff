@@ -2,10 +2,10 @@
   "name": "AudioToolbox",
   "description": "A complete audio toolkit for voice messages and audio attachments - download with instant format conversions (WAV, M4A/AAC), EQ presets, playback speed, basic and A/B looping, queue mode, batch and auto-download, and custom filenames.",
   "author": "Pharaoh2k",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "status": "Active",
   "workingStatus": "Working",
-  "lastUpdated": "2026-02-09",
+  "lastUpdated": "2026-02-16",
   "releaseDate": "2025-01-01",
   "features": [
     "Download voice messages and audio attachments with multiple modes (direct, save-as, browser)",
