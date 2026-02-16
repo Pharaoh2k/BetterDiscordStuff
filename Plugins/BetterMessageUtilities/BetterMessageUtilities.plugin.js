@@ -6,6 +6,7 @@
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterMessageUtilities/BetterMessageUtilities.plugin.js
+ * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/refs/heads/main/Plugins/BetterMessageUtilities/BetterMessageUtilities.plugin.js
  */
 /* BdApi based & BDFDB-free. Inspired by mwittrien / Devilbro's "MessageUtilities" */
 /* ==========================================
