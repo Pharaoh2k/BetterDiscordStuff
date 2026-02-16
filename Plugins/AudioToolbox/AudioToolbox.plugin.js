@@ -1,11 +1,11 @@
 /**
- * @name AudioToolbox (formerly AudioDownloader)
- * @version 2.0.0
+ * @name AudioToolbox
+ * @version 2.0.1
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/AudioToolbox/AudioToolbox.plugin.js
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/AudioToolbox/AudioToolbox.plugin.js
  * @authorId 874825550408089610
- * @description A complete audio toolkit for voice messages and audio attachments - download with instant format conversions (WAV, M4A/AAC), EQ presets, playback speed, basic and A/B looping, queue mode, batch and auto-download, and custom filenames.
+ * @description Formerly AudioDownloader. A complete audio toolkit for voice messages and audio attachments - download with instant format conversions (WAV, M4A/AAC), EQ presets, playback speed, basic and A/B looping, queue mode, batch and auto-download, and custom filenames.
  * @author Pharaoh2k
  */
 /*
