@@ -1,5 +1,8 @@
 # [AudioToolbox](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=AudioToolbox "AudioToolbox") Changelog
 
+### 2.0.1
+- Updated meta name and description
+
 ### 2.0.0
 - Rebranded from AudioDownloader to AudioToolbox
 - Added playback speed control (0.5x, 0.75x, 1x, 1.25x, 1.5x, 2x, 3x)
