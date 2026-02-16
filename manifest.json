@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-01-15",
+  "lastUpdated": "2026-02-17",
   "plugins": [
     {
       "id": "enhanced-channel-tabs",
@@ -14,6 +14,11 @@
     {
       "id": "Better Typing Indicator",
       "name": "BetterTypingIndicator",
+      "enabled": true
+    },
+    {
+      "id": "Show Hidden Things",
+      "name": "ShowHiddenThings",
       "enabled": true
     },
     {
