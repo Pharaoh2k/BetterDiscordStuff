@@ -2,7 +2,7 @@
 
 A comprehensive audio toolkit for Discord voice messages and audio attachments - featuring download capabilities with instant format conversions, EQ presets, playback speed control, advanced looping, queue mode, batch operations, and auto-download.
 
-![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-2.0.1-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Discord](https://img.shields.io/badge/discord-BetterDiscord-7289DA.svg)
 
