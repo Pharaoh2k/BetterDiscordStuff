@@ -1,5 +1,8 @@
 # [BetterPinDMs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterPinDMs "BetterPinDMs") Changelog
 
+### 2.2.2
+- Updated to match Discord changes
+
 ### 2.2.1
 - Additional updates to match Discord changes
 
