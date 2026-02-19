@@ -2,7 +2,7 @@
  * @name BetterPinDMs
  * @author Pharaoh2k
  * @description Enhanced DM pinning with category headers, drag & drop, unread tracking, hotkeys, import/export (from similar plugins too), and smart categories. Pinned DMs are shown in a separate PINNED DMs section above "Direct Messages".
- * @version 2.2.1
+ * @version 2.2.2
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterPinDMs/BetterPinDMs.plugin.js
@@ -1632,7 +1632,7 @@ module.exports = class BetterPinDMs {
 	}
 	_patchGuildDmComponent() {
 		if (this._guildDmPatched) return;
-		const want = ["treeItemProps", "statusIndicatorsEnabled", "isCurrentUserInThisDMCall"];
+		const want = ["treeItemProps", "isCurrentUserInThisDMCall"];
 		const isGuildItem = (v) => {
 			return v && typeof v === "object" && v.$$typeof && typeof v.render === "function";
 		};
@@ -1663,13 +1663,13 @@ module.exports = class BetterPinDMs {
 			this.storeService.emitAllChanges();
 		};
 		const filter = Filters.bySource(...want);
-		const immediateMod = Webpack.getModule(filter, { searchExports: true });
+		const immediateMod = Webpack.getModule(filter);
 		const immediate = pickGuildItem(immediateMod);
 		if (immediate) {
 			patch(immediate);
 			return;
 		}
-		Webpack.waitForModule(filter, { searchExports: true })
+		Webpack.waitForModule(filter)
 			.then((mod) => patch(pickGuildItem(mod)))
 			.catch((err) => {
 				Logger.warn("Failed to locate Guild DM module via Webpack.waitForModule", err);
