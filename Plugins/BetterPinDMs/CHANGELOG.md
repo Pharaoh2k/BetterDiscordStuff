@@ -1,5 +1,20 @@
 # [BetterPinDMs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterPinDMs "BetterPinDMs") Changelog
 
+### 3.0.0
+- Major internal rewrite for better performance and reliability
+- Added multi-account support: each Discord account now keeps its own separate pin configurations
+- Added automatic settings migration from previous versions, your settings carry over seamlessly
+- Added color safety: category colors that are too dark or too light are automatically adjusted for visibility
+- Improved unread counts to show accurate mention counts per category instead of just unread channel markers
+- Improved scrolling: clicking a pinned DM now scrolls to the correct position, properly accounting for category headers
+- Improved configuration import with better format detection, including support for older BetterPinDMs backups
+- Improved pin icon display on the server list with more reliable icon patching
+- Improved settings panel with clearer labels and descriptions
+- Pinned DM list now automatically updates when channels are deleted or closed
+- Plugin is now more crash-resistant: errors in one category won't break the entire DM list
+- Simplified and reduced overall plugin size
+- Shortened internal CSS class names to reduce potential conflicts
+
 ### 2.2.2
 - Updated to match Discord changes
 
