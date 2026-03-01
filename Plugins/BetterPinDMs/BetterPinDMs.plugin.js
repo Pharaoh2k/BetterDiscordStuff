@@ -2,7 +2,7 @@
  * @name BetterPinDMs
  * @author Pharaoh2k
  * @description Enhanced DM pinning with category headers, drag & drop, unread tracking, hotkeys, import/export (from similar plugins too), and smart categories. Pinned DMs are shown in a separate PINNED DMs section above "Direct Messages".
- * @version 2.2.2
+ * @version 3.0.0
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterPinDMs/BetterPinDMs.plugin.js
@@ -17,67 +17,131 @@
 */
 /* BdApi based, BDFDB-free feature-packed plugin. Inspired by mwittrien / Devilbro's "PinDMs" */
 "use strict";
-//#region Configuration
-const CONFIG = {
-	cssId: "betterpindms-style",
-	defaultSettings: {
-		pinIcon: true,
-		guildListPinIcon: true,
-		unreadAmount: true,
-		channelAmount: true,
-		sortChannelListByRecent: false,
-		sortGuildListByRecent: false,
-		enableFriends: false,
-		enableBlocked: false,
-		enableBots: false,
-		enableGroups: false,
-		enableActiveToday: false,
-		enableMuted: false,
-		confirmDragActions: true,
-		collapsedCategories: {},
-		autoUpdate: true,
-		shortcutTogglePinEnabled: true,
-		shortcutTogglePinKeys: ["Ctrl", "P"],
-		shortcutQuickPickerEnabled: true,
-		shortcutQuickPickerKeys: ["Ctrl", "Shift", "P"],
-		shortcutJumpCategoryEnabled: true,
-		shortcutJumpCategoryKeys: ["Ctrl"]
-	},
-};
-const GITHUB_REPO = "Pharaoh2k/BetterDiscordStuff";
-const CHANNEL_TYPES = {
-	DM: 1,
-	GROUP_DM: 3
-};
-const CATEGORY_KEYS = ["friends", "blocked", "bots", "groups", "muted", "activeToday"];
-const CATEGORY_META = {
-	friends: { name: "FRIENDS", color: "#43b581" },
-	blocked: { name: "BLOCKED", color: "#f04747" },
-	bots: { name: "Bots", color: "#7289da" },
-	groups: { name: "GROUPS", color: "#faa61a" },
-	activeToday: { name: "Active Today", color: "#1abc9c" },
-	muted: { name: "Muted", color: "#95a5a6" }
-};
-const DEFAULT_COLOR = "#5865F2";
-const DEFAULT_COLOR_RGBA = [88, 101, 242, 1];
-const DEFAULT_CATEGORY_PREFIX = "Pinned DMs #";
-const DRAG_CLASSES = ["betterpindms-drop-target-top", "betterpindms-drop-target-bottom", "betterpindms-drop-target-center"];
-//#endregion Configuration
-//#region Utility Helpers
-const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
-const getEnableKey = (key) => `enable${capitalize(key)}`;
-const removeDragClasses = (el) => el?.classList?.remove(...DRAG_CLASSES);
-const filterStringArray = (arr) => Array.isArray(arr) ? arr.filter(x => typeof x === "string") : [];
-//#endregion Utility Helpers
-//#region BdApi destructuring & Utils helpers
-const { React, ReactDOM, UI, DOM, Data, Patcher, Webpack, Logger, ContextMenu, Utils, Hooks, Net, Plugins, Components, ReactUtils } = new BdApi("BetterPinDMs");
+//#region BdApi & Constants
+const { Webpack, UI, Patcher, React, ReactDOM, Data, ContextMenu, ReactUtils, Utils, Logger, DOM, Components, Hooks, Net, Plugins } = new BdApi("BetterPinDMs");
 const { Filters } = Webpack;
-const { className, findInTree } = Utils;
-//#endregion BdApi destructuring
+const ce = React.createElement;
+const DEFAULT_COLOR = "#5865F2";
+const DEFAULT_CATEGORY_PREFIX = "Pinned DMs #";
+const CHANNEL_TYPES = { DM: 1, GROUP_DM: 3 };
+const ChevronDown = Webpack.getByStrings("M5.3 9.3a1 1 0 0 1 1.4 0l5.3 5.29", { searchExports: true });
+const PinSvg = () => ce("svg", { viewBox: "0 0 24 24", width: 14, height: 14 },
+  ce("path", { fill: "currentColor", d: "M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" })
+);
+//#endregion BdApi & Constants
+const GITHUB_REPO = "Pharaoh2k/BetterDiscordStuff";
+const STORE_NAMES = ["ChannelStore", "UserStore", "RelationshipStore", "ReadStateStore", "PrivateChannelSortStore", "SelectedChannelStore", "PrivateChannelReadStateStore", "UserGuildSettingsStore"];
+//#region CSS
+const CSS = String.raw`
+.bpindms-header { display: flex; cursor: pointer; align-items: center; padding: 0 10px; height: 40px; box-sizing: border-box; }
+.bpindms-header:hover { background-color: var(--background-mod-subtle); }
+.bpindms-header-pin { font-size: 12px; line-height: 1; margin-right: 4px; flex: 0 0 auto; }
+.bpindms-header-text { line-height: 16px; margin-right: 6px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--channels-default); }
+.bpindms-badge { position: relative; top: -1px; margin-right: 6px; min-width: 16px; height: 16px; border-radius: 8px; font-size: 12px; font-weight: 600; line-height: 16px; text-align: center; padding: 0 4px; box-sizing: border-box; background-color: var(--background-accent); color: var(--text-default); }
+.bpindms-badge-unread { background-color: var(--status-danger); color: white; }
+.bpindms-arrow { display: flex; align-items: center; justify-content: center; flex: 0 0 16px; width: 16px; height: 16px; margin-right: 2px; transition: transform 0.15s; color: var(--channels-default); }
+.bpindms-header-collapsed .bpindms-arrow { transform: rotate(-90deg); }
+.bpindms-dm-wrapper { position: relative; }
+.bpindms-dm-wrapper:hover > .bpindms-unpin { display: flex; }
+.bpindms-unpin { display: none; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; opacity: .7; cursor: pointer; z-index: 2; color: var(--interactive-icon-default); background: none; border: none; padding: 0; line-height: 0; align-items: center; justify-content: center; }
+.bpindms-unpin:hover { opacity: 1; color: var(--interactive-icon-hover); }
+.bpindms-unpin svg { display: block; width: 16px; height: 16px; }
+.bpindms-drop-target-top { position: relative; }
+.bpindms-drop-target-top::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; background-color: var(--background-brand, #5865F2); z-index: 1000; pointer-events: none; }
+.bpindms-drop-target-bottom { position: relative; }
+.bpindms-drop-target-bottom::after { content: ""; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background-color: var(--background-brand, #5865F2); z-index: 1000; pointer-events: none; }
+.bpindms-drop-target-center { position: relative; }
+.bpindms-drop-target-center::after { content: ""; position: absolute; inset: 0; background-color: rgba(88, 101, 242, 0.25); border: 2px solid var(--background-brand, #5865F2); border-radius: 4px; pointer-events: none; z-index: 1000; }
+.bpindms-action-btn { margin: 16px 16px 0; padding: 8px 16px; background: var(--background-mod-subtle); color: var(--text-default); border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 500; display: block; width: calc(100% - 32px); }
+.bpindms-action-btn:hover { background: var(--background-mod-strong); }
+.bpindms-unpin-all { margin: 16px; padding: 8px 16px; background: var(--status-danger); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 500; display: block; width: calc(100% - 32px); }
+.bpindms-unpin-all:hover { filter: brightness(1.1); }
+.bpindms-custom-categories { padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+.bpindms-custom-categories-header { font-size: 14px; font-weight: 600; color: var(--text-default); margin-bottom: 4px; }
+.bpindms-custom-categories-hint { color: var(--text-muted); font-size: 12px; opacity: 0.7; margin-bottom: 8px; }
+.bpindms-custom-categories-addbtn { padding: 8px 12px; cursor: pointer; background-color: var(--background-mod-subtle); color: var(--text-default); border: none; border-radius: 4px; margin-top: 8px; }
+.bpindms-custom-categories-addbtn:hover { background-color: var(--background-mod-strong); }
+.bpindms-category-row { display: flex; align-items: center; gap: 8px; padding: 8px; background-color: var(--background-mod-subtle); border-radius: 4px; }
+.bpindms-category-color-input { width: 32px; height: 32px; cursor: pointer; border: none; border-radius: 4px; background: transparent; flex: 0 0 32px; }
+.bpindms-category-name-input { flex: 1; padding: 6px 8px; background-color: var(--input-background-default); color: var(--text-default); border: 1px solid var(--input-background-default); border-radius: 4px; font-size: 14px; }
+.bpindms-category-movebtn { padding: 4px 8px; cursor: pointer; border-radius: 3px; border: none; background: var(--background-mod-subtle); color: var(--text-default); }
+.bpindms-category-movebtn:disabled { cursor: not-allowed; opacity: 0.5; }
+.bpindms-category-deletebtn { padding: 4px 8px; border: none; border-radius: 3px; color: var(--status-danger); background: transparent; cursor: pointer; }
+.bpindms-category-deletebtn:hover { background-color: var(--background-mod-subtle); }
+.bpindms-shortcuts-ref { padding: 16px; margin-top: 8px; }
+.bpindms-shortcuts-ref-header { font-size: 14px; font-weight: 600; color: var(--text-default); margin-bottom: 8px; }
+.bpindms-shortcuts-ref-list { color: var(--text-muted); display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.bpindms-kbd { background: var(--background-mod-subtle); padding: 2px 6px; border-radius: 3px; font-family: monospace; font-size: 11px; margin-right: 4px; }
+.bpindms-input-field { width: 100%; padding: 8px; background-color: var(--input-background-default); color: var(--text-default); border: 1px solid var(--input-background-default); border-radius: 4px; margin-top: 8px; font-size: 14px; }
+`;
+//#endregion CSS
+//#region Utility Helpers
+const DRAG_CLASSES = ["bpindms-drop-target-top", "bpindms-drop-target-bottom", "bpindms-drop-target-center"];
+const removeDragClasses = (el) => {
+  if (el) for (const c of DRAG_CLASSES) el.classList.remove(c);
+};
+const _isUnsafeKey = (key) => {
+  return key === "__proto__" || key === "prototype" || key === "constructor";
+};
+const safeClone = (obj) => {
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (!_isUnsafeKey(k)) out[k] = v;
+  }
+  return out;
+};
+const arrRemove = (arr, item) => {
+  const i = arr.indexOf(item);
+  if (i > -1) arr.splice(i, 1);
+};
+const colorToStyle = (color) => {
+  return color ? { color } : {};
+};
+const clampColor = (hex) => {
+  if (!hex) return hex;
+  const m = hex.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+  if (!m) return hex;
+  const [r, g, b] = [Number.parseInt(m[1], 16), Number.parseInt(m[2], 16), Number.parseInt(m[3], 16)];
+  if (!(r < 30 && g < 30 && b < 30) && !(r > 225 && g > 225 && b > 225)) return hex;
+  const rf = r / 255, gf = g / 255, bf = b / 255;
+  const cmax = Math.max(rf, gf, bf), cmin = Math.min(rf, gf, bf);
+  let h = 0, s = 0, l = (cmax + cmin) / 2;
+  if (cmax !== cmin) {
+    const d = cmax - cmin;
+    s = l > 0.5 ? d / (2 - cmax - cmin) : d / (cmax + cmin);
+    if (cmax === rf) h = ((gf - bf) / d + (gf < bf ? 6 : 0)) / 6;
+    else if (cmax === gf) h = ((bf - rf) / d + 2) / 6;
+    else h = ((rf - gf) / d + 4) / 6;
+  }
+  l = r < 30 ? Math.max(l + 0.12, 0.12) : Math.min(l - 0.12, 0.88);
+  const hue2rgb = (p, q, t) => {
+    if (t < 0) { t++; }
+    if (t > 1) { t--; }
+    if (t < 1/6) { return p + (q - p) * 6 * t; }
+    if (t < 1/2) { return q; }
+    if (t < 2/3) { return p + (q - p) * (2/3 - t) * 6; }
+    return p;
+  };
+  const q2 = l < 0.5 ? l * (1 + s) : l + s - l * s, p2 = 2 * l - q2;
+  const ro = s === 0 ? l : hue2rgb(p2, q2, h + 1/3);
+  const go = s === 0 ? l : hue2rgb(p2, q2, h);
+  const bo = s === 0 ? l : hue2rgb(p2, q2, h - 1/3);
+  return "#" + [ro, go, bo].map(c => Math.min(255, Math.max(0, Math.round(c * 255))).toString(16).padStart(2, "0")).join("");
+};
+const suppress = (fn, fallback = null) => {
+  return function (...args) {
+    try { return fn.apply(this, args); }
+    catch (e) {
+      Logger.error(fn.name || "anon", e);
+      return typeof fallback === "function" ? fallback(...args) : fallback;
+    }
+  };
+};
+//#endregion Utility Helpers
 //#region Update Manager
 class UpdateManager {
 	/* using Net, UI, Logger, Data, Plugins, Utils from BdApi */
-	constructor(pluginName, version, github = CONFIG.github) {
+	constructor(pluginName, version, github = GITHUB_REPO) {
 		this.name = pluginName;
 		this.version = version;
 		const [user, repo] = github.split('/');
@@ -271,2249 +335,1778 @@ class UpdateManager {
 	}
 }
 //#endregion Update Manager
-//#region Discord Store Service
-class DiscordStoreService {
-	constructor() {
-		this.stores = {};
-		this._initialized = false;
-	}
-	init() {
-		if (!this._initialized) {
-			const storeNames = [
-				"ChannelStore",
-				"UserStore",
-				"RelationshipStore",
-				"PrivateChannelSortStore",
-				"ReadStateStore",
-				"SelectedChannelStore",
-				"UserSettingsProtoStore",
-				"PrivateChannelReadStateStore",
-				"UserGuildSettingsStore"
-			];
-			for (const name of storeNames) {
-				this.stores[name] = Webpack.Stores[name];
-				if (!this.stores[name]) {
-					Logger.warn(`Store not found: ${name}`);
-				}
-			}
-			this._initialized = true;
-		}
-		return true;
-	}
-	getChannel(id) {
-		return this._getFromStore("ChannelStore", "getChannel", id);
-	}
-	getUser(id) {
-		return this._getFromStore("UserStore", "getUser", id);
-	}
-	getCurrentUserId() {
-		return this.stores.UserStore?.getCurrentUser()?.id ?? null;
-	}
-	isFriend(userId) {
-		return this._getFromStore("RelationshipStore", "isFriend", userId);
-	}
-	isBlocked(userId) {
-		return this._getFromStore("RelationshipStore", "isBlocked", userId);
-	}
-	getSelectedChannelId() {
-		return this._getFromStore("SelectedChannelStore", "getChannelId");
-	}
-	getLastMessageId(channelId) {
-		const store = this.stores.ReadStateStore;
-		if (!store) return null;
-		if (typeof store.lastMessageId === "function") return store.lastMessageId(channelId);
-		if (typeof store.getLastMessageId === "function") return store.getLastMessageId(channelId);
-		return null;
-	}
-	getMentionCount(channelId) {
-		return this._getFromStore("ReadStateStore", "getMentionCount", channelId) || 0;
-	}
-	getPrivateChannelIds() {
-		return this._getFromStore("PrivateChannelSortStore", "getPrivateChannelIds") || [];
-	}
-	getUnreadPrivateChannelIds() {
-		return this._getFromStore("PrivateChannelReadStateStore", "getUnreadPrivateChannelIds") || [];
-	}
-	isChannelMuted(channelId) {
-		if (!channelId) return false;
-		const guildSettings = this.stores.UserGuildSettingsStore;
-		const channelStore = this.stores.ChannelStore;
-		if (!guildSettings || !channelStore) return false;
-		const channel = channelStore.getChannel(channelId);
-		const guildId = channel?.guild_id ?? null;
-		const fn = guildSettings.isChannelMuted;
-		if (typeof fn !== "function") return false;
-		if (fn.length >= 2) {
-			return !!fn.call(guildSettings, guildId, channelId);
-		} else {
-			return !!fn.call(guildSettings, channelId);
-		}
-	}
-	_emitStoreChange(storeName) {
-		const store = this.stores[storeName];
-		if (store?.emitChange) {
-			store.emitChange();
-		}
-	}
-	emitPrivateChannelSortChange() {
-		this._emitStoreChange("PrivateChannelSortStore");
-	}
-	emitPrivateChannelReadStateChange() {
-		this._emitStoreChange("PrivateChannelReadStateStore");
-	}
-	emitAllChanges() {
-		this.emitPrivateChannelReadStateChange();
-		this.emitPrivateChannelSortChange();
-	}
-	getRawStore(name) {
-		return this.stores[name];
-	}
-	_getFromStore(storeName, methodName, ...args) {
-		try {
-			const store = this.stores[storeName];
-			if (!store || typeof store[methodName] !== "function") {
-				return null;
-			}
-			return store[methodName](...args);
-		} catch (err) {
-			Logger.warn(`Store call failed: ${storeName}.${methodName}`, err);
-			return null;
-		}
-	}
-}
-//#endregion Discord Store Service
-const ChevronDown = Webpack.getByStrings("M5.3 9.3a1 1 0 0 1 1.4 0l5.3 5.29", {searchExports: true});
-//#region UI Manager
-class UIManager {
-	constructor(plugin) {
-		this.plugin = plugin;
-		this.headerRoots = new Map();
-		this.ColorInput = Components.ColorInput;
-	}
-	renderSettingsPanel() {
-		const panel = document.createElement("div");
-		const root = ReactDOM.createRoot(panel);
-		panel._betterpindmsRoot = root;
-		root.render(React.createElement(this.SettingsPanelComponent));
-		return panel;
-	}
-	SettingsPanelComponent = () => {
-		const settings = Hooks.useData("settings") ?? this.plugin.settings;
-		const settingsSchema = [
-			{
-				type: "category",
-				id: "general",
-				name: "General",
-				collapsible: true,
-				shown: true,
-				settings: [
-					{ type: "switch", id: "pinIcon", name: "Show pin icons on pins categories", value: settings.pinIcon },
-					{ type: "switch", id: "guildListPinIcon", name: "Show pin icons on server list DMs", value: settings.guildListPinIcon },
-					{ type: "switch", id: "unreadAmount", name: "Show unread count per category", value: settings.unreadAmount },
-					{ type: "switch", id: "channelAmount", name: "Show DM count per category", value: settings.channelAmount },
-					{ type: "switch", id: "confirmDragActions", name: "Ask confirmation for drag & drop changes", value: settings.confirmDragActions }
-				]
-			},
-			{
-				type: "category",
-				id: "sorting",
-				name: "Sort by Recent Message",
-				collapsible: true,
-				shown: false,
-				settings: [
-					{ type: "switch", id: "sortChannelListByRecent", name: "DM list", value: settings.sortChannelListByRecent },
-					{ type: "switch", id: "sortGuildListByRecent", name: "Server-list Recents", value: settings.sortGuildListByRecent }
-				]
-			},
-			{
-				type: "category",
-				id: "shortcuts",
-				name: "Keyboard Shortcuts",
-				collapsible: true,
-				shown: false,
-				settings: [
-					{ type: "switch", id: "shortcutTogglePinEnabled", name: "Toggle pin / unpin current DM", value: settings.shortcutTogglePinEnabled },
-					{
-						type: "keybind",
-						id: "shortcutTogglePinKeys",
-						name: "Shortcut",
-						note: "Click and press the combo (e.g. Ctrl+P). Clear to leave unassigned.",
-						value: settings.shortcutTogglePinKeys,
-						clearable: true
-					},
-					{ type: "switch", id: "shortcutQuickPickerEnabled", name: "Open quick category picker", value: settings.shortcutQuickPickerEnabled },
-					{
-						type: "keybind",
-						id: "shortcutQuickPickerKeys",
-						name: "Shortcut",
-						note: "Click and press the combo (e.g. Ctrl+Shift+P). Clear to leave unassigned.",
-						value: settings.shortcutQuickPickerKeys,
-						clearable: true
-					},
-					{ type: "switch", id: "shortcutJumpCategoryEnabled", name: "Jump to category 1\u20139", value: settings.shortcutJumpCategoryEnabled },
-					{
-						type: "keybind",
-						id: "shortcutJumpCategoryKeys",
-						name: "Prefix keys",
-						note: "These modifiers will be combined with number keys 1\u20139 (e.g. Ctrl \u2192 Ctrl+1, Ctrl+2, \u2026).",
-						value: settings.shortcutJumpCategoryKeys,
-						clearable: true
-					}
-				]
-			},
-			{
-				type: "category",
-				id: "predefined",
-				name: "Predefined Categories",
-				collapsible: true,
-				shown: false,
-				settings: CATEGORY_KEYS.slice(0, 4).map(key => ({
-					type: "switch",
-					id: getEnableKey(key),
-					name: CATEGORY_META[key].name,
-					value: settings[getEnableKey(key)]
-				}))
-			},
-			{
-				type: "category",
-				id: "smart",
-				name: "Smart Categories",
-				collapsible: true,
-				shown: false,
-				settings: CATEGORY_KEYS.slice(4).map(key => ({
-					type: "switch",
-					id: getEnableKey(key),
-					name: CATEGORY_META[key].name,
-					value: settings[getEnableKey(key)]
-				}))
-			},
-			{
-				type: "category",
-				id: "updates",
-				name: "Updates",
-				collapsible: true,
-				shown: false,
-				settings: [
-					{
-						type: "switch",
-						id: "autoUpdate",
-						name: "Automatic Updates",
-						note: "Check for updates every 24 hours and on Discord startup",
-						value: settings.autoUpdate
-					},
-					{ type: "button", id: "checkUpdate", name: "Check for Updates", note: "Manually check for plugin updates", children: "Check Now", onClick: () => this.plugin.updateManager.check() },
-					{ type: "button", id: "viewChangelog", name: "View Changelog", note: "View all version changes", children: "View Changelog", onClick: () => this.plugin.updateManager.showFullChangelog() }
-				]
-			}
-		];
-		return React.createElement("div", {}, [
-			React.createElement(React.Fragment, { key: "settings" },
-				UI.buildSettingsPanel({
-					settings: settingsSchema,
-					onChange: (_category, id, value) => this.plugin.updateSetting(id, value)
-				})
-			),
-			React.createElement(this.CustomCategoriesSection, { key: "custom" }),
-			React.createElement(this.ActionsSection, { key: "actions" })
-		]);
-	}
-	CustomCategoriesSection = () => {
-		const categoriesData = Hooks.useStateFromStores([this.plugin.categoryStore], () => {
-			return {...this.plugin.categories, custom: {...this.plugin.categories?.custom}};
-		});
-		const categories = Object.values(categoriesData?.custom ?? {}).sort((a, b) => (a.pos || 0) - (b.pos || 0));
-		return React.createElement(
-			"div",
-			{ className: "betterpindms-customcategories" },
-			[
-				React.createElement("div", { key: "header", className: "betterpindms-customcategories-header" }, "Custom Categories"),
-				React.createElement("div", { key: "hint", className: "betterpindms-customcategories-hint" }, "Use arrows to reorder. Click \u2715 to delete."),
-				...categories.map((cat, i) => this._createCategoryRow(cat, i, categories.length)),
-				React.createElement(
-					"button",
-					{
-						key: "add",
-						onClick: () => this.plugin.createCategory({ name: `${DEFAULT_CATEGORY_PREFIX}${categories.length + 1}`, color: DEFAULT_COLOR }),
-						className: "betterpindms-customcategories-addbtn"
-					},
-					"Add Category"
-				)
-			]
-		);
-	}
-	_createCategoryRow(cat, index, total) {
-		return React.createElement(
-			"div",
-			{ key: cat.id, className: "betterpindms-category-row" },
-			[
-				React.createElement("input", {
-					key: "color",
-					type: "color",
-					value: cat.color,
-					onChange: (e) => this.plugin.updateCategory(cat.id, { color: e.target.value }),
-					className: "betterpindms-category-color-input"
-				}),
-				React.createElement("input", {
-					key: "name",
-					type: "text",
-					value: cat.name,
-					onChange: (e) => this.plugin.updateCategory(cat.id, { name: e.target.value }),
-					className: "betterpindms-category-name-input"
-				}),
-				React.createElement(
-					"button",
-					{
-						key: "up",
-						onClick: () => this.plugin.moveCategory(cat.id, "up"),
-						disabled: index === 0,
-						className: "betterpindms-category-movebtn betterpindms-category-movebtn-up"
-					},
-					"\u2191"
-				),
-				React.createElement(
-					"button",
-					{
-						key: "down",
-						onClick: () => this.plugin.moveCategory(cat.id, "down"),
-						disabled: index === total - 1,
-						className: "betterpindms-category-movebtn betterpindms-category-movebtn-down"
-					},
-					"\u2193"
-				),
-				React.createElement(
-					"button",
-					{
-						key: "delete",
-						onClick: () => {
-							UI.showConfirmationModal("Delete Category", `Delete "${cat.name}"?`, {
-								confirmText: "Delete",
-								danger: true,
-								onConfirm: () => this.plugin.deleteCategory(cat.id)
-							});
-						},
-						className: "betterpindms-category-deletebtn"
-					},
-					"\u2715"
-				)
-			]
-		);
-	}
-	ActionsSection = () => {
-		return React.createElement(
-			"div",
-			{ className: "betterpindms-actions" },
-			[
-				React.createElement("div", { key: "header", className: "betterpindms-actions-header" }, "Backup & Actions"),
-				React.createElement("button", { key: "export", onClick: () => this.plugin.exportConfig(), className: "betterpindms-actions-button" }, "Export Configuration"),
-				React.createElement("button", { key: "import", onClick: () => this.plugin.importConfig(), className: "betterpindms-actions-button" }, "Import Configuration"),
-				React.createElement(
-					"button",
-					{
-						key: "unpin",
-						onClick: () => {
-							UI.showConfirmationModal("Unpin all DMs", "Remove all custom categories and server-list pins?", {
-								confirmText: "Unpin All",
-								danger: true,
-								onConfirm: () => {
-									this.plugin.categories = { custom: Object.create(null) };
-									this.plugin.saveCategories();
-									this.plugin.pins = { channelList: [], guildList: [] };
-									this.plugin.savePins();
-									this.plugin.forceUpdate({ immediate: true, dmList: true });
-									UI.showToast("All pins removed", { type: "success" });
-								}
-							});
-						},
-						className: "betterpindms-actions-button betterpindms-actions-button-danger"
-					},
-					"Unpin All"
-				),
-				React.createElement(
-					"div",
-					{ key: "shortcuts", className: "betterpindms-shortcuts" },
-					[
-						React.createElement("div", { key: "shortcuts-header", className: "betterpindms-shortcuts-header" }, "Keyboard Shortcuts"),
-						React.createElement(
-							"div",
-							{ key: "shortcuts-list", className: "betterpindms-shortcuts-list" },
-							[
-								React.createElement("div", { key: "s1" },
-									React.createElement("kbd", { className: "betterpindms-shortcuts-kbd" }, "Ctrl+P"),
-									" Pin/unpin current DM (default, configurable in settings)"
-								),
-								React.createElement("div", { key: "s2" },
-									React.createElement("kbd", { className: "betterpindms-shortcuts-kbd" }, "Ctrl+Shift+P"),
-									" Quick category picker (default, configurable in settings)"
-								),
-								React.createElement("div", { key: "s3" },
-									React.createElement("kbd", { className: "betterpindms-shortcuts-kbd" }, "Ctrl+1-9"),
-									" Jump to category (prefix configurable in settings)"
-								)
-							]
-						)
-					]
-				)
-			]
-		);
-	}
-	renderCategoryHeader(container, category, callbacks = {}) {
-		let root = this.headerRoots.get(container);
-		if (!root) {
-			root = ReactDOM.createRoot(container);
-			this.headerRoots.set(container, root);
-		}
-		root.render(
-			React.createElement(
-				this.CategoryHeaderComponent,
-				{ category, callbacks }
-			)
-		);
-		return root;
-	}
-	removeHeader(container) {
-		const root = this.headerRoots.get(container);
-		if (root) {
-			try {
-				root.unmount();
-			} catch (err) {
-				Logger.warn("Failed to unmount header:", err);
-			}
-			this.headerRoots.delete(container);
-		}
-		container.remove();
-	}
-	renderVirtualReactHeader(category) {
-		const callbacks = {
-			onToggleCollapse: (id) => this.plugin.toggleCategoryCollapse(id),
-			onContextMenu: (e, cat) => this.plugin._showCategoryContextMenu ? this.plugin._showCategoryContextMenu(e, cat) : null
-		};
-		return React.createElement(this.CategoryHeaderComponent, { category, callbacks });
-	}
-	CategoryHeaderComponent = ({ category, callbacks }) => {
-		const readStore = this.plugin.storeService.getRawStore("PrivateChannelReadStateStore");
-		const unreadIds = Hooks.useStateFromStores(
-			readStore ? [readStore] : [],
-			() => this.plugin._originalUnreadIds?.() ?? this.plugin.storeService.getUnreadPrivateChannelIds() ?? []
-		);
-		const unreadSet = React.useMemo(() => new Set(Array.isArray(unreadIds) ? unreadIds : []), [unreadIds]);
-		const unreadCount = this._getUnreadCount(category.dms, unreadSet);
-		const showUnread = this.plugin.settings.unreadAmount && unreadCount > 0;
-		const showCount = this.plugin.settings.channelAmount;
-		const onClick = (e) => {
-			e.preventDefault();
-			e.stopPropagation();
-			callbacks.onToggleCollapse?.(category.id);
-		};
-		const onContextMenu = (e) => {
-			e.preventDefault();
-			e.stopPropagation();
-			callbacks.onContextMenu?.(e, category);
-		};
-		const headerClasses = "betterpindms-category-header-inner";
-		const arrowClasses = className(
-			"betterpindms-category-arrow",
-			category.collapsed ? "betterpindms-category-arrow-collapsed" : "betterpindms-category-arrow-expanded"
-		);
-		return React.createElement(
-			"div",
-			{ className: headerClasses, onClick, onContextMenu },
-			[
-				...(this.plugin.settings.pinIcon && !category.predefined ? [
-					React.createElement("span", { key: "pin", className: "betterpindms-category-pin" }, "\u{1F4CC}")
-				] : []),
-				React.createElement(
-					"span",
-					{ key: "name", className: "betterpindms-category-name", style: { color: category.color || "var(--mobile-text-heading-primary)" } },
-					category.name
-				),
-				...(showUnread ? [
-					React.createElement("span", { key: "unread", className: "betterpindms-category-unread" }, String(unreadCount))
-				] : []),
-				...(showCount ? [
-					React.createElement("span", { key: "count", className: "betterpindms-category-count" }, String(category.dms.length))
-				] : []),
-				React.createElement(
-					"div",
-					{ key: "arrow", className: arrowClasses },
-					React.createElement(ChevronDown, { size: "sm" })
-				)
-			]
-		);
-	}
-	_getUnreadCount(dms, unreadSet) {
-		if (!Array.isArray(dms) || !unreadSet) return 0;
-		let count = 0;
-		for (const id of dms) if (unreadSet.has(id)) count++;
-		return count;
-	}
-	removeAllCategoryHeaders() {
-		for (const root of this.headerRoots.values()) {
-			try {
-				root.unmount();
-			} catch (err) {
-				Logger.warn("Failed to unmount header:", err);
-			}
-		}
-		this.headerRoots.clear();
-		const headers = document.querySelectorAll(".betterpindms-category-header");
-		for (const el of headers) {
-			el.remove();
-		}
-	}
-	_EditorComponent = ({ initialName, initialColor, valuesRef }) => {
-		const [name, setName] = React.useState(initialName);
-		const [color, setColor] = React.useState(initialColor);
-		return React.createElement(
-			"div",
-			{ className: "betterpindms-modal-editor" },
-			[
-				this._createModalInputSection("Category Name", name, setName, (val) => { valuesRef.current.name = val; }),
-				this._createModalColorSection(color, setColor, (val) => { valuesRef.current.color = val; })
-			]
-		);
-	};
-	_showCategoryModal(title, confirmText, initialName, initialColor, callback) {
-		const valuesRef = { current: { name: initialName, color: initialColor || DEFAULT_COLOR } };
-		UI.showConfirmationModal(
-			title,
-			React.createElement(this._EditorComponent, { initialName, initialColor: initialColor || DEFAULT_COLOR, valuesRef }),
-			{
-				confirmText,
-				cancelText: "Cancel",
-				onConfirm: () => {
-					if (valuesRef.current.name) callback(valuesRef.current.name, valuesRef.current.color);
-				}
-			}
-		);
-	}
-	showCategoryCreateModal(defaultName, callback) {
-		this._showCategoryModal("Create Category", "Create", defaultName || "", DEFAULT_COLOR, callback);
-	}
-	showCategoryEditModal(category, callback) {
-		this._showCategoryModal("Edit Category", "Save", category.name, category.color || DEFAULT_COLOR, callback);
-	}
-	_PickerComponent = ({ categories, selectionRef }) => {
-		const [val, setVal] = React.useState("");
-		const names = React.useMemo(() => categories.map((c, i) => `${i + 1}. ${c.name}`).join("\n"), [categories]);
-		return React.createElement("div", {}, [
-			React.createElement("div", { key: "label", className: "betterpindms-quickpicker-label" }, "Select category by number:"),
-			React.createElement("div", { key: "list", className: "betterpindms-quickpicker-list" }, names),
-			React.createElement("input", {
-				key: "input",
-				type: "number",
-				min: 1,
-				max: categories.length,
-				value: val,
-				onChange: (e) => {
-					setVal(e.target.value);
-					selectionRef.current = e.target.value;
-				},
-				className: "betterpindms-input-modal-field",
-				autoFocus: true
-			})
-		]);
-	};
-	showQuickCategoryPicker(categories, callback) {
-		if (!categories.length) return;
-		const selectionRef = { current: "" };
-		UI.showConfirmationModal(
-			"Quick Category Picker",
-			React.createElement(this._PickerComponent, { categories, selectionRef }),
-			{
-				confirmText: "Go",
-				cancelText: "Cancel",
-				onConfirm: () => {
-					const index = Number.parseInt(selectionRef.current, 10) - 1;
-					if (index >= 0 && index < categories.length) {
-						callback(categories[index]);
-					}
-				}
-			}
-		);
-	}
-	_createModalInputSection(label, value, setValue, onChange) {
-		return React.createElement(
-			"div",
-			{ key: "name-section", className: "betterpindms-modal-section" },
-			[
-				React.createElement(
-					"label",
-					{
-						key: "name-label",
-						className: "betterpindms-modal-label"
-					},
-					label
-				),
-				React.createElement("input", {
-					key: "name-input",
-					type: "text",
-					value: value,
-					placeholder: "My Category",
-					onChange: (e) => {
-						setValue(e.target.value);
-						onChange(e.target.value);
-					},
-					autoFocus: true,
-					className: "betterpindms-modal-input"
-				})
-			]
-		);
-	}
-	_createModalColorSection(color, setColor, onChange) {
-		const ColorInput = this.ColorInput;
-		const handleChange = (newValue) => {
-			let hex;
-			if (typeof newValue === "number") {
-				hex = "#" + newValue.toString(16).padStart(6, "0");
-			} else if (typeof newValue === "string") {
-				hex = newValue.startsWith("#") ? newValue : `#${newValue}`;
-			} else {
-				return;
-			}
-			setColor(hex);
-			onChange(hex);
-		};
-		if (!ColorInput) {
-			return React.createElement(
-				"div",
-				{ key: "color-section", className: "betterpindms-modal-section" },
-				[
-					React.createElement(
-						"label",
-						{
-							key: "color-label",
-							className: "betterpindms-modal-label"
-						},
-						"Category Color"
-					),
-					React.createElement("input", {
-						key: "color-custom",
-						type: "color",
-						value: color,
-						onChange: (e) => handleChange(e.target.value),
-						className: "betterpindms-modal-color-picker"
-					})
-				]
-			);
-		}
-		return React.createElement(
-			"div",
-			{ key: "color-section", className: "betterpindms-modal-section" },
-			[
-				React.createElement(
-					"label",
-					{
-						key: "color-label",
-						className: "betterpindms-modal-label"
-					},
-					"Category Color"
-				),
-				React.createElement(ColorInput, {
-					key: "color-input",
-					value: typeof color === "string"
-						? Number.parseInt(color.replace("#", "") || "5865F2", 16)
-						: color,
-					disabled: false,
-					onChange: handleChange
-				})
-			]
-		);
-	}
-}
-//#endregion UI Manager
-//#region Shortcut Manager
-class ShortcutManager {
-	constructor(plugin) {
-		this.plugin = plugin;
-		this.keyboardHandler = null;
-		this._running = false;
-	}
-	start() {
-		if (this._running) return;
-		this._running = true;
-		this.keyboardHandler = this._handleKeyboardShortcut.bind(this);
-		document.addEventListener("keydown", this.keyboardHandler);
-	}
-	stop() {
-		if (!this._running) return;
-		this._running = false;
-		if (this.keyboardHandler) {
-			document.removeEventListener("keydown", this.keyboardHandler);
-			this.keyboardHandler = null;
-		}
-	}
-	_handleKeyboardShortcut(e) {
-		if (!this._running) return;
-		if (e.repeat) return;
-		const target = e.target;
-		if (target instanceof HTMLElement && (
-			target.tagName === "INPUT" ||
-			target.tagName === "TEXTAREA" ||
-			target.isContentEditable ||
-			target.getAttribute("role") === "textbox"
-		)) {
-			return;
-		}
-		const shortcuts = this.plugin._getShortcutConfig();
-		const parseBinding = (binding) => {
-			if (!binding || !Array.isArray(binding.keys) || !binding.keys.length) return null;
-			const mods = { ctrl: false, shift: false, alt: false, meta: false };
-			let mainKey = null;
-			for (const raw of binding.keys) {
-				const lower = String(raw).toLowerCase();
-				if (lower === "ctrl" || lower === "control") mods.ctrl = true;
-				else if (lower === "shift") mods.shift = true;
-				else if (lower === "alt" || lower === "option") mods.alt = true;
-				else if (lower === "meta" || lower === "cmd" || lower === "command" || lower === "win") mods.meta = true;
-				else mainKey = lower;
-			}
-			return { mods, mainKey };
-		};
-		const modifiersMatch = (mods, evt) => (
-			!!mods.ctrl === !!evt.ctrlKey &&
-			!!mods.shift === !!evt.shiftKey &&
-			!!mods.alt === !!evt.altKey &&
-			!!mods.meta === !!evt.metaKey
-		);
-		const handleSimpleShortcut = (binding, callback) => {
-			if (!binding.enabled) return false;
-			const parsed = parseBinding(binding);
-			if (!parsed) return false;
-			if (!parsed.mainKey) return false;
-			if (!modifiersMatch(parsed.mods, e)) return false;
-			const key = String(e.key || "").toLowerCase();
-			if (key !== parsed.mainKey) return false;
-			e.preventDefault();
-			callback();
-			return true;
-		};
-		if (handleSimpleShortcut(shortcuts.togglePin, () => plugin.toggleCurrentDmPin())) {
-			return;
-		}
-		if (handleSimpleShortcut(shortcuts.quickPicker, () => plugin.showQuickCategoryPicker())) {
-			return;
-		}
-		const jump = shortcuts.jumpCategory;
-		if (jump.enabled) {
-			const parsed = parseBinding(jump);
-			if (parsed && modifiersMatch(parsed.mods, e)) {
-				const key = String(e.key || "");
-				if (key >= "1" && key <= "9") {
-					e.preventDefault();
-					const index = Number.parseInt(key, 10) - 1;
-					plugin.jumpToCategory(index);
-				}
-			}
-		}
-	}
-}
-//#endregion Shortcut Manager
 //#region Main Plugin
 module.exports = class BetterPinDMs {
-	constructor(meta) {
-		this.meta = meta;
-		this.pluginName = meta.name;
-		this.settings = {};
-		this.categories = { custom: {} };
-		this.pins = { channelList: [], guildList: [] };
-		this.storeService = null;
-		this.uiManager = null;
-		this.shortcutManager = null;
-		this.patches = [];
-		this._dmListPatched = false;
-		this._innerClassPatched = false;
-		this._dmListFallbackPatched = false;
-		this._guildDmPatched = false;
-		this._settingsRoot = null;
-		this._updatePending = null;
-		this._dmListForceUpdate = null;
-		this._originalGetPrivateChannelIds = null;
-		this._scrollPatchTimeout = null;
-		this._scrollToChannelPatched = false;
-		this._PatchedBClass = null;
-		this._PatchedBOrigType = null;
-		this._flushUpdatesDebounced = (() => {
-			let tid = null;
-			const fn = () => { clearTimeout(tid); tid = setTimeout(() => this._flushPendingUpdates(), 0); };
-			fn.cancel = () => { clearTimeout(tid); tid = null; };
-			return fn;
-		})();
-		this.updateManager = new UpdateManager(
-			this.pluginName,
-			this.meta.version,
-			GITHUB_REPO
-		);
-		this._running = false;
-		this._dragEl = null;
-		this._onDragEnd = this._handleDragEnd.bind(this);
-		this._dmListPatchState = {
-			baseRenderRow: null,
-			baseRenderSection: null,
-			originalSec0Count: 0,
-			pinnedRows: [],
-			unpinnedList: [],
-			indexOfId: new Map(),
-			lastOriginalIds: null
-		};
-		this._stableRenderRow = (args) => {
-			const st = this._dmListPatchState;
-			const originalRenderRow = st.baseRenderRow;
-			if (typeof originalRenderRow !== "function") return null;
-			const { section, row } = args || {};
-			if (section === 0) {
-				if (row < st.originalSec0Count) return originalRenderRow(args);
-				const pinnedIndex = row - st.originalSec0Count;
-				if (pinnedIndex < 0 || pinnedIndex >= st.pinnedRows.length) return null;
-				const desc = st.pinnedRows[pinnedIndex];
-				if (desc.type === "category") return this._renderCategoryHeaderRow(desc.category, args);
-				if (desc.type === "dm") {
-					const originalIndex = st.indexOfId.get(desc.dmId);
-					if (originalIndex === undefined) return null;
-					const rowElement = originalRenderRow({ ...args, section: 1, row: originalIndex });
-					return this._wrapDmRow(rowElement, desc.dmId, args);
-				}
-				return null;
-			}
-			if (section === 1) {
-				if (row < 0 || row >= st.unpinnedList.length) return null;
-				const id = st.unpinnedList[row];
-				const originalIndex = st.indexOfId.get(id);
-				if (originalIndex === undefined) return null;
-				const rowElement = originalRenderRow({ ...args, row: originalIndex });
-				return this._wrapDmRow(rowElement, id, args);
-			}
-			return originalRenderRow(args);
-		};
-		this._stableRenderSection = (args) => {
-			const st = this._dmListPatchState;
-			const originalRenderSection = st.baseRenderSection;
-			if (typeof originalRenderSection !== "function") return null;
-			const sectionElement = originalRenderSection(args);
-			if (args?.section === 1 && React.isValidElement(sectionElement)) {
-				return React.cloneElement(sectionElement, {
-					onDragOver: this._composeHandler(sectionElement.props?.onDragOver, (e) => this._handleDragOver(e, "header-unpin", "unpin")),
-					onDrop: this._composeHandler(sectionElement.props?.onDrop, (e) => this._handleDrop(e, "header-unpin", "unpinned-target")),
-					onDragLeave: this._composeHandler(sectionElement.props?.onDragLeave, (e) => this._handleDragLeave(e))
-				});
-			}
-			return sectionElement;
-		};
-	}
-	//#region Lifecycle
-	start() {
-		this.loadSettings();
-		this.updateManager.start(this.settings.autoUpdate);
-		try {
-			this._dmListPatched = false;
-			this._innerClassPatched = false;
-			this._dmListFallbackPatched = false;
-			this._guildDmPatched = false;
-			this._running = true;
-			Logger.info(`Starting v${this.meta.version} (React Injection Mode)`);
-			this.loadCategories();
-			this.loadPins();
-			this.categoryStore = new BdApi.Utils.Store();
-			this.storeService = new DiscordStoreService();
-			this.storeService.init();
-			this.uiManager = new UIManager(this);
-			this.shortcutManager = new ShortcutManager(this);
-			this._injectStyles();
-			this._patchStores();
-			this._patchContextMenus();
-			document.addEventListener("dragend", this._onDragEnd, true);
-			this._patchPrivateChannelsList();
-			this._guildDmPatched = false;
-			this._patchGuildDmComponent();
-			this.storeService.emitAllChanges();
-			this.shortcutManager.start();
-			this.forceUpdate({ immediate: true });
-			this._remountDmList();
-		} catch (err) {
-			Logger.error("Failed to start", err);
-			UI.showToast(`${this.pluginName}: Failed to start`, { type: "error" });
-		}
-	}
-	stop() {
-		try {
-			Logger.info("Stopping");
-			this._running = false;
-			if (this._scrollPatchTimeout) {
-				clearTimeout(this._scrollPatchTimeout);
-				this._scrollPatchTimeout = null;
-			}
-			this._flushUpdatesDebounced.cancel();
-			document.removeEventListener("dragend", this._onDragEnd, true);
-			this._handleDragEnd();
-			if (this.shortcutManager) this.shortcutManager.stop();
-			if (this.uiManager) this.uiManager.removeAllCategoryHeaders();
-			if (this._settingsRoot) {
-				try { this._settingsRoot.unmount(); } catch { }
-				this._settingsRoot = null;
-			}
-			for (const unpatch of this.patches) {
-				try { unpatch(); } catch (err) { Logger.warn("Failed to unpatch", err); }
-			}
-			this.patches = [];
-				this._scrollToChannelPatched = false;
-			this._originalUnreadIds = null;
-			this.storeService?.emitAllChanges();
-			DOM.removeStyle(CONFIG.cssId);
-			this.updateManager.stop();
-			if (this._dmListForceUpdate) this._dmListForceUpdate();
-			this._remountDmList();
-		} catch (err) {
-			Logger.error("Error during stop", err);
-		}
-	}
-	//#endregion Lifecycle
-	//#region Patching
-	_patchPrivateChannelsList() {
-		if (this._dmListPatched && this._innerClassPatched) return;
-		const hasPrivateIdsProp = (node) => {
-			const ids = node?.props?.privateChannelIds;
-			return ids != null && (Array.isArray(ids) || typeof ids[Symbol.iterator] === 'function');
-		};
-		const filterCandidates = [
-			Filters.byStrings("private-channels-", "getMutablePrivateChannels"),
-			Filters.byStrings("private-channels-", "getPrivateChannelIds"),
-			Filters.byStrings("private-channels-", "privateChannelIds"),
-			Filters.byStrings("listScrollerRef", "showDMHeader")
-		];
-		let moduleWithKey = null;
-		for (const filter of filterCandidates) {
-			const result = Webpack.getWithKey(filter);
-			if (result) {
-				moduleWithKey = result;
-				break;
-			}
-		}
-		if (moduleWithKey) {
-			const [PrivateChannelsModule, exportKey] = moduleWithKey;
-			Logger.info(`Found PrivateChannelsList module via Webpack.getWithKey()! Key: ${exportKey}`);
-			const unpatchWrapper = Patcher.after(
-				PrivateChannelsModule,
-				exportKey,
-				(_, __, returnValue) => {
-					try {
-						const inner = findInTree(
-							returnValue,
-							n => n?.type?.prototype?.render && hasPrivateIdsProp(n),
-							{ walkable: ["props", "children"] }
-						);
-						if (inner?.type) {
-							if (!this._PatchedBClass || this._PatchedBOrigType !== inner.type) {
-								this._PatchedBOrigType = inner.type;
-								this._PatchedBClass = class PatchedDMList extends inner.type {
-									render() {
-										const result = super.render();
-										PatchedDMList._plugin._dmListForceUpdate = () => this.forceUpdate();
-										return PatchedDMList._plugin._modifyDmListRender(this, result);
-									}
-									scrollToChannel(channelId) {
-										const st = PatchedDMList._plugin._dmListPatchState;
-										let visualIndex = -1;
-										if (st?.pinnedRows && st?.unpinnedList) {
-											let dmIdx = 0;
-											for (const row of st.pinnedRows) {
-												if (row.type === 'dm') {
-													if (row.dmId === channelId) { visualIndex = dmIdx; break; }
-													dmIdx++;
-												}
-											}
-											if (visualIndex < 0) {
-												const unpinnedIdx = st.unpinnedList.indexOf(channelId);
-												if (unpinnedIdx >= 0) visualIndex = dmIdx + unpinnedIdx;
-											}
-										}
-										const origIndex = this.props?.privateChannelIds?.indexOf(channelId) ?? -1;
-										if (visualIndex >= 0 && visualIndex !== origIndex) {
-											const { padding = 0 } = this.props;
-											const { preRenderedChildren = 0 } = this.state;
-											const scrollPos = 44 * (visualIndex + preRenderedChildren) + padding;
-											this._list?.scrollIntoViewRect({
-												start: Math.max(scrollPos - 8, 0),
-												end: scrollPos + 44 + 8
-											});
-											return;
-										}
-										return super.scrollToChannel(channelId);
-									}
-								};
-								this._PatchedBClass._plugin = this;
-							}
-							Object.defineProperty(inner, 'type', { value: this._PatchedBClass, configurable: true });
-							this._innerClassPatched = true;
-						}
-					} catch (err) {
-						Logger.error("Error patching inner DM List Class", err);
-					}
-					return returnValue;
-				}
-			);
-			this.patches.push(unpatchWrapper);
-			this._dmListPatched = true;
-		}
-		if (!this._innerClassPatched && ReactUtils.getInternalInstance) {
-			const selectors = ["[data-list-id^='private-channels-uid']", "[class^='privateChannels'] [data-list-id]"];
-			let domList = null;
-			for (const s of selectors) {
-				domList = document.querySelector(s);
-				if (domList) break;
-			}
-			if (domList) {
-				try {
-					const fiber = ReactUtils.getInternalInstance(domList);
-					const found = findInTree(
-						fiber,
-						n => n?.memoizedProps?.privateChannelIds != null,
-						{ walkable: ["return"] }
-					);
-					if (found?.stateNode?.forceUpdate) {
-						this._dmListForceUpdate = () => found.stateNode.forceUpdate();
-						found.stateNode.forceUpdate();
-						this._dmListPatched = true;
-					}
-				} catch (err) {
-					Logger.error("Fiber force-update failed", err);
-				}
-			}
-		}
-	}
-	_activateDmListFallback(reason) {
-		if (this._dmListFallbackPatched || this._dmListPatched) return;
-		Logger.warn(`UI DM list patch failed; using fallback reorder only. Reason: ${reason}`);
-		UI.showToast(
-			"[BetterPinDMs] UI patch failed; using fallback (reorder only). Category headers/drag UI may be unavailable until Discord UI changes are handled.",
-			{ type: "warning", timeout: 8000 }
-		);
-		if (this._patchPrivateChannelsListFallback()) {
-			this._dmListFallbackPatched = true;
-		}
-	}
-	_patchPrivateChannelsListFallback() {
-		const sortStore = this.storeService.getRawStore("PrivateChannelSortStore");
-		if (!sortStore?.getPrivateChannelIds) {
-			Logger.error("Could not find PrivateChannelSortStore for fallback");
-			return false;
-		}
-		this._originalGetPrivateChannelIds = sortStore.getPrivateChannelIds.bind(sortStore);
-		const unpatch = Patcher.after(
-			sortStore,
-			"getPrivateChannelIds",
-			(_, _args, ret) => {
-				try {
-					if (this._dmListPatched) return ret;
-					return this._reorderChannelIds(ret);
-				} catch (err) {
-					Logger.error("getPrivateChannelIds patch error", err);
-					return ret;
-				}
-			}
-		);
-		this.patches.push(unpatch);
-		this._dmListForceUpdate = () => this.storeService.emitPrivateChannelSortChange();
-		Logger.info("Using fallback store patching method");
-		return true;
-	}
-	_reorderChannelIds(originalIds) {
-		if (!Array.isArray(originalIds)) return originalIds;
-		const pinnedCategories = this._getPinnedCategoriesWithDms();
-		const pinnedIds = new Set();
-		const orderedPinned = [];
-		for (const cat of pinnedCategories) {
-			const validDms = cat.dms.filter(id => originalIds.includes(id));
-			const sortedDms = this.settings.sortChannelListByRecent
-				? this._sortDmsByTime(validDms)
-				: validDms;
-			for (const dmId of sortedDms) {
-				if (!pinnedIds.has(dmId)) {
-					orderedPinned.push(dmId);
-					pinnedIds.add(dmId);
-				}
-			}
-		}
-		const unpinned = originalIds.filter(id => !pinnedIds.has(id));
-		return [...orderedPinned, ...unpinned];
-	}
-	_modifyDmListRender(componentInstance, returnValue) {
-		const originalProps = componentInstance.props;
-		const originalIds = originalProps.privateChannelIds;
-		if (!originalIds.length) return returnValue;
-		const { pinnedRows, unpinnedList } = this._calculateSortedList(originalIds);
-		if (!React.isValidElement(returnValue) || typeof returnValue.props.children !== "function") {
-			return returnValue;
-		}
-		const originalLevel1 = returnValue.props.children;
-		return React.cloneElement(returnValue, {
-			children: (...args1) => {
-				const level1Result = originalLevel1(...args1);
-				if (!React.isValidElement(level1Result) || typeof level1Result.props.children !== "function") {
-					return level1Result;
-				}
-				const originalLevel2 = level1Result.props.children;
-				return React.cloneElement(level1Result, {
-					children: (...args2) => {
-						let finalResult = originalLevel2(...args2);
-						if (React.isValidElement(finalResult)) {
-							finalResult = this._applyListPatch(finalResult, originalIds, pinnedRows, unpinnedList);
-						}
-						return finalResult;
-					}
-				});
-			}
-		});
-	}
-	_applyListPatch(listElement, originalIds, pinnedRows, unpinnedList) {
-		if (!React.isValidElement(listElement)) return listElement;
-		const props = listElement.props;
-		if (!props.sections || props.sections.length < 2) return listElement;
-		if (typeof props.renderRow !== "function") return listElement;
-		const originalSec0Count = props.sections[0];
-		const pinnedRowCount = pinnedRows.length;
-		const newSec0Count = originalSec0Count + pinnedRowCount;
-		const newSec1Count = unpinnedList.length;
-		const newSections = [...props.sections];
-		newSections[0] = newSec0Count;
-		newSections[1] = newSec1Count;
-		const totalNewCount = newSec0Count + newSec1Count;
-		const st = this._dmListPatchState;
-		st.baseRenderRow = (props.renderRow === this._stableRenderRow) ? st.baseRenderRow : props.renderRow;
-		st.baseRenderSection = (props.renderSection === this._stableRenderSection) ? st.baseRenderSection : props.renderSection;
-		st.originalSec0Count = originalSec0Count;
-		st.pinnedRows = pinnedRows;
-		st.unpinnedList = unpinnedList;
-		if (st.lastOriginalIds !== originalIds) {
-			const indexOfId = new Map();
-			for (let i = 0; i < originalIds.length; i++) indexOfId.set(originalIds[i], i);
-			st.indexOfId = indexOfId;
-			st.lastOriginalIds = originalIds;
-		}
-		return React.cloneElement(listElement, {
-			sections: newSections,
-			numRows: props.numRows === undefined ? props.numRows : totalNewCount,
-			rowCount: props.rowCount === undefined ? props.rowCount : totalNewCount,
-			renderRow: this._stableRenderRow,
-			renderSection: typeof props.renderSection === "function" ? this._stableRenderSection : props.renderSection
-		});
-	}
-	_renderCategoryHeaderRow(category, rowArgs) {
-		return React.createElement(
-			"div",
-			{
-				key: `header:${category.id}`,
-				role: "listitem",
-				style: rowArgs?.style,
-				className: "betterpindms-virtual-header",
-				draggable: true,
-				onDragStart: (e) => this._handleDragStart(e, "category", category.id),
-				onDragOver: (e) => this._handleDragOver(e, "category", category.id),
-				onDrop: (e) => this._handleDrop(e, "category", category.id),
-				onDragLeave: (e) => this._handleDragLeave(e)
-			},
-			this.uiManager.renderVirtualReactHeader(category)
-		);
-	}
-	_wrapDmRow(rowElement, id, rowArgs) {
-		if (!rowElement) return rowElement;
-		const innerContent = React.isValidElement(rowElement)
-			? React.cloneElement(rowElement, { style: undefined })
-			: rowElement;
-		return React.createElement("div", {
-			key: `dm:${id}`,
-			className: "betterpindms-draggable-wrapper",
-			style: rowArgs?.style,
-			draggable: true,
-			onDragStart: (e) => this._handleDragStart(e, "dm", id),
-			onDragOver: (e) => this._handleDragOver(e, "dm", id),
-			onDrop: (e) => this._handleDrop(e, "dm", id),
-			onDragLeave: (e) => this._handleDragLeave(e)
-		}, innerContent);
-	}
-	_decorateRowElement(el, stableKey, styleFromArgs, extraProps) {
-		if (React.isValidElement(el)) {
-			const prev = el.props || {};
-			const mergedClass = className(prev.className, "betterpindms-draggable-wrapper");
-			const nextProps = {
-				...extraProps,
-				className: mergedClass,
-				onDragStart: this._composeHandler(prev.onDragStart, extraProps.onDragStart),
-				onDragOver: this._composeHandler(prev.onDragOver, extraProps.onDragOver),
-				onDrop: this._composeHandler(prev.onDrop, extraProps.onDrop),
-				onDragLeave: this._composeHandler(prev.onDragLeave, extraProps.onDragLeave)
-			};
-			if (styleFromArgs && !prev.style) nextProps.style = styleFromArgs;
-			nextProps.key = stableKey;
-			return React.cloneElement(el, nextProps);
-		}
-		return React.createElement(
-			"div",
-			{
-				key: stableKey,
-				style: styleFromArgs,
-				className: "betterpindms-draggable-wrapper",
-				...extraProps
-			},
-			el
-		);
-	}
-	_composeHandler(existing, added) {
-		if (typeof existing !== "function") return added;
-		if (typeof added !== "function") return existing;
-		return function composed(e) {
-			existing(e);
-			return added(e);
-		};
-	}
-	//#region Drag & Drop Logic
-	_handleDragStart(e, type, id) {
-		e.stopPropagation();
-		this._dragInfo = { type, id };
-		this._dragEl = e.currentTarget;
-		e.dataTransfer.setData("text/plain", JSON.stringify({ type, id }));
-		e.dataTransfer.effectAllowed = "move";
-		this._dragEl.style.opacity = "0.5";
-	}
-	_cleanupDragVisuals() {
-		if (this._dragEl) this._dragEl.style.opacity = "";
-		this._dragEl = null;
-		const selector = DRAG_CLASSES.map(c => `.${c}`).join(", ");
-		for (const el of document.querySelectorAll(selector)) {
-			removeDragClasses(el);
-		}
-	}
-	_handleDragOver(e, targetType, targetId) {
-		if (!this._dragInfo) return;
-		e.preventDefault();
-		e.stopPropagation();
-		const target = e.currentTarget;
-		const rect = target.getBoundingClientRect();
-		const offsetY = e.clientY - rect.top;
-		const height = rect.height;
-		removeDragClasses(target);
-		if (targetType === "category") {
-			if (this._dragInfo.type === "dm") {
-				target.classList.add("betterpindms-drop-target-center");
-				e.dataTransfer.dropEffect = "copy";
-			}
-			else if (this._dragInfo.type === "category") {
-				if (offsetY < height / 2) target.classList.add("betterpindms-drop-target-top");
-				else target.classList.add("betterpindms-drop-target-bottom");
-				e.dataTransfer.dropEffect = "move";
-			}
-		}
-		else if (targetType === "dm") {
-			if (this._dragInfo.type === "dm") {
-				if (offsetY < height / 2) target.classList.add("betterpindms-drop-target-top");
-				else target.classList.add("betterpindms-drop-target-bottom");
-				e.dataTransfer.dropEffect = "move";
-			}
-		}
-		else if (targetType === "header-unpin") {
-			target.classList.add("betterpindms-drop-target-center");
-		}
-	}
-	_handleDragLeave(e) {
-		removeDragClasses(e.currentTarget);
-	}
-	_handleDrop(e, targetType, targetId) {
-		e.preventDefault();
-		e.stopPropagation();
-		removeDragClasses(e.currentTarget);
-		this._cleanupDragVisuals();
-		if (!this._dragInfo) return;
-		const { type: dragType, id: dragId } = this._dragInfo;
-		this._dragInfo = null;
-		const rect = e.currentTarget.getBoundingClientRect();
-		const offsetY = e.clientY - rect.top;
-		const isTop = offsetY < rect.height / 2;
-		if (dragType === "category" && targetType === "category") {
-			this._reorderCategories(dragId, targetId, isTop);
-			return;
-		}
-		if (dragType === "dm" && targetType === "category") {
-			this.addDmToCategory(dragId, targetId);
-			UI.showToast("DM Pinned", { type: "success" });
-			return;
-		}
-		if (dragType === "dm" && targetType === "dm") {
-			this._reorderDm(dragId, targetId, isTop);
-			return;
-		}
-		if (dragType === "dm" && targetType === "header-unpin") {
-			this._reorderDm(dragId, "unpinned-target", true);
-		}
-	}
-	_handleDragEnd(_e) {
-		this._dragInfo = null;
-		this._cleanupDragVisuals();
-	}
-	//#endregion
-	_reorderCategories(dragId, targetId, insertBefore) {
-		if (dragId === targetId) return;
-		const cats = this.getCustomCategoriesSorted();
-		if (!cats.some(c => c.id === dragId) || !cats.some(c => c.id === targetId)) return;
-		const newDragIdx = cats.findIndex(c => c.id === dragId);
-		const item = cats.splice(newDragIdx, 1)[0];
-		let newTargetIdx = cats.findIndex(c => c.id === targetId);
-		if (!insertBefore) newTargetIdx++;
-		cats.splice(newTargetIdx, 0, item);
-		cats.forEach((c, i) => c.pos = i);
-		this._saveCategoriesAndRefresh();
-	}
-	_confirmUnpin(dmId) {
-		const doUnpin = () => {
-			this.removeDmFromAnyCategory(dmId);
-			UI.showToast("DM Unpinned", { type: "success" });
-		};
-		if (this.settings.confirmDragActions) {
-			UI.showConfirmationModal("Unpin DM", "Unpin this DM?", { confirmText: "Unpin", danger: true, onConfirm: doUnpin });
-		} else {
-			doUnpin();
-		}
-	}
-	_reorderDm(dragId, targetId, insertBefore = true) {
-		if (targetId === "unpinned-target") {
-			if (this.getCategoryForDm(dragId)) {
-				this._confirmUnpin(dragId);
-			}
-			return;
-		}
-		if (dragId === targetId) return;
-		const dragCat = this.getCategoryForDm(dragId);
-		const targetCat = this.getCategoryForDm(targetId);
-		if (dragCat && !targetCat) {
-			this._confirmUnpin(dragId);
-			return;
-		}
-		if (!dragCat && targetCat) {
-			this.addDmToCategory(dragId, targetCat.id);
-			UI.showToast("DM Pinned", { type: "success" });
-			return;
-		}
-		if (dragCat && targetCat) {
-			if (dragCat.id === targetCat.id) {
-				const dms = targetCat.dms;
-				const fromIdx = dms.indexOf(dragId);
-				let toIdx = dms.indexOf(targetId);
-				if (fromIdx !== -1 && toIdx !== -1) {
-					dms.splice(fromIdx, 1);
-					if (fromIdx < toIdx) toIdx--;
-					if (!insertBefore) toIdx++;
-					dms.splice(toIdx, 0, dragId);
-					this._saveCategoriesAndRefresh();
-				}
-			}
-			else {
-				this.removeDmFromAnyCategory(dragId);
-				let toIdx = targetCat.dms.indexOf(targetId);
-				if (!insertBefore) toIdx++;
-				targetCat.dms.splice(toIdx, 0, dragId);
-				this._saveCategoriesAndRefresh();
-			}
-		}
-	}
-	//#endregion
-	_calculateSortedList(originalIds) {
-		const pinnedCategories = this._getPinnedCategoriesWithDms();
-		const pinnedSet = new Set();
-		for (const cat of pinnedCategories) for (const id of cat.dms) pinnedSet.add(id);
-		const pinnedRows = [];
-		for (const cat of pinnedCategories) {
-			pinnedRows.push({ type: "category", category: cat });
-			if (!cat.collapsed) {
-				const validDms = cat.dms.filter(id => originalIds.includes(id));
-				const sortedDms = this.settings.sortChannelListByRecent ? this._sortDmsByTime(validDms) : validDms;
-				for (const dmId of sortedDms) pinnedRows.push({ type: "dm", dmId, categoryId: cat.id });
-			}
-		}
-		const unpinnedList = [];
-		for (const id of originalIds) if (!pinnedSet.has(id)) unpinnedList.push(id);
-		return { pinnedRows, pinnedSet, unpinnedList };
-	}
-	_patchGuildDmComponent() {
-		if (this._guildDmPatched) return;
-		const want = ["treeItemProps", "isCurrentUserInThisDMCall"];
-		const isGuildItem = (v) => {
-			return v && typeof v === "object" && v.$$typeof && typeof v.render === "function";
-		};
-		const pickGuildItem = (mod) => {
-			if (!mod) return null;
-			if (isGuildItem(mod)) return mod;
-			if (isGuildItem(mod?.default)) return mod.default;
-			if (typeof mod === "object") {
-				for (const v of Object.values(mod)) {
-					if (isGuildItem(v)) return v;
-				}
-			}
-			return null;
-		};
-		const patch = (GuildItem) => {
-			if (!this._running || this._guildDmPatched || !GuildItem) return;
-			Logger.info("Found Guild DM item via Webpack. Patching...");
-			const unpatch = Patcher.after(GuildItem, "render", (_t, args, ret) => {
-				try {
-					if (ret) return this._processGuildDirectMessage({ props: args?.[0] }, ret);
-				} catch (err) {
-					Logger.error("Guild DM render error", err);
-				}
-				return ret;
-			});
-			this.patches.push(unpatch);
-			this._guildDmPatched = true;
-			this.storeService.emitAllChanges();
-		};
-		const filter = Filters.bySource(...want);
-		const immediateMod = Webpack.getModule(filter);
-		const immediate = pickGuildItem(immediateMod);
-		if (immediate) {
-			patch(immediate);
-			return;
-		}
-		Webpack.waitForModule(filter)
-			.then((mod) => patch(pickGuildItem(mod)))
-			.catch((err) => {
-				Logger.warn("Failed to locate Guild DM module via Webpack.waitForModule", err);
-			});
-	}
-	_processGuildDirectMessage(instance, returnValue) {
-		const props = instance?.props;
-		const channel = props?.channel;
-		if (!channel?.id) return returnValue;
-		const isPinned = this.isPinnedInGuildList(channel.id);
-		if (!isPinned) return returnValue;
-		if (React.isValidElement(returnValue) && returnValue.props) {
-			const originalTreeProps = returnValue.props.treeItemProps || {};
-			const newTreeProps = {
-				...originalTreeProps,
-				className: className(originalTreeProps.className, "betterpindms-recent-pinned")
-			};
-			return React.cloneElement(returnValue, {
-				treeItemProps: newTreeProps
-			});
-		}
-		return returnValue;
-	}
-	//#endregion Patching
-	//#region Data Management
-	loadSettings() {
-		const saved = Data.load("settings") || {};
-		this.settings = this._migrateSettings(saved);
-	}
-	saveSettings() {
-		Data.save("settings", this.settings);
-	}
-	updateSetting(key, value) {
-		if (this.settings[key] === value) return;
-		this.settings[key] = value;
-		this.saveSettings();
-		if (key === "autoUpdate") {
-			if (value) this.updateManager.start(true);
-			else this.updateManager.stop();
-		}
-		this.forceUpdate({ immediate: true, dmList: true });
-	}
-	_migrateSettings(saved) {
-		const defaults = structuredClone(CONFIG.defaultSettings);
-		if (saved.general || saved.recentOrder || saved.preCategories || saved.smartCategories) {
-			const migrated = { ...defaults };
-			if (saved.general) {
-				migrated.pinIcon = saved.general.pinIcon ?? defaults.pinIcon;
-				migrated.guildListPinIcon = saved.general.guildListPinIcon ?? defaults.guildListPinIcon;
-				migrated.unreadAmount = saved.general.unreadAmount ?? defaults.unreadAmount;
-				migrated.channelAmount = saved.general.channelAmount ?? defaults.channelAmount;
-			}
-			if (saved.recentOrder) {
-				migrated.sortChannelListByRecent = saved.recentOrder.channelList ?? defaults.sortChannelListByRecent;
-				migrated.sortGuildListByRecent = saved.recentOrder.guildList ?? defaults.sortGuildListByRecent;
-			}
-			if (saved.preCategories) {
-				migrated.enableFriends = saved.preCategories.friends?.enabled ?? defaults.enableFriends;
-				migrated.enableBlocked = saved.preCategories.blocked?.enabled ?? defaults.enableBlocked;
-				migrated.enableBots = saved.preCategories.bots?.enabled ?? defaults.enableBots;
-				migrated.enableGroups = saved.preCategories.groups?.enabled ?? defaults.enableGroups;
-			}
-			if (saved.smartCategories) {
-				migrated.enableActiveToday = saved.smartCategories.activeToday?.enabled ?? defaults.enableActiveToday;
-				migrated.enableMuted = saved.smartCategories.muted?.enabled ?? defaults.enableMuted;
-			}
-			if (saved.preCategories || saved.smartCategories) {
-				migrated.collapsedCategories = {};
-				for (const key of CATEGORY_KEYS) {
-					const collapsed = saved.preCategories?.[key]?.collapsed || saved.smartCategories?.[key]?.collapsed;
-					if (collapsed) migrated.collapsedCategories[key] = true;
-				}
-			}
-			if (Object.hasOwn(saved, "autoUpdate")) {
-				migrated.autoUpdate = saved.autoUpdate;
-			}
-			for (const name of ["TogglePin", "QuickPicker", "JumpCategory"]) {
-				const enabledKey = `shortcut${name}Enabled`;
-				const keysKey = `shortcut${name}Keys`;
-				migrated[enabledKey] = saved[enabledKey] ?? defaults[enabledKey];
-				migrated[keysKey] = Array.isArray(saved[keysKey]) ? saved[keysKey] : defaults[keysKey];
-			}
-			return migrated;
-		}
-		const safeSaved = Object.create(null);
-		if (saved && typeof saved === "object") {
-			for (const [k, v] of Object.entries(saved)) {
-				if (this._isUnsafeKey(k)) continue;
-				safeSaved[k] = v;
-			}
-		}
-		return { ...defaults, ...safeSaved };
-	}
-	loadCategories() {
-		const saved = Data.load("categories") || {};
-		const custom = Object.create(null);
-		if (saved.custom && typeof saved.custom === "object") {
-			for (const key of Object.keys(saved.custom)) {
-				if (this._isUnsafeKey(key)) continue;
-				const cat = saved.custom[key];
-				if (!cat || typeof cat !== "object") continue;
-				const safe = this._buildSafeCategory(key, cat);
-				custom[safe.id] = safe;
-			}
-		}
-		this.categories = { custom };
-	}
-	saveCategories() {
-		Data.save("categories", this.categories);
-	}
-	_saveCategoriesAndRefresh() {
-		this.saveCategories();
-		this.categoryStore.emitChange();
-		this.forceUpdate({ dmList: true });
-	}
-	loadPins() {
-		const saved = Data.load("pinned") || {};
-		this.pins = {
-			channelList: Array.isArray(saved.channelList) ? saved.channelList : [],
-			guildList: Array.isArray(saved.guildList) ? saved.guildList : []
-		};
-	}
-	savePins() {
-		Data.save("pinned", this.pins);
-	}
-	//#endregion Data Management
-	//#region Category Logic
-	getCustomCategoriesSorted() {
-		return Object.values(this.categories.custom || {}).sort((a, b) => (a.pos || 0) - (b.pos || 0));
-	}
-	generateCategoryId() {
-		return Math.random().toString(36).slice(2, 10);
-	}
-	createCategory({ name, color }) {
-		const id = this.generateCategoryId();
-		const existing = this.getCustomCategoriesSorted();
-		const pos = existing.length ? Math.max(...existing.map(c => c.pos || 0)) + 1 : 0;
-		const category = { id, name, color, pos, collapsed: false, dms: [] };
-		this.categories.custom[id] = category;
-		this._saveCategoriesAndRefresh();
-		return category;
-	}
-	deleteCategory(categoryId) {
-		delete this.categories.custom[categoryId];
-		this._saveCategoriesAndRefresh();
-	}
-	updateCategory(categoryId, updates) {
-		const cat = this.categories.custom[categoryId];
-		if (!cat) return;
-		Object.assign(cat, updates);
-		this._saveCategoriesAndRefresh();
-	}
-	moveCategory(categoryId, direction) {
-		const list = this.getCustomCategoriesSorted();
-		const index = list.findIndex(c => c.id === categoryId);
-		if (index === -1) return;
-		const swapIndex = index + (direction === "up" ? -1 : 1);
-		if (swapIndex < 0 || swapIndex >= list.length) return;
-		[list[index].pos, list[swapIndex].pos] = [list[swapIndex].pos, list[index].pos];
-		this._saveCategoriesAndRefresh();
-	}
-	getCategoryForDm(dmId) {
-		if (!dmId) return null;
-		for (const id in this.categories.custom) {
-			const cat = this.categories.custom[id];
-			if (cat.dms.includes(dmId)) return cat;
-		}
-		return null;
-	}
-	addDmToCategory(dmId, categoryId) {
-		const cat = this.categories.custom[categoryId];
-		if (!cat) return;
-		this.removeDmFromAnyCategory(dmId);
-		cat.dms.unshift(dmId);
-		this._saveCategoriesAndRefresh();
-	}
-	removeDmFromAnyCategory(dmId) {
-		let changed = false;
-		for (const id in this.categories.custom) {
-			const cat = this.categories.custom[id];
-			const idx = cat.dms.indexOf(dmId);
-			if (idx !== -1) {
-				cat.dms.splice(idx, 1);
-				changed = true;
-			}
-		}
-		if (changed) {
-			this._saveCategoriesAndRefresh();
-		}
-	}
-	toggleCategoryCollapse(categoryId) {
-		if (CATEGORY_KEYS.includes(categoryId)) {
-			if (!this.settings.collapsedCategories) this.settings.collapsedCategories = {};
-			this.settings.collapsedCategories[categoryId] = !this.settings.collapsedCategories[categoryId];
-			this.saveSettings();
-		} else {
-			const cat = this.categories.custom[categoryId];
-			if (cat) {
-				cat.collapsed = !cat.collapsed;
-				this.saveCategories();
-			}
-		}
-		this.forceUpdate({ dmList: true });
-	}
-	_getPinnedCategoriesWithDms() {
-		const allIds = this._originalGetPrivateChannelIds
-			? this._originalGetPrivateChannelIds()
-			: this.storeService.getPrivateChannelIds();
-		const buckets = this._categorizeDms(allIds);
-		return [
-			...this._createPredefinedCategories(buckets),
-			...this._createCustomCategories()
-		];
-	}
-	_categorizeDms(channelIds) {
-		const buckets = {};
-		for (const key of CATEGORY_KEYS) {
-			if (this.settings[getEnableKey(key)]) {
-				buckets[key] = [];
-			}
-		}
-		for (const id of channelIds) {
-			const key = this._getPredefinedCategoryKey(id);
-			if (key && buckets[key]) buckets[key].push(id);
-		}
-		return buckets;
-	}
-	_createPredefinedCategories(buckets) {
-		const categories = [];
-		const collapsed = this.settings.collapsedCategories || {};
-		for (const [key, dms] of Object.entries(buckets)) {
-			const filtered = dms.filter(id => !this.getCategoryForDm(id));
-			if (filtered.length) {
-				categories.push({
-					id: key,
-					name: CATEGORY_META[key].name,
-					color: CATEGORY_META[key].color,
-					predefined: true,
-					collapsed: !!collapsed[key],
-					dms: filtered
-				});
-			}
-		}
-		return categories;
-	}
-	_createCustomCategories() {
-		return this.getCustomCategoriesSorted().map(cat => ({
-			id: cat.id,
-			name: cat.name,
-			color: cat.color,
-			predefined: false,
-			collapsed: cat.collapsed,
-			dms: cat.dms.filter(id => this.storeService.getChannel(id))
-		})).filter(cat => cat.dms.length > 0);
-	}
-	_getPredefinedCategoryKey(channelId) {
-		const channel = this.storeService.getChannel(channelId);
-		if (!channel) return null;
-		if (this.settings.enableMuted && this.storeService.isChannelMuted(channel.id)) return "muted";
-		if (this.settings.enableActiveToday && this._wasActiveToday(channel)) return "activeToday";
-		if (channel.type === CHANNEL_TYPES.GROUP_DM && this.settings.enableGroups) return "groups";
-		if (channel.type === CHANNEL_TYPES.DM && channel.recipients?.length === 1) {
-			const userId = channel.recipients[0];
-			if (this.settings.enableFriends && this.storeService.isFriend(userId)) return "friends";
-			if (this.settings.enableBlocked && this.storeService.isBlocked(userId)) return "blocked";
-			if (this.settings.enableBots && this.storeService.getUser(userId)?.bot) return "bots";
-		}
-		return null;
-	}
-	_wasActiveToday(channel) {
-		const lastMsg = this.storeService.getLastMessageId(channel.id);
-		if (!lastMsg) return false;
-		try {
-			const ts = Number((BigInt(lastMsg) >> 22n) + 1420070400000n);
-			const today = new Date();
-			today.setHours(0, 0, 0, 0);
-			return ts >= today.getTime();
-		} catch {
-			return false;
-		}
-	}
-	_sortDmsByTime(dms) {
-		return [...dms].sort((a, b) => {
-			try {
-				const tA = Number((BigInt(this.storeService.getLastMessageId(a) || "0") >> 22n));
-				const tB = Number((BigInt(this.storeService.getLastMessageId(b) || "0") >> 22n));
-				return tB - tA;
-			} catch {
-				return 0;
-			}
-		});
-	}
-	//#endregion Category Logic
-	//#region Server List Pins
-	isPinnedInGuildList(id) { return this.pins.guildList.includes(id); }
-	pinInGuildList(id) {
-		if (!this.pins.guildList.includes(id)) this.pins.guildList.unshift(id);
-		this.savePins();
-		this.storeService.emitPrivateChannelReadStateChange();
-	}
-	unpinInGuildList(id) {
-		const idx = this.pins.guildList.indexOf(id);
-		if (idx !== -1) {
-			this.pins.guildList.splice(idx, 1);
-			this.savePins();
-			this.storeService.emitPrivateChannelReadStateChange();
-		}
-	}
-	//#endregion Server List Pins
-	//#region Context Menus
-	_patchContextMenus() {
-		const patch = (tree, props) => {
-			if (!tree || !props.channel) return;
-			if ([CHANNEL_TYPES.DM, CHANNEL_TYPES.GROUP_DM].includes(props.channel.type)) {
-				this._injectContextSubmenu(tree, props.channel.id);
-			}
-		};
-		this.patches.push(
-			ContextMenu.patch("user-context", patch),
-			ContextMenu.patch("gdm-context", patch)
-		);
-	}
-	_injectContextSubmenu(tree, channelId) {
-		let children = tree.props.children;
-		if (!Array.isArray(children)) {
-			children = tree.props.children = [children].filter(Boolean);
-		}
-		const currentCategory = this.getCategoryForDm(channelId);
-		const categories = this.getCustomCategoriesSorted();
-		const pinnedInGuild = this.isPinnedInGuildList(channelId);
-		const categoryItems = [];
-		if (currentCategory) {
-			categoryItems.push({
-				type: "text",
-				label: `Remove from "${currentCategory.name}"`,
-				danger: true,
-				action: () => {
-					this.removeDmFromAnyCategory(channelId);
-					UI.showToast("DM unpinned", { type: "info" });
-				}
-			});
-		} else {
-			categoryItems.push({
-				type: "text",
-				label: "Add to new category...",
-				action: () => {
-					this.uiManager.showCategoryCreateModal(`${DEFAULT_CATEGORY_PREFIX}${categories.length + 1}`, (n, c) => {
-						const cat = this.createCategory({ name: n, color: c });
-						this.addDmToCategory(channelId, cat.id);
-						UI.showToast(`Added to "${n}"`, { type: "success" });
-					});
-				}
-			});
-		}
-		if (categories.length) {
-			categoryItems.push({ type: "separator" });
-			for (const cat of categories) {
-				const isCurrent = currentCategory?.id === cat.id;
-				categoryItems.push({
-					type: "text",
-					label: isCurrent ? `\u25CF ${cat.name}` : cat.name,
-					disabled: isCurrent,
-					action: () => {
-						this.addDmToCategory(channelId, cat.id);
-						UI.showToast(`Pinned to "${cat.name}"`, { type: "success" });
-					}
-				});
-			}
-		}
-		const submenu = ContextMenu.buildItem({
-			type: "submenu",
-			label: "BetterPinDMs",
-			items: [
-				{
-					type: "submenu",
-					label: "Categories",
-					items: categoryItems
-				},
-				{ type: "separator" },
-				{
-					type: "text",
-					label: pinnedInGuild ? "Unpin from server list" : "Pin to server list",
-					danger: pinnedInGuild,
-					action: () => pinnedInGuild ? this.unpinInGuildList(channelId) : this.pinInGuildList(channelId)
-				}
-			]
-		});
-		children.push(submenu);
-	}
-	_showCategoryContextMenu(event, category) {
-		try {
-			event.preventDefault();
-			event.stopPropagation();
-			const items = [];
-			if (category.predefined) {
-				items.push({
-					type: "text",
-					label: "Disable Category",
-					action: () => {
-						this.updateSetting(getEnableKey(category.id), false);
-					}
-				});
-			} else {
-				items.push(
-					{
-						type: "text",
-						label: "Edit Category",
-						action: () => {
-							this.uiManager.showCategoryEditModal(category, (name, color) => {
-								this.updateCategory(category.id, { name, color });
-							});
-						}
-					},
-					{
-						type: "text",
-						label: "Delete Category",
-						danger: true,
-						action: () => {
-							UI.showConfirmationModal(
-								"Delete Category",
-								`Delete "${category.name}"?`,
-								{
-									confirmText: "Delete",
-									danger: true,
-									onConfirm: () => {
-										this.deleteCategory(category.id);
-									}
-								}
-							);
-						}
-					}
-				);
-			}
-			if (!items.length) return;
-			const menuComponent = ContextMenu.buildMenu(items);
-			ContextMenu.open(event, menuComponent, {
-				position: "right",
-				align: "top"
-			});
-		} catch (err) {
-			Logger.error("Category context menu error", err);
-		}
-	}
-	//#endregion Context Menus
-	//#region Updates
-	_flushPendingUpdates() {
-		if (this._updatePending) {
-			if (this._updatePending.dmList && this._dmListForceUpdate) this._dmListForceUpdate();
-			this._updatePending = null;
-		}
-	}
-	_remountDmList() {
-		const dmNav = document.querySelector('[class*="privateChannels"]');
-		if (!dmNav) return;
-		const fiberRoot = ReactUtils.getInternalInstance(dmNav);
-		for (let current = fiberRoot; current; current = current.return) {
-			const { stateNode } = current;
-			if (!stateNode?.forceUpdate || !stateNode?.render) continue;
-			const fragmentKey = String(Math.random());
-			const restore = Patcher.instead(stateNode, "render", (_, args, originalRender) => {
-				restore();
-				return React.createElement(React.Fragment, { key: fragmentKey }, originalRender(...args));
-			});
-			stateNode.forceUpdate();
-			return;
-		}
-	}	
-	forceUpdate(updates = {}) {
-		if (updates.immediate) {
-			if (updates.dmList !== false && this._dmListForceUpdate) this._dmListForceUpdate();
-			return;
-		}
-		if (!this._updatePending) this._updatePending = {};
-		Object.assign(this._updatePending, updates);
-		this._flushUpdatesDebounced();
-	}
-	//#endregion Updates
-	//#region Store Patches
-	_patchStores() {
-		const readStore = this.storeService.getRawStore("PrivateChannelReadStateStore");
-		if (readStore?.getUnreadPrivateChannelIds) {
-			this._originalUnreadIds = readStore.getUnreadPrivateChannelIds.bind(readStore);
-			this.patches.push(Patcher.after(
-				readStore,
-				"getUnreadPrivateChannelIds",
-				(_, __, ret) => {
-					if (!Array.isArray(ret)) return ret;
-					if (!Array.isArray(this.pins.guildList) || !this.pins.guildList.length) return ret;
-					const pinned = this.pins.guildList.filter(id => typeof id === "string" && this.storeService.getChannel(id));
-					if (!pinned.length) return ret;
-					const set = new Set(ret);
-					const added = pinned.filter(id => !set.has(id));
-					if (!added.length) return ret;
-					const combined = [...added, ...ret];
-					return this.settings.sortGuildListByRecent
-						? this._sortDmsByTime(combined)
-						: combined;
-				}
-			));
-		}
-	}
-	//#endregion Store Patches
-	//#region Settings Panel
-	getSettingsPanel() {
-		if (!this.uiManager) return null;
-		const panel = this.uiManager.renderSettingsPanel();
-		if (panel?._betterpindmsRoot) {
-			this._settingsRoot = panel._betterpindmsRoot;
-		}
-		return panel;
-	}
-	//#endregion Settings Panel
-	//#region Keyboard Shortcuts
-	_getShortcutConfig() {
-		const s = this.settings || {};
-		const d = CONFIG.defaultSettings || {};
-		const normalizeKeys = (value, fallback) => {
-			if (Array.isArray(value) && value.length) return value;
-			if (Array.isArray(fallback) && fallback.length) return fallback;
-			return [];
-		};
-		const buildShortcut = (name) => ({
-			enabled: s[`shortcut${name}Enabled`] ?? d[`shortcut${name}Enabled`],
-			keys: normalizeKeys(s[`shortcut${name}Keys`], d[`shortcut${name}Keys`])
-		});
-		return {
-			togglePin: buildShortcut("TogglePin"),
-			quickPicker: buildShortcut("QuickPicker"),
-			jumpCategory: buildShortcut("JumpCategory")
-		};
-	}
-	_getSelectedDmChannelId() {
-		const channelId = this.storeService.getSelectedChannelId();
-		if (!channelId) return null;
-		const channel = this.storeService.getChannel(channelId);
-		if (!channel || ![CHANNEL_TYPES.DM, CHANNEL_TYPES.GROUP_DM].includes(channel.type)) return null;
-		return channelId;
-	}
-	toggleCurrentDmPin() {
-		const channelId = this._getSelectedDmChannelId();
-		if (!channelId) return;
-		const currentCat = this.getCategoryForDm(channelId);
-		if (currentCat) {
-			this.removeDmFromAnyCategory(channelId);
-			UI.showToast("DM unpinned", { type: "info" });
-		} else {
-			const categories = this.getCustomCategoriesSorted();
-			if (categories.length) {
-				this.addDmToCategory(channelId, categories[0].id);
-				UI.showToast(`Pinned to "${categories[0].name}"`, { type: "info" });
-			} else {
-				UI.showToast("No categories available. Create one first.", { type: "warning" });
-			}
-		}
-	}
-	showQuickCategoryPicker() {
-		const channelId = this._getSelectedDmChannelId();
-		if (!channelId) return;
-		const categories = this.getCustomCategoriesSorted();
-		if (!categories.length) {
-			UI.showToast("No categories available", { type: "info" });
-			return;
-		}
-		this.uiManager.showQuickCategoryPicker(categories, (category) => {
-			this.addDmToCategory(channelId, category.id);
-			UI.showToast(`Pinned to "${category.name}"`, { type: "success" });
-		});
-	}
-	jumpToCategory(index) {
-		const categories = this._getPinnedCategoriesWithDms();
-		if (categories[index]) {
-			const firstDm = categories[index].dms[0];
-			if (firstDm) {
-				globalThis.location.hash = `#/channels/@me/${firstDm}`;
-			}
-		}
-	}
-	//#endregion Keyboard Shortcuts
-	//#region Import/Export
-	_hexToRgbaArray(color) {
-		let hex = color;
-		if (typeof hex === "number") {
-			hex = "#" + (hex & 0xffffff).toString(16).padStart(6, "0");
-		}
-		if (typeof hex !== "string") {
-			return DEFAULT_COLOR_RGBA;
-		}
-		hex = hex.trim();
-		if (hex.startsWith("#")) hex = hex.slice(1);
-		if (hex.length === 3) {
-			hex = hex.split("").map(c => c + c).join("");
-		}
-		if (hex.length < 6) {
-			return DEFAULT_COLOR_RGBA;
-		}
-		const int = Number.parseInt(hex.slice(0, 6), 16);
-		if (Number.isNaN(int)) return DEFAULT_COLOR_RGBA;
-		const r = (int >> 16) & 0xff;
-		const g = (int >> 8) & 0xff;
-		const b = int & 0xff;
-		return [r, g, b, 1];
-	}
-	_rgbaToHex(color) {
-		if (typeof color === "string") {
-			return color;
-		}
-		if (typeof color === "number") {
-			return "#" + (color & 0xffffff).toString(16).padStart(6, "0");
-		}
-		if (!Array.isArray(color) || color.length < 3) {
-			return DEFAULT_COLOR;
-		}
-		const clamp = v => Math.max(0, Math.min(255, Math.round(v)));
-		const [r, g, b] = color;
-		return "#" + [clamp(r), clamp(g), clamp(b)].map(v => v.toString(16).padStart(2, "0")).join("");
-	}
-	_buildPinDmsSettingsObject() {
-		const s = this.settings || {};
-		const collapsed = s.collapsedCategories || {};
-		return {
-			general: {
-				pinIcon: !!s.pinIcon,
-				unreadAmount: !!s.unreadAmount,
-				channelAmount: !!s.channelAmount
-			},
-			preCategories: {
-				friends: { enabled: !!s.enableFriends, collapsed: !!collapsed.friends },
-				blocked: { enabled: !!s.enableBlocked, collapsed: !!collapsed.blocked },
-				bots: { enabled: !!s.enableBots, collapsed: !!collapsed.bots },
-				groups: { enabled: !!s.enableGroups, collapsed: !!collapsed.groups }
-			},
-			smartCategories: {
-				activeToday: { enabled: !!s.enableActiveToday, collapsed: !!collapsed.activeToday },
-				muted: { enabled: !!s.enableMuted, collapsed: !!collapsed.muted }
-			},
-			recentOrder: {
-				channelList: !!s.sortChannelListByRecent,
-				guildList: !!s.sortGuildListByRecent
-			}
-		};
-	}
-	_buildPinDmsPinnedObject() {
-		const userId = this.storeService.getCurrentUserId() || "0";
-		const channelList = {};
-		for (const cat of this.getCustomCategoriesSorted()) {
-			channelList[cat.id] = {
-				id: cat.id,
-				name: cat.name,
-				dms: Array.isArray(cat.dms) ? [...cat.dms] : [],
-				pos: typeof cat.pos === "number" ? cat.pos : 0,
-				collapsed: !!cat.collapsed,
-				color: this._hexToRgbaArray(cat.color || DEFAULT_COLOR)
-			};
-		}
-		const guildList = filterStringArray(this.pins.guildList);
-		const pinnedForUser = { channelList, guildList };
-		return { [userId]: pinnedForUser };
-	}
-	_importFromPinDmsConfig(config) {
-		const all = config.all || {};
-		this.settings = this._migrateSettings(all);
-		const pinnedRoot = all.pinned || {};
-		const currentUserId = this.storeService.getCurrentUserId();
-		let pinnedForUser = currentUserId ? pinnedRoot[currentUserId] : null;
-		if (!pinnedForUser) {
-			const firstKey = Object.keys(pinnedRoot)[0];
-			if (firstKey) pinnedForUser = pinnedRoot[firstKey];
-		}
-		const channelList = (pinnedForUser?.channelList) || {};
-		const custom = Object.create(null);
-		let fallbackPos = 0;
-		for (const [rawId, cat] of Object.entries(channelList)) {
-			if (this._isUnsafeKey(rawId)) continue;
-			if (!cat || typeof cat !== "object") continue;
-			const normalized = {
-				...cat,
-				color: this._rgbaToHex(cat.color),
-				name: typeof cat.name === "string" ? cat.name : `${DEFAULT_CATEGORY_PREFIX}${fallbackPos + 1}`
-			};
-			const safe = this._buildSafeCategory(rawId, normalized, fallbackPos);
-			if (typeof cat.pos !== "number") fallbackPos++;
-			custom[safe.id] = safe;
-		}
-		this.categories = { custom };
-		this.pins = { channelList: [], guildList: filterStringArray(pinnedForUser?.guildList) };
-	}
-	_importFromLegacyConfig(config) {
-		if (!config.version || !config.categories || !config.settings) {
-			throw new Error("Invalid configuration file");
-		}
-		if (config.settings && typeof config.settings === "object") {
-			const safe = Object.create(null);
-			for (const [k, v] of Object.entries(config.settings)) {
-				if (this._isUnsafeKey(k)) continue;
-				safe[k] = v;
-			}
-			this.settings = { ...this.settings, ...safe };
-		}
-		const custom = Object.create(null);
-		const srcCustom = config.categories?.custom;
-		if (srcCustom && typeof srcCustom === "object") {
-			for (const key of Object.keys(srcCustom)) {
-				if (this._isUnsafeKey(key)) continue;
-				const cat = srcCustom[key];
-				if (!cat || typeof cat !== "object") continue;
-				const safe = this._buildSafeCategory(key, cat);
-				custom[safe.id] = safe;
-			}
-		}
-		this.categories = { custom };
-		const pins = config.pins || {};
-		this.pins = {
-			channelList: filterStringArray(pins.channelList),
-			guildList: filterStringArray(pins.guildList)
-		};
-	}
-	_isUnsafeKey(key) {
-		return key === "__proto__" || key === "prototype" || key === "constructor";
-	}
-	_buildSafeCategory(key, cat, fallbackPos = 0) {
-		const id = (typeof cat.id === "string" && !this._isUnsafeKey(cat.id)) ? cat.id : key;
-		return {
-			id,
-			name: typeof cat.name === "string" ? cat.name : `Category ${id}`,
-			color: typeof cat.color === "string" ? cat.color : DEFAULT_COLOR,
-			pos: typeof cat.pos === "number" ? cat.pos : fallbackPos,
-			collapsed: !!cat.collapsed,
-			dms: filterStringArray(cat.dms)
-		};
-	}
-	exportConfig() {
-		try {
-			const all = this._buildPinDmsSettingsObject();
-			all.pinned = this._buildPinDmsPinnedObject();
-			const config = { all };
-			const json = JSON.stringify(config, null, 2);
-			const blob = new Blob([json], { type: "application/json" });
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement("a");
-			a.href = url;
-			a.download = `PinDMs.config.${Date.now()}.json`;
-			a.click();
-			URL.revokeObjectURL(url);
-			UI.showToast("Configuration exported (PinDMs-compatible)", { type: "success" });
-		} catch (err) {
-			Logger.error("Export config failed", err);
-			UI.showToast("Failed to export configuration", { type: "error" });
-		}
-	}
-	async importConfig() {
-		const input = document.createElement("input");
-		input.type = "file";
-		input.accept = ".json";
-		input.onchange = async (e) => {
-			const file = e.target.files[0];
-			if (!file) return;
-			try {
-				const text = await file.text();
-				const config = JSON.parse(text);
-				if (config?.all) {
-					this._importFromPinDmsConfig(config);
-				} else {
-					this._importFromLegacyConfig(config);
-				}
-				this.saveSettings();
-				this.saveCategories();
-				this.savePins();
-				this.forceUpdate({ immediate: true });
-				UI.showToast("Configuration imported successfully", { type: "success" });
-			} catch (err) {
-				Logger.error("Import config failed", err);
-				UI.showToast("Failed to import configuration", { type: "error" });
-			}
-		};
-		input.click();
-	}
-	//#endregion Import/Export
-	//#region Styles
-	_injectStyles() {
-		DOM.addStyle(CONFIG.cssId, `
-			/* --- Layout & Animation --- */
-			.betterpindms-virtual-header { padding: 0 8px; box-sizing: border-box; position: relative; /* Needed for drop indicators */ }
-			/* --- Drag & Drop Wrappers --- */
-			/* This allows DMs to have borders/pseudo-elements for drag indicators */
-			.betterpindms-draggable-wrapper { display: block; position: relative;  }
-			/* --- Sidebar Pin Icon --- */
-			.betterpindms-recent-pinned { 
-				position: relative; 
-			}
-			.betterpindms-recent-pinned::after { content: "\\1F4CC"; position: absolute; top: 2px; right: 2px; font-size: 10px; line-height: 1; z-index: 10; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8)); pointer-events: none; background: rgba(0, 0, 0, 0.6); border-radius: 4px; padding: 1px; }
-			/* --- Drop Indicators --- */
-			/* Top Line */
-			.betterpindms-drop-target-top::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; background-color: var(--background-brand,#5865F2);  z-index: 1000; pointer-events: none; }
-			/* Bottom Line */
-			.betterpindms-drop-target-bottom::after { content: ""; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background-color: var(--background-brand,#5865F2); z-index: 1000; pointer-events: none; }
-			/* Center Highlight (Drop into Category) */
-			.betterpindms-drop-target-center { position: relative; }
-			.betterpindms-drop-target-center::after { content: ""; position: absolute; inset: 0; background-color: rgba(88, 101, 242, 0.25);  border: 2px solid var(--background-brand,#5865F2); border-radius: 4px; pointer-events: none; z-index: 1000; }
-			/* --- Settings UI (Custom Categories) --- */
-			.betterpindms-customcategories { padding: 16px; display: flex; flex-direction: column; gap: 8px; }
-			.betterpindms-customcategories-header { font-size: 14px; font-weight: 600; color: var(--mobile-text-heading-primary); margin-bottom: 4px; }
-			.betterpindms-customcategories-hint { color: var(--text-muted); font-size: 12px; opacity: 0.7; margin-bottom: 8px; }
-			.betterpindms-customcategories-addbtn { padding: 8px 12px; cursor: pointer; background-color: var(--background-mod-subtle); color: var(--text-default); border: none; border-radius: 4px; margin-top: 8px; }
-			.betterpindms-customcategories-addbtn:hover { background-color: var(--background-mod-strong); }
-			.betterpindms-category-row { display: flex; align-items: center; gap: 8px; padding: 8px; background-color: var(--background-mod-subtle); border-radius: 4px; }
-			.betterpindms-category-color-input { width: 32px; height: 32px; cursor: pointer; border: none; border-radius: 4px; background: transparent; }
-			.betterpindms-category-name-input { flex: 1; padding: 6px 8px; background-color: var(--input-background-default); color: var(--text-default); border: 1px solid var(--input-background-default); border-radius: 4px; font-size: 14px; }
-			.betterpindms-category-movebtn { padding: 4px 8px; cursor: pointer; border-radius: 3px; border: none; background: var(--background-mod-subtle); color: var(--text-default); }
-			.betterpindms-category-movebtn:disabled { cursor: not-allowed; opacity: 0.5; }
-			.betterpindms-category-deletebtn { padding: 4px 8px; border: none; border-radius: 3px; color: var(--status-danger); background: transparent; cursor: pointer; }
-			.betterpindms-category-deletebtn:hover { background-color: var(--background-mod-subtle); }
-			/* --- Settings UI (Actions & Shortcuts) --- */
-			.betterpindms-actions { padding: 16px; display: flex; flex-direction: column; gap: 8px; }
-			.betterpindms-actions-header { font-size: 14px; font-weight: 600; color: var(--mobile-text-heading-primary); margin-bottom: 8px; }
-			.betterpindms-actions-button { padding: 8px 12px; cursor: pointer; background-color: var(--background-mod-subtle); color: var(--text-default); border: none; border-radius: 4px; }
-			.betterpindms-actions-button:hover { background-color: var(--background-mod-strong); }
-			.betterpindms-actions-button-danger { background-color: var(--status-danger); color: #fff; margin-top: 8px; }
-			.betterpindms-actions-button-danger:hover { filter: brightness(1.05); }
-			.betterpindms-shortcuts { margin-top: 16px; }
-			.betterpindms-shortcuts-header { font-size: 14px; font-weight: 600; color: var(--mobile-text-heading-primary); margin-bottom: 8px; }
-			.betterpindms-shortcuts-list { color: var(--text-muted); display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
-			.betterpindms-shortcuts-kbd { background: var(--background-mod-subtle); padding: 2px 6px; border-radius: 3px; font-family: monospace; font-size: 11px; margin-right: 4px; }
-			/* --- Modals --- */
-			.betterpindms-modal-editor { display: flex; flex-direction: column; gap: 12px; }
-			.betterpindms-modal-section { display: block; }
-			.betterpindms-modal-label { display: block; margin-bottom: 4px; font-size: 12px; font-weight: 600; color: var(--text-muted); }
-			.betterpindms-modal-input { width: 100%; padding: 8px; background-color: var(--input-background-default); color: var(--text-default); border: 1px solid var(--input-background-default); border-radius: 4px; font-size: 14px; }
-			.betterpindms-modal-color-picker { width: 48px; height: 32px; cursor: pointer; border: none; border-radius: 4px; }
-			.betterpindms-input-modal-field { width: 100%; padding: 8px; background-color: var(--input-background-default); color: var(--text-default); border: 1px solid var(--input-background-default); border-radius: 4px; margin-top: 8px; font-size: 14px; }
-			/* --- Category Header (Inner) --- */
-			.betterpindms-category-header-inner { display: flex; align-items: center; gap: 4px; user-select: none; border-radius: 4px; margin: 0; padding: 6px 0px; cursor: pointer; position: relative; }
-			.betterpindms-category-header-inner:hover { background-color: var(--background-mod-subtle); }
-			.betterpindms-category-arrow { transition: transform 0.2s ease; }
-			.betterpindms-category-arrow-collapsed { transform: rotate(-90deg); }
-			.betterpindms-category-arrow-expanded { transform: rotate(0deg); }
-			.betterpindms-category-pin { font-size: 12px; margin-right: -2px; opacity: 0.7; }
-			.betterpindms-category-name { font-weight: 600; font-size: 12px; text-transform: uppercase; flex: 1; pointer-events: none; }
-			.betterpindms-category-unread { background-color: var(--status-danger); color: #fff; padding: 2px 6px; border-radius: 8px; font-size: 10px; font-weight: 600; margin-left: 4px; }
-			.betterpindms-category-count { background-color: var(--background-accent); color: #fff; padding: 2px 6px; border-radius: 8px; font-size: 10px; font-weight: 600; margin-left: 4px; }
-			/* --- Quick Picker --- */
-			.betterpindms-quickpicker-label { margin-bottom: 8px; color: var(--text-default); }
-			.betterpindms-quickpicker-list { white-space: pre-line; color: var(--text-muted); margin-bottom: 8px; font-size: 13px; }
-		`);
-	}
-	//#endregion Styles
+  constructor(meta) {
+    this.meta = meta;
+    this.cmUnpatches = [];
+    this.categoryStore = new Utils.Store();
+    this.updateManager = new UpdateManager(meta.name, meta.version, GITHUB_REPO);
+    this.defaultSettings = {
+      pinIcon: true,
+      guildListPinIcon: true,
+      unreadAmount: true,
+      channelAmount: true,
+      recentOrderChannelList: false,
+      recentOrderGuildList: false,
+      confirmDragActions: true,
+      shortcutTogglePinEnabled: true,
+      shortcutTogglePinKeys: ["Ctrl", "P"],
+      shortcutQuickPickerEnabled: true,
+      shortcutQuickPickerKeys: ["Ctrl", "Shift", "P"],
+      shortcutJumpCategoryEnabled: true,
+      shortcutJumpCategoryKeys: ["Ctrl"],
+      autoUpdate: true,
+    };
+    this.defaultPreCategories = {
+      friends: { enabled: false, collapsed: false },
+      blocked: { enabled: false, collapsed: false },
+      bots: { enabled: false, collapsed: false },
+      groups: { enabled: false, collapsed: false },
+      muted: { enabled: false, collapsed: false },
+      activeToday: { enabled: false, collapsed: false },
+    };
+    this.preCategoryMeta = {
+      friends: { name: "Friends", color: "#43b581" },
+      blocked: { name: "Blocked", color: "#f04747" },
+      bots: { name: "Bots", color: "#7289da" },
+      groups: { name: "Groups", color: "#faa61a" },
+      activeToday: { name: "Active Today", color: "#1abc9c" },
+      muted: { name: "Muted", color: "#95a5a6" },
+    };
+    this._CategoryHeader = ({ category, foundDMs, plugin }) => {
+      const stores = [plugin.stores.ReadStateStore, plugin.stores.PrivateChannelReadStateStore].filter(Boolean);
+      const unread = Hooks.useStateFromStores(stores, () => {
+        if (!plugin.settings.unreadAmount) return 0;
+        let count = 0;
+        for (const id of foundDMs) count += plugin.stores.ReadStateStore.getMentionCount(id) || 0;
+        return count;
+      }, [foundDMs, plugin.settings.unreadAmount]);
+      const cls = "bpindms-header" + (category.collapsed ? " bpindms-header-collapsed" : "");
+      return ce("h2", {
+        className: cls,
+        "data-category-id": category.id,
+        draggable: !category.predefined,
+        onDragStart: category.predefined ? null : (e) => plugin._handleDragStart(e, "category", category.id),
+        onDragOver: (e) => plugin._handleDragOver(e, "category"),
+        onDrop: (e) => plugin._handleDrop(e, "category", category.id),
+        onDragLeave: (e) => plugin._handleDragLeave(e),
+        onClick: () => {
+          if (foundDMs.length || !category.collapsed) {
+            const newCollapsed = !category.collapsed;
+            if (category.predefined) {
+              plugin.preCategories[category.id].collapsed = newCollapsed;
+              Data.save("preCategories", plugin.preCategories);
+            } else {
+              plugin.saveCategory({ ...category, collapsed: newCollapsed }, "channelList");
+            }
+            plugin.updateContainer("channelList");
+          }
+        },
+        onContextMenu: (e) => plugin.openCategoryContextMenu(e, category),
+      },
+        plugin.settings.pinIcon && !category.predefined ? ce("span", { key: "pin", className: "bpindms-header-pin" }, "\u{1F4CC}") : null,
+        ce("span", { key: "name", className: "bpindms-header-text", style: colorToStyle(category.color) }, category.name),
+        unread ? ce("span", { className: "bpindms-badge bpindms-badge-unread", key: "u" }, unread) : null,
+        plugin.settings.channelAmount ? ce("span", { className: "bpindms-badge", key: "c" }, foundDMs.length) : null,
+        ce("div", { className: "bpindms-arrow", key: "a" }, ce(ChevronDown, { size: "sm" }))
+      );
+    };
+    this._dmListPatched = false;
+    this._innerClassPatched = false;
+    this._dmListFallbackPatched = false;
+    this._PatchedBClass = null;
+    this._PatchedBOrigType = null;
+    this._updatePending = null;
+    this._flushUpdatesDebounced = (() => {
+      let tid = null;
+      const fn = () => { clearTimeout(tid); tid = setTimeout(() => this._flushPendingUpdates(), 0); };
+      fn.cancel = () => { clearTimeout(tid); tid = null; };
+      return fn;
+    })();
+    this._dmListPatchState = {
+      categories: [],
+      pinnedIdsByCat: {},
+      pinnedIdsReversed: [],
+      totalPinnedCount: 0,
+      origRenderDM: null,
+      origSectionHeight: null,
+      origRowHeight: null,
+      origRenderRow: null,
+      origRenderSection: null,
+      totalSections: 0,
+      inst: null,
+    };
+    this._stableRenderDM = suppress((section, row, ...rest) => {
+      const st = this._dmListPatchState;
+      if (!st.inst || !st.origRenderDM) return null;
+      const { categories, inst } = st;
+      if (section === 0) return st.origRenderDM.call(inst, section, row, ...rest);
+      const catIndex = section - 1;
+      if (catIndex >= categories.length) {
+        return st.origRenderDM.call(inst, section, row + st.totalPinnedCount, ...rest);
+      }
+      const cat = categories[catIndex];
+      const offset = st.pinnedIdsReversed.slice(0, catIndex).flat().length;
+      const adjRow = row + offset;
+      const id = inst.props.privateChannelIds[adjRow];
+      const channel = inst.props.channels[id];
+      if (!id ||
+          (cat.collapsed && this.stores.SelectedChannelStore.getChannelId() !== id) ||
+          !this.filterDMs(cat.dms, !cat.predefined).includes(id)) {
+        return null;
+      }
+      let result = channel ? st.origRenderDM.call(inst, section, adjRow, ...rest) : null;
+      result = this.wrapDMResult(id, cat, result);
+      return result;
+    });
+    this._stableSectionHeight = suppress((...a) => {
+      const st = this._dmListPatchState;
+      if (a[0] !== 0 && a[0] !== st.totalSections - 1) {
+        if (st.categories[a[0] - 1]) return 40;
+      }
+      const orig = st.origSectionHeight;
+      return typeof orig === "function" ? orig(...a) : orig;
+    }, (...a) => {
+      const orig = this._dmListPatchState.origSectionHeight;
+      return typeof orig === "function" ? orig(...a) : 0;
+    });
+    this._stableRowHeight = suppress((...a) => {
+      const st = this._dmListPatchState;
+      if (a[0] !== 0 && a[0] !== st.totalSections - 1) {
+        const cat = st.categories[a[0] - 1];
+        if (cat && cat.collapsed) return 0;
+      }
+      const orig = st.origRowHeight;
+      return typeof orig === "function" ? orig(...a) : orig;
+    }, (...a) => {
+      const orig = this._dmListPatchState.origRowHeight;
+      return typeof orig === "function" ? orig(...a) : 0;
+    });
+    this._stableRenderRow = suppress((...a) => {
+      const st = this._dmListPatchState;
+      if (!st.origRenderRow) return null;
+      const row = st.origRenderRow(...a);
+      return row?.key === "no-private-channels" ? null : row;
+    });
+    this._stableRenderSection = suppress((...a) => {
+      const st = this._dmListPatchState;
+      if (!st.origRenderSection) return null;
+      const idx = a[0]?.section ?? a[0];
+      if (idx !== 0 && idx !== st.totalSections - 1) {
+        const cat = st.categories[idx - 1];
+        if (cat) return this.renderCategoryHeader(cat);
+        return null;
+      }
+      const result = st.origRenderSection(...a);
+      if (idx === st.totalSections - 1 && React.isValidElement(result)) {
+        return React.cloneElement(result, {
+          onDragOver: this._composeHandler(result.props.onDragOver, (e) => this._handleDragOver(e, "header-unpin")),
+          onDrop: this._composeHandler(result.props.onDrop, (e) => this._handleDrop(e, "header-unpin", null)),
+          onDragLeave: this._composeHandler(result.props.onDragLeave, (e) => this._handleDragLeave(e))
+        });
+      }
+      return result;
+    });
+  }
+  //#region Lifecycle
+  start() {
+    const saved = Data.load("settings") || {};
+    this.settings = this._migrateSettings(saved);
+    this.preCategories = {};
+    const savedPre = Data.load("preCategories");
+    for (const k of Object.keys(this.defaultPreCategories)) {
+      this.preCategories[k] = { ...this.defaultPreCategories[k], ...savedPre?.[k] };
+    }
+    this.stores = {};
+    for (const name of STORE_NAMES) {
+      this.stores[name] = Webpack.Stores[name];
+      if (!this.stores[name]) Logger.warn(`Store not found: ${name}`);
+    }
+    this.LocaleMessages = Webpack.getModule(m => m.Messages?.UNPIN && m.Messages?.SAVE)?.Messages;
+    Logger.info("Starting BetterPinDMs v" + this.meta.version);
+    this.updateManager.start(this.settings.autoUpdate);
+    DOM.addStyle(CSS);
+    this.patchGuildList();
+    this.patchChannelList();
+    this.patchContextMenus();
+    this.patchDirectMessage();
+    this.setupStoreListener();
+    this._onDragEnd = this._handleDragEnd.bind(this);
+    document.addEventListener("dragend", this._onDragEnd, true);
+    this._onKeyDown = this._handleKeyboardShortcut.bind(this);
+    document.addEventListener("keydown", this._onKeyDown);
+    this.forceUpdateAll(true);
+  }
+  stop() {
+    Logger.info("Stopping BetterPinDMs");
+    this.updateManager.stop();
+    Patcher.unpatchAll();
+    DOM.removeStyle();
+    this.cmUnpatches.forEach(u => u());
+    this.cmUnpatches = [];
+    if (this._settingsRoot) {
+      try { this._settingsRoot.unmount(); } catch {}
+      this._settingsRoot = null;
+    }
+    if (this._channelChangeHandler) this.stores.ChannelStore?.removeChangeListener(this._channelChangeHandler);
+    if (this._storeDebounceTimer) { clearTimeout(this._storeDebounceTimer); this._storeDebounceTimer = null; }
+    if (this._channelListRenderingTimer) { clearTimeout(this._channelListRenderingTimer); this._channelListRenderingTimer = null; }
+    this._channelListRendering = false;
+    if (this._onDragEnd) document.removeEventListener("dragend", this._onDragEnd, true);
+    if (this._onKeyDown) document.removeEventListener("keydown", this._onKeyDown);
+    this._flushUpdatesDebounced.cancel();
+    this._updatePending = null;
+    this._dragInfo = null;
+    this._cleanupDragVisuals();
+    this._dmListForceUpdate = null;
+    this._remountTarget = null;
+    this._dmListPatched = false;
+    this._innerClassPatched = false;
+    this._dmListFallbackPatched = false;
+    this._PatchedBClass = null;
+    this._PatchedBOrigType = null;
+    const st = this._dmListPatchState;
+    st.categories = [];
+    st.pinnedIdsByCat = {};
+    st.pinnedIdsReversed = [];
+    st.totalPinnedCount = 0;
+    st.origRenderDM = null;
+    st.origSectionHeight = null;
+    st.origRowHeight = null;
+    st.origRenderRow = null;
+    st.origRenderSection = null;
+    st.totalSections = 0;
+    st.inst = null;
+    this.forceUpdateAll(true);
+  }
+  //#endregion Lifecycle
+  //#region Data Management
+  getStr(key, fallback) {
+    return this.LocaleMessages?.[key] || fallback;
+  }
+  getCurrentUserId() {
+    return this.stores.UserStore?.getCurrentUser()?.id;
+  }
+  getPinnedChannels(type) {
+    const uid = this.getCurrentUserId();
+    if (!uid) return {};
+    const raw = Data.load("pinned")?.[uid]?.[type];
+    if (!raw || typeof raw !== "object") return {};
+    return safeClone(raw);
+  }
+  savePinnedChannels(channels, type) {
+    const uid = this.getCurrentUserId();
+    if (!uid) return;
+    const all = Data.load("pinned") || {};
+    if (!all[uid]) all[uid] = {};
+    if (channels && typeof channels === "object" && Object.keys(channels).length) {
+      all[uid][type] = channels;
+    } else {
+      delete all[uid][type];
+    }
+    if (!Object.keys(all[uid]).length) delete all[uid];
+    Data.save("pinned", Object.keys(all).length ? all : null);
+    this.categoryStore.emitChange();
+  }
+  saveCategory(cat, type) {
+    this.savePinnedChannels({ ...this.getPinnedChannels(type), [cat.id]: cat }, type);
+  }
+  generateId() {
+    return Math.random().toString(36).slice(2, 10);
+  }
+  filterDMs(dms, removePredefined) {
+    return dms.filter(id =>
+      this.stores.ChannelStore.getChannel(id) &&
+      !(removePredefined && this.getPredefinedCategory(id))
+    );
+  }
+  sortDMsByTime(dms, type) {
+    const key = type === "channelList" ? "recentOrderChannelList" : "recentOrderGuildList";
+    if (dms.length > 1 && this.settings[key]) {
+      return [...dms].sort((a, b) => {
+        try {
+          const msgA = this.stores.ReadStateStore.lastMessageId(a) || "0";
+          const msgB = this.stores.ReadStateStore.lastMessageId(b) || "0";
+          const tA = Number(BigInt(msgA) >> 22n);
+          const tB = Number(BigInt(msgB) >> 22n);
+          return tB - tA;
+        } catch { return 0; }
+      });
+    }
+    return dms;
+  }
+  getPredefinedCategory(id) {
+    if (!id || this.getChannelListCategory(id)) return "";
+    const ch = this.stores.ChannelStore.getChannel(id);
+    if (!ch) return "";
+    if (this.preCategories.muted.enabled && this._isChannelMuted(id)) return "muted";
+    if (this.preCategories.activeToday.enabled && this._wasActiveToday(ch)) return "activeToday";
+    const recipient = ch.type === CHANNEL_TYPES.DM ? ch.recipients?.[0] : null;
+    if (recipient && this.preCategories.friends.enabled && this.stores.RelationshipStore.isFriend(recipient)) return "friends";
+    if (recipient && this.preCategories.blocked.enabled && this.stores.RelationshipStore.isBlocked(recipient)) return "blocked";
+    if (recipient && this.preCategories.bots.enabled && this.stores.UserStore.getUser(recipient)?.bot) return "bots";
+    if (this.preCategories.groups.enabled && ch.type === CHANNEL_TYPES.GROUP_DM) return "groups";
+    return "";
+  }
+  _isChannelMuted(channelId) {
+    const channel = this.stores.ChannelStore.getChannel(channelId);
+    const guildId = channel?.guild_id ?? null;
+    const fn = this.stores.UserGuildSettingsStore.isChannelMuted;
+    return fn.length >= 2
+      ? !!fn.call(this.stores.UserGuildSettingsStore, guildId, channelId)
+      : !!fn.call(this.stores.UserGuildSettingsStore, channelId);
+  }
+  _wasActiveToday(channel) {
+    const lastMsg = this.stores.ReadStateStore.lastMessageId(channel.id);
+    if (!lastMsg) return false;
+    try {
+      const ts = Number((BigInt(lastMsg) >> 22n) + 1420070400000n);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return ts >= today.getTime();
+    } catch { return false; }
+  }
+  getChannelListCategory(id) {
+    if (!id) return null;
+    const cats = this.getPinnedChannels("channelList");
+    for (const cid of Object.keys(cats)) if (cats[cid].dms.includes(id)) return cats[cid];
+    return null;
+  }
+  _normalizeCategoryPositions(data, type) {
+    const entries = Object.entries(data).sort((a, b) => (a[1].pos || 0) - (b[1].pos || 0));
+    const newData = {};
+    let pos = 0;
+    let changed = false;
+    for (const [id, cat] of entries) {
+      if (cat.pos !== pos) changed = true;
+      newData[id] = { ...cat, pos };
+      pos++;
+    }
+    if (changed && Object.keys(newData).length) {
+      this.savePinnedChannels(newData, type);
+    }
+    return newData;
+  }
+  getCategories(type, reverse) {
+    const data = this.getPinnedChannels(type);
+    const normalized = this._normalizeCategoryPositions(data, type);
+    const sorted = Object.values(normalized).sort((a, b) => a.pos - b.pos);
+    if (type === "channelList") {
+      const allDMIds = this.stores.PrivateChannelSortStore.getPrivateChannelIds() || [];
+      const preDMs = {};
+      for (const chId of allDMIds) {
+        const cat = this.getPredefinedCategory(chId);
+        if (cat) {
+          if (!preDMs[cat]) preDMs[cat] = [];
+          preDMs[cat].push(chId);
+        }
+      }
+      for (const t of Object.keys(this.defaultPreCategories).reverse()) {
+        if (preDMs[t]?.length) {
+          const entry = {
+            predefined: true, collapsed: this.preCategories[t].collapsed,
+            color: this.preCategoryMeta[t].color, dms: preDMs[t], id: t, name: this.preCategoryMeta[t].name
+          };
+          if (t === "activeToday") sorted.push(entry);
+          else sorted.unshift(entry);
+        }
+      }
+    }
+    return reverse ? [...sorted].reverse() : sorted;
+  }
+  //#endregion Data Management
+  //#region Category Logic
+  addToCategory(id, category, type, silent) {
+    if (!id || !category || !type) return;
+    const wasEmpty = !this.filterDMs(category.dms, !category.predefined).length;
+    if (!category.dms.includes(id)) category.dms.unshift(id);
+    if (wasEmpty && category.dms.length) category.collapsed = false;
+    this.saveCategory(category, type);
+    this.updateContainer(type, true);
+    if (!silent) UI.showToast(`Pinned to "${category.name}"`, { type: "success" });
+  }
+  removeFromCategory(id, category, type, silent) {
+    if (!id || !category || !type) return;
+    arrRemove(category.dms, id);
+    if (!this.filterDMs(category.dms, !category.predefined).length) category.collapsed = true;
+    this.saveCategory(category, type);
+    this.updateContainer(type, true);
+    if (!silent) UI.showToast("DM unpinned", { type: "info" });
+  }
+  addGuildPin(id) {
+    if (!id) return;
+    const ch = this.getPinnedChannels("guildList");
+    for (const i of Object.keys(ch)) ch[i] = ch[i] + 1;
+    ch[id] = 0;
+    this.savePinnedChannels(ch, "guildList");
+    this.updateContainer("guildList");
+    UI.showToast("Pinned to server list", { type: "success" });
+  }
+  removeGuildPin(id) {
+    if (!id) return;
+    const ch = this.getPinnedChannels("guildList");
+    delete ch[id];
+    this.savePinnedChannels(ch, "guildList");
+    this.updateContainer("guildList");
+    UI.showToast("Unpinned from server list", { type: "info" });
+  }
+  isGuildPinned(id) {
+    return this.getPinnedChannels("guildList")[id] !== undefined;
+  }
+  getSortedGuildPins() {
+    const data = this.getPinnedChannels("guildList");
+    delete data[""]; delete data["null"];
+    const sorted = [], existing = [];
+    const place = (id, pos) => {
+      if (sorted[pos] === undefined) sorted[pos] = id;
+      else place(id, pos + 1);
+    };
+    for (const id of Object.keys(data)) place(id, data[id]);
+    for (const id of sorted.filter(Boolean)) {
+      if (this.stores.ChannelStore.getChannel(id)) existing.push(id);
+    }
+    return this.sortDMsByTime(existing, "guildList");
+  }
+  //#endregion Category Logic
+  //#region Patching
+  patchGuildList() {
+    Patcher.after(this.stores.PrivateChannelReadStateStore, "getUnreadPrivateChannelIds", (_, _args, ret) => {
+      const pinned = this.getSortedGuildPins();
+      if (pinned.length) return [...new Set([...pinned, ...ret])];
+      return ret;
+    });
+  }
+  _beforeRender(inst) {
+    const categories = this.getCategories("channelList", true);
+    this._dmListPatchState._cachedCategories = categories;
+    if (!categories.length) return;
+    const channels = { ...inst.props.channels };
+    const privateChannelIds = [...inst.props.privateChannelIds];
+    const pinnedChannelIds = {};
+    for (const cat of [...categories].reverse()) {
+      pinnedChannelIds[cat.id] = [];
+      for (const id of this.sortDMsByTime(this.filterDMs(cat.dms, !cat.predefined), "channelList").reverse()) {
+        arrRemove(privateChannelIds, id);
+        privateChannelIds.unshift(id);
+        pinnedChannelIds[cat.id].push(id);
+      }
+    }
+    inst.props = { ...inst.props, channels, privateChannelIds, pinnedChannelIds };
+  }
+  _afterRender(inst, ret) {
+    this._dmListForceUpdate = () => inst.forceUpdate();
+    const categories = this._dmListPatchState._cachedCategories || this.getCategories("channelList", true);
+    this._dmListPatchState._cachedCategories = null;
+    if (!categories.length) return ret;
+    if (!inst._bpindms_origRenderDM) inst._bpindms_origRenderDM = inst.renderDM;
+    const st = this._dmListPatchState;
+    st.inst = inst;
+    st.categories = categories;
+    st.pinnedIdsByCat = inst.props.pinnedChannelIds;
+    st.pinnedIdsReversed = Object.values(inst.props.pinnedChannelIds).reverse();
+    st.totalPinnedCount = st.pinnedIdsReversed.flat().length;
+    st.origRenderDM = inst._bpindms_origRenderDM.bind(inst);
+    inst.renderDM = this._stableRenderDM;
+    return this.injectCategories(inst, ret, categories);
+  }
+  _ensurePatchedSubclass(OrigType) {
+    if (this._PatchedBClass && this._PatchedBOrigType === OrigType) {
+      return this._PatchedBClass;
+    }
+    this._PatchedBOrigType = OrigType;
+    const PatchedPCL = class PatchedPCL extends OrigType {
+      render() {
+        PatchedPCL._plugin._beforeRender(this);
+        const result = super.render();
+        return PatchedPCL._plugin._afterRender(this, result) || result;
+      }
+      scrollToChannel(channelId) {
+        const p = PatchedPCL._plugin;
+        const categories = p.getCategories("channelList", true);
+        const ROW_HEIGHT = 44;
+        const HEADER_HEIGHT = 40;
+        const PADDING = 8;
+        let pixelOffset = (this.state.preRenderedChildren ?? 0) * ROW_HEIGHT;
+        for (const cat of categories) {
+          pixelOffset += HEADER_HEIGHT;
+          if (cat.collapsed) {
+            if (p.stores.SelectedChannelStore.getChannelId() === channelId) {
+              const validDms = p.filterDMs(cat.dms, !cat.predefined);
+              if (validDms.includes(channelId)) {
+                if (this._list?.scrollIntoViewRect) {
+                  this._list.scrollIntoViewRect({ start: Math.max(pixelOffset - PADDING, 0), end: pixelOffset + ROW_HEIGHT + PADDING });
+                  return;
+                }
+              }
+            }
+            continue;
+          }
+          const validDms = p.sortDMsByTime(p.filterDMs(cat.dms, !cat.predefined), "channelList");
+          for (const id of validDms) {
+            if (id === channelId) {
+              if (this._list?.scrollIntoViewRect) {
+                this._list.scrollIntoViewRect({ start: Math.max(pixelOffset - PADDING, 0), end: pixelOffset + ROW_HEIGHT + PADDING });
+                return;
+              }
+            }
+            pixelOffset += ROW_HEIGHT;
+          }
+        }
+        return super.scrollToChannel(channelId);
+      }
+    };
+    PatchedPCL._plugin = this;
+    this._PatchedBClass = PatchedPCL;
+    return PatchedPCL;
+  }
+  _replaceInTree(node, predicate, replacer) {
+    if (!node || typeof node !== "object") return node;
+    if (predicate(node)) return replacer(node);
+    if (Array.isArray(node)) {
+      let changed = false;
+      const result = node.map(child => {
+        const newChild = this._replaceInTree(child, predicate, replacer);
+        if (newChild !== child) changed = true;
+        return newChild;
+      });
+      return changed ? result : node;
+    }
+    if (React.isValidElement(node) && node.props?.children) {
+      const oldChildren = node.props.children;
+      const newChildren = this._replaceInTree(oldChildren, predicate, replacer);
+      if (newChildren !== oldChildren) {
+        return React.cloneElement(node, { children: newChildren });
+      }
+    }
+    return node;
+  }
+  patchChannelList() {
+    const hasPrivateIdsProp = (node) => {
+      const ids = node?.props?.privateChannelIds;
+      return ids != null && (Array.isArray(ids) || typeof ids[Symbol.iterator] === "function");
+    };
+    const filterCandidates = [
+      Filters.byStrings("private-channels-", "getMutablePrivateChannels"),
+      Filters.byStrings("private-channels-", "getPrivateChannelIds"),
+      Filters.byStrings("private-channels-", "privateChannelIds"),
+      Filters.byStrings("listScrollerRef", "showDMHeader"),
+    ];
+    const patchReturnValue = (_, __, returnValue) => {
+      const predicate = n => n?.type?.prototype?.render && hasPrivateIdsProp(n);
+      const inner = Utils.findInTree(returnValue, predicate, { walkable: ["props", "children"] });
+      if (inner?.type) {
+        const PatchedClass = this._ensurePatchedSubclass(inner.type);
+        this._innerClassPatched = true;
+        return this._replaceInTree(returnValue, predicate, (node) => {
+          const newProps = { ...node.props };
+          if (node.key != null) newProps.key = node.key;
+          if (node.ref != null) newProps.ref = node.ref;
+          return ce(PatchedClass, newProps);
+        });
+      }
+      return returnValue;
+    };
+    let moduleWithKey = null;
+    for (const filter of filterCandidates) {
+      const result = Webpack.getWithKey(filter);
+      if (result) { moduleWithKey = result; break; }
+    }
+    if (moduleWithKey) {
+      const [mod, key] = moduleWithKey;
+      Patcher.after(mod, key, patchReturnValue);
+      this._dmListPatched = true;
+      Logger.info("DM list patched via Webpack module");
+      return;
+    }
+    const asyncFilter = filterCandidates[0];
+    Webpack.waitForModule(asyncFilter).then((mod) => {
+      if (this._dmListPatched) return;
+      const result = Webpack.getWithKey(asyncFilter);
+      if (result) {
+        const [m, k] = result;
+        Patcher.after(m, k, patchReturnValue);
+        this._dmListPatched = true;
+        Logger.info("DM list patched via async Webpack module");
+        this.forceUpdateAll(true);
+      }
+    }).catch(() => {});
+    if (!this._dmListPatched && !this._innerClassPatched) {
+      this._activateStoreFallback();
+    }
+  }
+  _activateStoreFallback() {
+    if (this._dmListFallbackPatched || this._dmListPatched) return;
+    Logger.warn("UI patch failed; using store-level reorder fallback (no category headers).");
+    UI.showToast(
+      "[BetterPinDMs] UI patch failed; using fallback (reorder only). Category headers/drag UI may be unavailable until Discord UI changes are handled.",
+      { type: "warning", timeout: 8000 }
+    );
+    Patcher.after(this.stores.PrivateChannelSortStore, "getPrivateChannelIds", (_, _args, ret) => {
+      if (this._dmListPatched) return ret;
+      if (!Array.isArray(ret)) return ret;
+      const categories = this.getCategories("channelList", true);
+      if (!categories.length) return ret;
+      const pinnedSet = new Set();
+      const orderedPinned = [];
+      for (const cat of [...categories].reverse()) {
+        for (const id of this.sortDMsByTime(this.filterDMs(cat.dms, !cat.predefined), "channelList")) {
+          if (!pinnedSet.has(id) && ret.includes(id)) {
+            orderedPinned.push(id);
+            pinnedSet.add(id);
+          }
+        }
+      }
+      return [...orderedPinned, ...ret.filter(id => !pinnedSet.has(id))];
+    });
+    this._dmListFallbackPatched = true;
+    Logger.info("Using fallback store patching method");
+  }
+  injectCategories(instance, rv, categories) {
+    if (!rv) return rv;
+    if (rv.props?.sections && Array.isArray(rv.props.sections)) {
+      const pinnedIds = Object.values(instance.props.pinnedChannelIds).reverse();
+      const sections = [instance.state.preRenderedChildren ?? 0];
+      for (const ids of pinnedIds) sections.push(ids.length || 1);
+      sections.push(instance.props.privateChannelIds.length - pinnedIds.flat().length);
+      const st = this._dmListPatchState;
+      st.totalSections = sections.length;
+      if (rv.props.sectionHeight !== this._stableSectionHeight) {
+        st.origSectionHeight = rv.props.sectionHeight;
+      }
+      if (rv.props.rowHeight !== this._stableRowHeight) {
+        st.origRowHeight = rv.props.rowHeight;
+      }
+      if (rv.props.renderRow !== this._stableRenderRow) {
+        st.origRenderRow = rv.props.renderRow;
+      }
+      if (rv.props.renderSection !== this._stableRenderSection) {
+        st.origRenderSection = rv.props.renderSection;
+      }
+      return React.cloneElement(rv, {
+        sections,
+        sectionHeight: this._stableSectionHeight,
+        rowHeight: this._stableRowHeight,
+        renderRow: this._stableRenderRow,
+        renderSection: this._stableRenderSection,
+      });
+    }
+    if (typeof rv.props?.children === "function") {
+      const orig = rv.props.children;
+      return React.cloneElement(rv, {
+        children: suppress((...a) => {
+          const c = orig(...a);
+          return this.injectCategories(instance, c, categories) || c;
+        })
+      });
+    }
+    if (Array.isArray(rv)) {
+      return rv.map(child => this.injectCategories(instance, child, categories) || child);
+    }
+    if (rv.props?.children) {
+      const newChildren = this.injectCategories(instance, rv.props.children, categories);
+      if (newChildren !== rv.props.children) {
+        return React.cloneElement(rv, { children: newChildren });
+      }
+    }
+    return rv;
+  }
+  renderCategoryHeader(category) {
+    const foundDMs = this.filterDMs(category.dms, !category.predefined);
+    if (category.predefined && foundDMs.length < 1) return null;
+    return [
+      ce(this._CategoryHeader, {
+        key: "bpindms-hdr-" + category.id,
+        category,
+        foundDMs,
+        plugin: this
+      })
+    ];
+  }
+  //#endregion Patching
+  //#region Context Menus
+  patchContextMenus() {
+    const buildSubmenu = (channelId) => {
+      const guildPinned = this.isGuildPinned(channelId);
+      const categories = this.getCategories("channelList", true);
+      const currentCat = this.getChannelListCategory(channelId);
+      const clItems = [];
+      if (currentCat) {
+        clItems.push({
+          type: "text", label: "Unpin from Channel List", danger: true,
+          action: () => this.removeFromCategory(channelId, currentCat, "channelList")
+        });
+      } else {
+        clItems.push({
+          type: "text", label: "Add to New Category",
+          action: () => this.openCategoryModal({
+            id: this.generateId(),
+            name: DEFAULT_CATEGORY_PREFIX + (categories.filter(c => !c.predefined).length + 1),
+            dms: [channelId], pos: categories.length, collapsed: false, color: DEFAULT_COLOR
+          }, "channelList", true)
+        });
+      }
+      const catItems = categories
+        .filter(c => !c.predefined)
+        .map(c => {
+          const isCurrent = currentCat && currentCat.id === c.id;
+          return {
+            type: "text",
+            label: isCurrent ? `\u25CF ${c.name || "Pinned DMs"}` : (c.name || "Pinned DMs"),
+            disabled: isCurrent,
+            action: () => {
+              if (currentCat) this.removeFromCategory(channelId, currentCat, "channelList", true);
+              this.addToCategory(channelId, c, "channelList");
+            }
+          };
+        });
+      if (catItems.length) {
+        clItems.push({ type: "separator" }, ...catItems);
+      }
+      return ContextMenu.buildItem({
+        type: "submenu", label: "Pin DM",
+        items: [
+          { type: "submenu", label: "Pin to Channel List", items: clItems },
+          {
+            type: "text",
+            label: guildPinned ? "Unpin from Server List" : "Pin to Server List",
+            danger: guildPinned,
+            action: () => guildPinned ? this.removeGuildPin(channelId) : this.addGuildPin(channelId)
+          }
+        ]
+      });
+    };
+    this.cmUnpatches.push(
+      ContextMenu.patch("user-context", (tree, props) => {
+        if (!props.channel || ![CHANNEL_TYPES.DM, CHANNEL_TYPES.GROUP_DM].includes(props.channel.type)) return;
+        const existing = Array.isArray(tree.props.children) ? tree.props.children : [tree.props.children];
+        tree.props.children = [...existing, buildSubmenu(props.channel.id)];
+      }),
+      ContextMenu.patch("gdm-context", (tree, props) => {
+        if (!props.channel) return;
+        const existing = Array.isArray(tree.props.children) ? tree.props.children : [tree.props.children];
+        tree.props.children = [...existing, buildSubmenu(props.channel.id)];
+      })
+    );
+  }
+  openCategoryContextMenu(event, category) {
+    const items = [];
+    if (category.predefined) {
+      items.push({
+        type: "text", label: "Disable Category",
+        action: () => {
+          this.preCategories[category.id].enabled = false;
+          Data.save("preCategories", this.preCategories);
+          this.updateContainer("channelList", true);
+        }
+      });
+    } else {
+      items.push(
+        {
+          type: "text", label: this.getStr("CATEGORY_SETTINGS", "Category Settings"),
+          action: () => this.openCategoryModal(category, "channelList")
+        },
+        {
+          type: "text", label: this.getStr("DELETE_CATEGORY", "Delete Category"), danger: true,
+          action: () => {
+            const d = this.getPinnedChannels("channelList");
+            delete d[category.id];
+            this.savePinnedChannels(d, "channelList");
+            this.updateContainer("channelList", true);
+          }
+        }
+      );
+    }
+    ContextMenu.open(event, ContextMenu.buildMenu(items));
+  }
+  //#endregion Context Menus
+  //#region Settings Panel
+  getSettingsPanel() {
+    if (this._settingsRoot) {
+      try { this._settingsRoot.unmount(); } catch {}
+      this._settingsRoot = null;
+    }
+    const panel = document.createElement("div");
+    const root = ReactDOM.createRoot(panel);
+    this._settingsRoot = root;
+    root.render(ce(this._SettingsPanelComponent));
+    return panel;
+  }
+  _SettingsPanelComponent = () => {
+    const savedSettings = Hooks.useData("settings") || {};
+    const settings = { ...this.defaultSettings, ...savedSettings };
+    const rawPreCats = Hooks.useData("preCategories") || {};
+    const preCategories = Object.fromEntries(
+      Object.entries(this.defaultPreCategories).map(([k, v]) => {
+        const saved = rawPreCats[k] || {};
+        return [k, { ...v, ...saved }];
+      })
+    );
+    const categoryData = Hooks.useStateFromStores([this.categoryStore], () => this.getPinnedChannels("channelList"));
+    const [, rerender] = Hooks.useForceUpdate();
+    const colorTimerRef = React.useRef(null);
+    const pendingColorsRef = React.useRef({});
+    const settingsSchema = [
+      {
+        type: "category", id: "general", name: "General",
+        collapsible: true, shown: true,
+        settings: [
+          { type: "switch", id: "pinIcon", name: "Pin Icon on Category Headers", note: "Shows a pin icon on custom pinned category headers", value: settings.pinIcon },
+          { type: "switch", id: "guildListPinIcon", name: "Pin Icon in Server List", note: "Shows a pin icon on pinned DMs in the server list", value: settings.guildListPinIcon },
+          { type: "switch", id: "unreadAmount", name: "Unread Count on Categories", note: "Shows unread message count in category headers", value: settings.unreadAmount },
+          { type: "switch", id: "channelAmount", name: "DM Count on Categories", note: "Shows number of pinned DMs in category headers", value: settings.channelAmount },
+          { type: "switch", id: "confirmDragActions", name: "Confirm Drag Actions", note: "Ask for confirmation before unpinning via drag & drop", value: settings.confirmDragActions }
+        ]
+      },
+      {
+        type: "category", id: "sorting", name: "Sort by Recent Message",
+        collapsible: true, shown: false,
+        settings: [
+          { type: "switch", id: "recentOrderChannelList", name: "Sort by Recent (Channel List)", note: "Sort pinned DMs by most recent message in the DM list", value: settings.recentOrderChannelList },
+          { type: "switch", id: "recentOrderGuildList", name: "Sort by Recent (Server List)", note: "Sort pinned DMs by most recent message in the server list", value: settings.recentOrderGuildList }
+        ]
+      },
+      {
+        type: "category", id: "shortcuts", name: "Keyboard Shortcuts",
+        collapsible: true, shown: false,
+        settings: [
+          { type: "switch", id: "shortcutTogglePinEnabled", name: "Toggle Pin/Unpin Current DM", note: "Default: Ctrl+P", value: settings.shortcutTogglePinEnabled },
+          { type: "keybind", id: "shortcutTogglePinKeys", name: "Toggle Pin Shortcut", value: settings.shortcutTogglePinKeys, clearable: true },
+          { type: "switch", id: "shortcutQuickPickerEnabled", name: "Open Quick Category Picker", note: "Default: Ctrl+Shift+P", value: settings.shortcutQuickPickerEnabled },
+          { type: "keybind", id: "shortcutQuickPickerKeys", name: "Quick Picker Shortcut", value: settings.shortcutQuickPickerKeys, clearable: true },
+          { type: "switch", id: "shortcutJumpCategoryEnabled", name: "Jump to Category 1\u20139", note: "Prefix keys combined with number keys 1\u20139", value: settings.shortcutJumpCategoryEnabled },
+          { type: "keybind", id: "shortcutJumpCategoryKeys", name: "Jump Prefix Keys", note: "e.g. Ctrl \u2192 Ctrl+1, Ctrl+2, \u2026", value: settings.shortcutJumpCategoryKeys, clearable: true }
+        ]
+      },
+      {
+        type: "category", id: "predefined", name: "Predefined Categories",
+        collapsible: true, shown: false,
+        settings: [
+          { type: "switch", id: "preCatFriends", name: "Friends", note: "Auto-group friend DMs into a category", value: preCategories.friends.enabled },
+          { type: "switch", id: "preCatBlocked", name: "Blocked", note: "Auto-group blocked user DMs into a category", value: preCategories.blocked.enabled },
+          { type: "switch", id: "preCatBots", name: "Bots", note: "Auto-group bot DMs into a category", value: preCategories.bots.enabled },
+          { type: "switch", id: "preCatGroups", name: "Groups", note: "Auto-group group DMs into a category", value: preCategories.groups.enabled }
+        ]
+      },
+      {
+        type: "category", id: "smart", name: "Smart Categories",
+        collapsible: true, shown: false,
+        settings: [
+          { type: "switch", id: "preCatMuted", name: "Muted", note: "Auto-group muted DMs into a category", value: preCategories.muted.enabled },
+          { type: "switch", id: "preCatActiveToday", name: "Active Today", note: "Auto-group DMs with messages from today into a category", value: preCategories.activeToday.enabled }
+        ]
+      },
+      {
+        type: "category", id: "updates", name: "Updates",
+        collapsible: true, shown: false,
+        settings: [
+          { type: "switch", id: "autoUpdate", name: "Auto Update", note: "Automatically check for plugin updates", value: settings.autoUpdate },
+          { type: "button", id: "checkUpdate", name: "Check for Updates", note: "Manually check for plugin updates", children: "Check Now", onClick: () => this.updateManager.check() },
+          { type: "button", id: "viewChangelog", name: "View Changelog", note: "View all version changes", children: "View Changelog", onClick: () => this.updateManager.showChangelog() }
+        ]
+      },
+    ];
+    const preCatMap = {
+      preCatFriends: "friends", preCatBlocked: "blocked",
+      preCatBots: "bots", preCatGroups: "groups",
+      preCatMuted: "muted", preCatActiveToday: "activeToday"
+    };
+    const categories = Object.entries(categoryData)
+      .sort((a, b) => (a[1].pos || 0) - (b[1].pos || 0))
+      .map(([id, cat]) => ({ ...cat, id }));
+    return ce("div", {}, [
+      ce(React.Fragment, { key: "settings" },
+        UI.buildSettingsPanel({
+          settings: settingsSchema,
+          onChange: (_category, id, value) => {
+            if (preCatMap[id]) {
+              this.preCategories[preCatMap[id]].enabled = value;
+              Data.save("preCategories", this.preCategories);
+            } else {
+              this.settings[id] = value;
+              Data.save("settings", this.settings);
+              if (id === "autoUpdate") {
+                if (value) this.updateManager.start(true);
+                else this.updateManager.stop();
+              }
+            }
+            this.forceUpdateAll();
+          }
+        })
+      ),
+      ce("div", { key: "custom-cats", className: "bpindms-custom-categories" }, [
+        ce("div", { key: "header", className: "bpindms-custom-categories-header" }, "Custom Categories"),
+        ce("div", { key: "hint", className: "bpindms-custom-categories-hint" }, "Use arrows to reorder. Click \u2715 to delete."),
+        ...categories.map((cat, i) => ce("div", { key: cat.id, className: "bpindms-category-row" }, [
+          ce("input", {
+            key: "color", type: "color",
+            value: pendingColorsRef.current[cat.id] || cat.color || DEFAULT_COLOR,
+            onChange: (e) => {
+              const newColor = clampColor(e.target.value);
+              pendingColorsRef.current[cat.id] = newColor;
+              rerender();
+              clearTimeout(colorTimerRef.current);
+              colorTimerRef.current = setTimeout(() => {
+                this.saveCategory({ ...cat, color: newColor }, "channelList");
+                delete pendingColorsRef.current[cat.id];
+                this.forceUpdateAll();
+              }, 300);
+            },
+            className: "bpindms-category-color-input"
+          }),
+          ce("input", {
+            key: "name", type: "text",
+            value: cat.name,
+            onChange: (e) => {
+              this.saveCategory({ ...cat, name: e.target.value }, "channelList");
+              this.forceUpdateAll();
+              rerender();
+            },
+            className: "bpindms-category-name-input"
+          }),
+          ce("button", {
+            key: "up",
+            onClick: () => {
+              if (i === 0) return;
+              const prev = categories[i - 1];
+              const ch = this.getPinnedChannels("channelList");
+              ch[cat.id] = { ...cat, pos: prev.pos };
+              ch[prev.id] = { ...prev, pos: cat.pos };
+              this.savePinnedChannels(ch, "channelList");
+              this.forceUpdateAll();
+              rerender();
+            },
+            disabled: i === 0,
+            className: "bpindms-category-movebtn"
+          }, "\u2191"),
+          ce("button", {
+            key: "down",
+            onClick: () => {
+              if (i === categories.length - 1) return;
+              const next = categories[i + 1];
+              const ch = this.getPinnedChannels("channelList");
+              ch[cat.id] = { ...cat, pos: next.pos };
+              ch[next.id] = { ...next, pos: cat.pos };
+              this.savePinnedChannels(ch, "channelList");
+              this.forceUpdateAll();
+              rerender();
+            },
+            disabled: i === categories.length - 1,
+            className: "bpindms-category-movebtn"
+          }, "\u2193"),
+          ce("button", {
+            key: "delete",
+            onClick: () => {
+              UI.showConfirmationModal("Delete Category", `Delete "${cat.name}"?`, {
+                confirmText: "Delete", danger: true,
+                onConfirm: () => {
+                  const d = this.getPinnedChannels("channelList");
+                  delete d[cat.id];
+                  this.savePinnedChannels(d, "channelList");
+                  this.forceUpdateAll();
+                  rerender();
+                }
+              });
+            },
+            className: "bpindms-category-deletebtn"
+          }, "\u2715")
+        ])),
+        ce("button", {
+          key: "add",
+          onClick: () => {
+            this.openCategoryModal({
+              id: this.generateId(),
+              name: DEFAULT_CATEGORY_PREFIX + (categories.length + 1),
+              dms: [], pos: categories.length, collapsed: false, color: DEFAULT_COLOR
+            }, "channelList", true, rerender);
+          },
+          className: "bpindms-custom-categories-addbtn"
+        }, "Add Category")
+      ]),
+      ce("div", { key: "actions" }, [
+        ce("button", { key: "export", className: "bpindms-action-btn", onClick: () => this._exportConfig() }, "Export Configuration"),
+        ce("button", { key: "import", className: "bpindms-action-btn", onClick: () => this._importConfig() }, "Import Configuration"),
+        ce("button", {
+          key: "unpin", className: "bpindms-unpin-all",
+          onClick: () => {
+            UI.showConfirmationModal("Unpin All", "Are you sure you want to unpin all pinned DMs?", {
+              danger: true, confirmText: "Unpin All", cancelText: "Cancel",
+              onConfirm: () => {
+                const uid = this.getCurrentUserId();
+                if (!uid) return;
+                const all = Data.load("pinned") || {};
+                delete all[uid];
+                Data.save("pinned", Object.keys(all).length ? all : null);
+                this.forceUpdateAll(true);
+              }
+            });
+          }
+        }, "Unpin All")
+      ]),
+      ce("div", { key: "shortcuts-ref", className: "bpindms-shortcuts-ref" }, [
+        ce("div", { key: "header", className: "bpindms-shortcuts-ref-header" }, "Keyboard Shortcuts"),
+        ce("div", { key: "list", className: "bpindms-shortcuts-ref-list" }, [
+          ce("div", { key: "s1" }, ce("kbd", { className: "bpindms-kbd" }, (settings.shortcutTogglePinKeys || []).join("+")), " Pin/unpin current DM"),
+          ce("div", { key: "s2" }, ce("kbd", { className: "bpindms-kbd" }, (settings.shortcutQuickPickerKeys || []).join("+")), " Quick category picker"),
+          ce("div", { key: "s3" }, ce("kbd", { className: "bpindms-kbd" }, (settings.shortcutJumpCategoryKeys || []).join("+") + "+1-9"), " Jump to category")
+        ])
+      ])
+    ]);
+  }
+  openCategoryModal(data, type, isNew, onDone) {
+    if (!data || !type) return;
+    const newData = { ...data };
+    const hexToInt = (hex) => Number.parseInt((hex || DEFAULT_COLOR).replace("#", ""), 16);
+    const handleColorChange = (v) => {
+      if (typeof v === "number") newData.color = "#" + v.toString(16).padStart(6, "0");
+      else if (typeof v === "string") newData.color = v.startsWith("#") ? v : `#${v}`;
+    };
+    const ColorInput = Components.ColorInput;
+    const colorElement = ColorInput
+      ? ce(ColorInput, {
+          value: hexToInt(data.color),
+          disabled: false,
+          onChange: handleColorChange
+        })
+      : ce("input", {
+          type: "color",
+          value: data.color || DEFAULT_COLOR,
+          onChange: (e) => { newData.color = e.target.value; },
+          style: { width: 48, height: 32, cursor: "pointer", border: "none", borderRadius: 4 }
+        });
+    const SettingItem = Components.SettingItem || "div";
+    const TextInput = Components.TextInput;
+    const nameElement = TextInput
+      ? ce(TextInput, { value: data.name, placeholder: data.name, onChange: v => { newData.name = v; } })
+      : ce("input", {
+          type: "text", value: data.name, placeholder: data.name,
+          onChange: (e) => { newData.name = e.target.value; },
+          style: { width: "100%", padding: "8px", fontSize: 14, borderRadius: 4, border: "1px solid var(--input-background-default)", background: "var(--input-background-default)", color: "var(--text-default)" }
+        });
+    const content = ce("div", { style: { padding: "8px 0" } },
+      ce(SettingItem, { name: "Category Name" },
+        nameElement
+      ),
+      ce(SettingItem, { name: "Category Color" }, colorElement)
+    );
+    UI.showConfirmationModal(
+      isNew ? "Create Category" : this.getStr("CATEGORY_SETTINGS", "Category Settings"),
+      content,
+      {
+        confirmText: isNew ? this.getStr("CREATE", "Create") : this.getStr("SAVE", "Save"),
+        cancelText: this.getStr("CANCEL", "Cancel"),
+        onConfirm: () => {
+          newData.color = clampColor(newData.color);
+          this.saveCategory(newData, type);
+          this.updateContainer(type, true);
+          if (typeof onDone === "function") onDone();
+        }
+      }
+    );
+  }
+  //#endregion Settings Panel
+  //#region Drag & Drop
+  wrapDMResult(id, cat, result) {
+    if (result && !cat.predefined) {
+      result = ce("div", {
+        className: "bpindms-dm-wrapper",
+        key: "bpindms-wrap-" + id,
+        "data-bpindms-channel": id,
+        draggable: true,
+        onDragStart: (e) => this._handleDragStart(e, "dm", id),
+        onDragOver: (e) => this._handleDragOver(e, "dm"),
+        onDrop: (e) => this._handleDrop(e, "dm", id),
+        onDragLeave: (e) => this._handleDragLeave(e)
+      },
+        result,
+        ce(Components.Tooltip, { text: this.getStr("UNPIN", "Unpin"), position: "top" },
+          tooltipProps => ce("button", {
+            ...tooltipProps,
+            className: "bpindms-unpin",
+            onClick: (e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              this.removeFromCategory(id, cat, "channelList");
+            },
+            children: ce(PinSvg)
+          })
+        )
+      );
+    }
+    return result;
+  }
+  _composeHandler(existing, added) {
+    if (typeof existing !== "function") return added;
+    if (typeof added !== "function") return existing;
+    return (e) => { existing(e); return added(e); };
+  }
+  _handleDragStart(e, type, id) {
+    e.stopPropagation();
+    this._dragInfo = { type, id };
+    this._dragEl = e.currentTarget;
+    e.dataTransfer.setData("text/plain", JSON.stringify({ type, id }));
+    e.dataTransfer.effectAllowed = "move";
+    this._dragEl.style.opacity = "0.5";
+  }
+  _cleanupDragVisuals() {
+    if (this._dragEl) this._dragEl.style.opacity = "";
+    this._dragEl = null;
+    for (const el of document.querySelectorAll(DRAG_CLASSES.map(c => `.${c}`).join(", "))) {
+      removeDragClasses(el);
+    }
+  }
+  _handleDragOver(e, targetType) {
+    if (!this._dragInfo) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const target = e.currentTarget;
+    const rect = target.getBoundingClientRect();
+    const offsetY = e.clientY - rect.top;
+    const height = rect.height;
+    removeDragClasses(target);
+    if (targetType === "category") {
+      if (this._dragInfo.type === "dm") {
+        target.classList.add("bpindms-drop-target-center");
+        e.dataTransfer.dropEffect = "copy";
+      } else if (this._dragInfo.type === "category") {
+        target.classList.add(offsetY < height / 2 ? "bpindms-drop-target-top" : "bpindms-drop-target-bottom");
+        e.dataTransfer.dropEffect = "move";
+      }
+    } else if (targetType === "dm" && this._dragInfo.type === "dm") {
+      target.classList.add(offsetY < height / 2 ? "bpindms-drop-target-top" : "bpindms-drop-target-bottom");
+      e.dataTransfer.dropEffect = "move";
+    } else if (targetType === "header-unpin" && this._dragInfo.type === "dm") {
+      target.classList.add("bpindms-drop-target-center");
+      e.dataTransfer.dropEffect = "move";
+    }
+  }
+  _handleDragLeave(e) {
+    removeDragClasses(e.currentTarget);
+  }
+  _handleDrop(e, targetType, targetId) {
+    e.preventDefault();
+    e.stopPropagation();
+    this._cleanupDragVisuals();
+    if (!this._dragInfo) return;
+    const { type: dragType, id: dragId } = this._dragInfo;
+    this._dragInfo = null;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const isTop = (e.clientY - rect.top) < rect.height / 2;
+    if (dragType === "dm" && targetType === "header-unpin") {
+      this._confirmUnpin(dragId);
+      return;
+    }
+    if (dragType === "category" && targetType === "category") {
+      this._reorderCategories(dragId, targetId, isTop);
+    } else if (dragType === "dm" && targetType === "category") {
+      this._moveDmToCategory(dragId, targetId);
+    } else if (dragType === "dm" && targetType === "dm") {
+      this._reorderDm(dragId, targetId, isTop);
+    }
+  }
+  _handleDragEnd() {
+    this._dragInfo = null;
+    this._cleanupDragVisuals();
+  }
+  _confirmUnpin(dmId) {
+    const cat = this.getChannelListCategory(dmId);
+    if (!cat) return;
+    const doUnpin = () => {
+      this.removeFromCategory(dmId, cat, "channelList");
+    };
+    if (this.settings.confirmDragActions) {
+      UI.showConfirmationModal(
+        this.getStr("UNPIN", "Unpin DM"),
+        "Unpin this DM?",
+        { confirmText: this.getStr("UNPIN", "Unpin"), danger: true, onConfirm: doUnpin }
+      );
+    } else {
+      doUnpin();
+    }
+  }
+  _reorderDm(dragId, targetId, insertBefore) {
+    if (dragId === targetId) return;
+    const categories = this.getCategories("channelList", true);
+    const sourceCat = categories.find(c => !c.predefined && c.dms.includes(dragId));
+    const targetCat = categories.find(c => !c.predefined && c.dms.includes(targetId));
+    if (!sourceCat || !targetCat) return;
+    if (sourceCat.id === targetCat.id) {
+      if (this.settings.recentOrderChannelList) {
+        this.settings.recentOrderChannelList = false;
+        Data.save("settings", this.settings);
+        UI.showToast("Disabled 'Sort by Recent (Channel List)' to apply manual order", { type: "info" });
+      }
+      const dms = targetCat.dms;
+      const fromIdx = dms.indexOf(dragId);
+      let toIdx = dms.indexOf(targetId);
+      if (fromIdx === -1 || toIdx === -1) return;
+      dms.splice(fromIdx, 1);
+      if (fromIdx < toIdx) toIdx--;
+      if (!insertBefore) toIdx++;
+      dms.splice(toIdx, 0, dragId);
+    } else {
+      arrRemove(sourceCat.dms, dragId);
+      let toIdx = targetCat.dms.indexOf(targetId);
+      if (!insertBefore) toIdx++;
+      targetCat.dms.splice(toIdx, 0, dragId);
+    }
+    const channels = this.getPinnedChannels("channelList");
+    channels[sourceCat.id] = sourceCat;
+    channels[targetCat.id] = targetCat;
+    this.savePinnedChannels(channels, "channelList");
+    this.forceUpdateChannelList(true);
+  }
+  _moveDmToCategory(dragId, targetCatId) {
+    const categories = this.getCategories("channelList", true);
+    const sourceCat = categories.find(c => !c.predefined && c.dms.includes(dragId));
+    const targetCat = categories.find(c => c.id === targetCatId && !c.predefined);
+    if (!targetCat) return;
+    if (sourceCat) arrRemove(sourceCat.dms, dragId);
+    if (!targetCat.dms.includes(dragId)) targetCat.dms.unshift(dragId);
+    const channels = this.getPinnedChannels("channelList");
+    if (sourceCat) channels[sourceCat.id] = sourceCat;
+    channels[targetCat.id] = targetCat;
+    this.savePinnedChannels(channels, "channelList");
+    this.forceUpdateChannelList(true);
+    UI.showToast(`Moved to "${targetCat.name}"`, { type: "success" });
+  }
+  _reorderCategories(dragId, targetId, insertBefore) {
+    if (dragId === targetId) return;
+    const categories = this.getCategories("channelList", true);
+    const dCat = categories.find(c => c.id === dragId);
+    const rCat = categories.find(c => c.id === targetId);
+    if (!dCat || !rCat) return;
+    arrRemove(categories, dCat);
+    let targetIdx = categories.indexOf(rCat);
+    if (!insertBefore) targetIdx++;
+    categories.splice(targetIdx, 0, dCat);
+    const nc = {};
+    let p = 0;
+    for (const c of [...categories].reverse()) if (!c.predefined) nc[c.id] = { ...c, pos: p++ };
+    this.savePinnedChannels(nc, "channelList");
+    this.forceUpdateChannelList(true);
+  }
+  //#endregion Drag & Drop
+  //#region Updates & Force Refresh
+  updateContainer(type, force) {
+    if (type === "channelList") {
+      if (force && !this._channelListRendering) {
+        this._channelListRendering = true;
+        this._channelListRenderingTimer = setTimeout(() => { this._channelListRendering = false; this._channelListRenderingTimer = null; }, 3000);
+        this.remountDmList();
+      } else {
+        this.forceUpdateChannelList(true);
+      }
+    } else if (type === "guildList") {
+      this.remountDmList();
+    }
+  }
+  remountDmList() {
+    if (this._remountTarget && !this._remountTarget._reactInternals) {
+      this._remountTarget = null;
+    }
+    if (!this._remountTarget) {
+      const node = document.querySelector('[class*="privateChannels"]');
+      if (!node) return;
+      const fiber = ReactUtils.getInternalInstance(node);
+      for (let current = fiber; current; current = current.return) {
+        const { stateNode } = current;
+        if (stateNode?.forceUpdate && stateNode?.render) {
+          this._remountTarget = stateNode;
+          break;
+        }
+      }
+    }
+    if (!this._remountTarget) return;
+    const fragmentKey = String(Math.random());
+    const restore = Patcher.instead(this._remountTarget, "render", (_, args, originalRender) => {
+      restore();
+      return React.createElement(React.Fragment, { key: fragmentKey }, originalRender(...args));
+    });
+    try {
+      this._remountTarget.forceUpdate();
+    } catch {
+      restore();
+      this._remountTarget = null;
+    }
+  }
+  _flushPendingUpdates() {
+    if (this._updatePending) {
+      if (this._updatePending.dmList && this._dmListForceUpdate) this._dmListForceUpdate();
+      if (this._updatePending.remount) this.remountDmList();
+      this._updatePending = null;
+    }
+  }
+  forceUpdateChannelList(immediate) {
+    if (immediate) {
+      if (this._dmListForceUpdate) this._dmListForceUpdate();
+      else this.remountDmList();
+      return;
+    }
+    if (!this._updatePending) this._updatePending = {};
+    this._updatePending.dmList = true;
+    this._flushUpdatesDebounced();
+  }
+  forceUpdateAll(immediate) {
+    if (immediate) {
+      this.remountDmList();
+      return;
+    }
+    if (!this._updatePending) this._updatePending = {};
+    this._updatePending.remount = true;
+    this._flushUpdatesDebounced();
+  }
+  //#endregion Updates & Force Refresh
+  //#region Guild DM Patching
+  patchDirectMessage() {
+    this._pinBadgeElement = ce("div", {
+      style: {
+        width: 16, height: 16,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        transform: "scale(-1, 1)",
+        filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.5))"
+      }
+    },
+      ce("svg", { viewBox: "0 0 24 24", width: 14, height: 14 },
+        ce("path", { fill: "white", d: "M22 12L12.101 2.10101L10.686 3.51401L12.101 4.92901L7.15096 9.87801V9.88001L5.73596 8.46501L4.32196 9.88001L8.56496 14.122L2.90796 19.778L4.32196 21.192L9.97896 15.536L14.222 19.778L15.636 18.364L14.222 16.95L19.171 12H19.172L20.586 13.414L22 12Z" })
+      )
+    );
+    this._patchBlobMask();
+  }
+  _patchBlobMask() {
+    const blobResult = Webpack.getMangled(
+      Filters.bySource("baseViewBoxSize", "badgeMaskStroke"),
+      { BlobMask: Filters.byStrings("baseViewBoxSize") }
+    );
+    if (!blobResult?.BlobMask) { Logger.warn("BlobMask module not found"); return; }
+    Patcher.before(blobResult, "BlobMask", (_t, args) => {
+      if (!this.settings.guildListPinIcon) return;
+      const to = args[0]?.children?.props?.to;
+      if (typeof to !== "string") return;
+      const match = to.match(/^\/channels\/@me\/(\d+)$/);
+      if (!match) return;
+      if (this.isGuildPinned(match[1])) {
+        args[0] = { ...args[0], upperBadge: this._pinBadgeElement };
+      }
+    });
+    Logger.info("BlobMask component patched via getMangled");
+  }
+  //#endregion Guild DM Patching
+  //#region Settings Migration
+  _migratePreCats(source, keys) {
+    if (!source) return;
+    for (const k of keys) {
+      if (source[k]?.enabled !== undefined) {
+        this.preCategories = this.preCategories || {};
+        if (!this.preCategories[k]) this.preCategories[k] = { ...this.defaultPreCategories[k] };
+        this.preCategories[k].enabled = source[k].enabled;
+        if (source[k].collapsed) this.preCategories[k].collapsed = true;
+      }
+    }
+  }
+  _migrateSettings(saved) {
+    if (!saved || typeof saved !== "object") return structuredClone(this.defaultSettings);
+    if (saved.general || saved.recentOrder || saved.preCategories || saved.smartCategories) {
+      Logger.info("Migrating settings from older nested format");
+      const migrated = structuredClone(this.defaultSettings);
+      if (saved.general) {
+        migrated.pinIcon = saved.general.pinIcon ?? migrated.pinIcon;
+        migrated.guildListPinIcon = saved.general.guildListPinIcon ?? migrated.guildListPinIcon;
+        migrated.unreadAmount = saved.general.unreadAmount ?? migrated.unreadAmount;
+        migrated.channelAmount = saved.general.channelAmount ?? migrated.channelAmount;
+      }
+      if (saved.recentOrder) {
+        migrated.recentOrderChannelList = saved.recentOrder.channelList ?? migrated.recentOrderChannelList;
+        migrated.recentOrderGuildList = saved.recentOrder.guildList ?? migrated.recentOrderGuildList;
+      }
+      this._migratePreCats(saved.preCategories, Object.keys(this.defaultPreCategories));
+      this._migratePreCats(saved.smartCategories, ["muted", "activeToday"]);
+      if (saved.preCategories || saved.smartCategories) {
+        Data.save("preCategories", this.preCategories);
+      }
+      if (saved.sortChannelListByRecent !== undefined) migrated.recentOrderChannelList = saved.sortChannelListByRecent;
+      if (saved.sortGuildListByRecent !== undefined) migrated.recentOrderGuildList = saved.sortGuildListByRecent;
+      if (Object.hasOwn(saved, "confirmDragActions")) migrated.confirmDragActions = saved.confirmDragActions;
+      for (const name of ["TogglePin", "QuickPicker", "JumpCategory"]) {
+        const enabledKey = `shortcut${name}Enabled`;
+        const keysKey = `shortcut${name}Keys`;
+        if (saved[enabledKey] !== undefined) migrated[enabledKey] = saved[enabledKey];
+        if (Array.isArray(saved[keysKey])) migrated[keysKey] = saved[keysKey];
+      }
+      Data.save("settings", migrated);
+      return migrated;
+    }
+    return { ...structuredClone(this.defaultSettings), ...safeClone(saved) };
+  }
+  //#endregion Settings Migration
+  //#region Import & Export
+  _exportConfig() {
+    try {
+      const s = this.settings;
+      const pc = this.preCategories;
+      const all = {
+        general: {
+          pinIcon: !!s.pinIcon,
+          guildListPinIcon: !!s.guildListPinIcon,
+          unreadAmount: !!s.unreadAmount,
+          channelAmount: !!s.channelAmount,
+          confirmDragActions: !!s.confirmDragActions
+        },
+        preCategories: {
+          friends: { enabled: !!pc.friends.enabled, collapsed: !!pc.friends.collapsed },
+          blocked: { enabled: !!pc.blocked.enabled, collapsed: !!pc.blocked.collapsed },
+          bots: { enabled: !!pc.bots.enabled, collapsed: !!pc.bots.collapsed },
+          groups: { enabled: !!pc.groups.enabled, collapsed: !!pc.groups.collapsed }
+        },
+        smartCategories: {
+          activeToday: { enabled: !!pc.activeToday.enabled, collapsed: !!pc.activeToday.collapsed },
+          muted: { enabled: !!pc.muted.enabled, collapsed: !!pc.muted.collapsed }
+        },
+        recentOrder: {
+          channelList: !!s.recentOrderChannelList,
+          guildList: !!s.recentOrderGuildList
+        },
+        shortcuts: {
+          shortcutTogglePinEnabled: !!s.shortcutTogglePinEnabled,
+          shortcutTogglePinKeys: s.shortcutTogglePinKeys || [],
+          shortcutQuickPickerEnabled: !!s.shortcutQuickPickerEnabled,
+          shortcutQuickPickerKeys: s.shortcutQuickPickerKeys || [],
+          shortcutJumpCategoryEnabled: !!s.shortcutJumpCategoryEnabled,
+          shortcutJumpCategoryKeys: s.shortcutJumpCategoryKeys || []
+        },
+        pinned: Data.load("pinned") || {}
+      };
+      const config = { all };
+      const blob = new Blob([JSON.stringify(config, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const date = new Date().toISOString().slice(0, 10);
+      a.download = `BetterPinDMs-backup-${date}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      Logger.info("Configuration exported successfully");
+      UI.showToast("Configuration exported (cross-compatible)", { type: "success" });
+    } catch (e) {
+      Logger.error("Export failed:", e);
+      UI.showToast("Export failed", { type: "error" });
+    }
+  }
+  _rgbaToHex(color) {
+    if (typeof color === "string") return color;
+    if (typeof color === "number") return "#" + (color & 0xffffff).toString(16).padStart(6, "0");
+    if (!Array.isArray(color) || color.length < 3) return null;
+    const clamp = v => Math.max(0, Math.min(255, Math.round(v)));
+    return "#" + [clamp(color[0]), clamp(color[1]), clamp(color[2])].map(v => v.toString(16).padStart(2, "0")).join("");
+  }
+  _convertCategoryEntries(entries) {
+    const converted = Object.create(null);
+    for (const [catId, cat] of entries) {
+      if (_isUnsafeKey(catId) || !cat || typeof cat !== "object") continue;
+      converted[catId] = {
+        id: cat.id || catId,
+        name: typeof cat.name === "string" ? cat.name : "Imported Category",
+        dms: Array.isArray(cat.dms) ? cat.dms.filter(d => typeof d === "string") : [],
+        pos: typeof cat.pos === "number" ? cat.pos : 0,
+        collapsed: !!cat.collapsed,
+        color: this._rgbaToHex(cat.color)
+      };
+    }
+    return converted;
+  }
+  _importBetterPinDMs(config) {
+    const all = config.all || {};
+    if (all.general || all.recentOrder || all.shortcuts) {
+      if (all.general) {
+        if (all.general.pinIcon !== undefined) this.settings.pinIcon = all.general.pinIcon;
+        if (all.general.unreadAmount !== undefined) this.settings.unreadAmount = all.general.unreadAmount;
+        if (all.general.channelAmount !== undefined) this.settings.channelAmount = all.general.channelAmount;
+        if (all.general.guildListPinIcon !== undefined) this.settings.guildListPinIcon = all.general.guildListPinIcon;
+        if (all.general.confirmDragActions !== undefined) this.settings.confirmDragActions = all.general.confirmDragActions;
+      }
+      if (all.recentOrder) {
+        if (all.recentOrder.channelList !== undefined) this.settings.recentOrderChannelList = all.recentOrder.channelList;
+        if (all.recentOrder.guildList !== undefined) this.settings.recentOrderGuildList = all.recentOrder.guildList;
+      }
+      if (all.shortcuts) {
+        for (const key of ["shortcutTogglePinEnabled", "shortcutQuickPickerEnabled", "shortcutJumpCategoryEnabled"]) {
+          if (all.shortcuts[key] !== undefined) this.settings[key] = all.shortcuts[key];
+        }
+        for (const key of ["shortcutTogglePinKeys", "shortcutQuickPickerKeys", "shortcutJumpCategoryKeys"]) {
+          if (Array.isArray(all.shortcuts[key])) this.settings[key] = all.shortcuts[key];
+        }
+      }
+      Data.save("settings", this.settings);
+    }
+    if (all.preCategories) {
+      for (const k of Object.keys(this.defaultPreCategories)) {
+        if (all.preCategories[k]) {
+          this.preCategories[k] = { ...this.defaultPreCategories[k], ...all.preCategories[k] };
+        }
+      }
+    }
+    if (all.smartCategories) {
+      for (const k of ["muted", "activeToday"]) {
+        if (all.smartCategories[k]) {
+          this.preCategories[k] = { ...this.defaultPreCategories[k], ...all.smartCategories[k] };
+        }
+      }
+    }
+    Data.save("preCategories", this.preCategories);
+    const pinnedRoot = all.pinned || {};
+    const uid = this.getCurrentUserId();
+    let pinnedForUser = uid ? pinnedRoot[uid] : null;
+    if (!pinnedForUser) {
+      const firstKey = Object.keys(pinnedRoot)[0];
+      if (firstKey) pinnedForUser = pinnedRoot[firstKey];
+    }
+    if (pinnedForUser) {
+      const channelList = pinnedForUser.channelList || {};
+      const convertedCats = this._convertCategoryEntries(Object.entries(channelList));
+      const guildList = Object.create(null);
+      if (Array.isArray(pinnedForUser.guildList)) {
+        for (let i = 0; i < pinnedForUser.guildList.length; i++) {
+          const id = pinnedForUser.guildList[i];
+          if (typeof id === "string") guildList[id] = i;
+        }
+      } else if (pinnedForUser.guildList && typeof pinnedForUser.guildList === "object") {
+        for (const [id, pos] of Object.entries(pinnedForUser.guildList)) {
+          if (typeof id === "string" && typeof pos === "number") guildList[id] = pos;
+        }
+      }
+      const allPinned = Data.load("pinned") || {};
+      if (!allPinned[uid]) allPinned[uid] = {};
+      if (Object.keys(convertedCats).length) allPinned[uid].channelList = convertedCats;
+      if (Object.keys(guildList).length) allPinned[uid].guildList = guildList;
+      Data.save("pinned", allPinned);
+    }
+  }
+  _importBetterPinDMsLegacy(config) {
+    if (config.settings && typeof config.settings === "object") {
+      const safe = safeClone(config.settings);
+      if (safe.sortChannelListByRecent !== undefined) { this.settings.recentOrderChannelList = safe.sortChannelListByRecent; delete safe.sortChannelListByRecent; }
+      if (safe.sortGuildListByRecent !== undefined) { this.settings.recentOrderGuildList = safe.sortGuildListByRecent; delete safe.sortGuildListByRecent; }
+      if (safe.enableFriends !== undefined) { this.preCategories.friends.enabled = safe.enableFriends; }
+      if (safe.enableBlocked !== undefined) { this.preCategories.blocked.enabled = safe.enableBlocked; }
+      if (safe.enableBots !== undefined) { this.preCategories.bots.enabled = safe.enableBots; }
+      if (safe.enableGroups !== undefined) { this.preCategories.groups.enabled = safe.enableGroups; }
+      if (safe.enableMuted !== undefined) { this.preCategories.muted.enabled = safe.enableMuted; }
+      if (safe.enableActiveToday !== undefined) { this.preCategories.activeToday.enabled = safe.enableActiveToday; }
+      for (const k of ["pinIcon", "guildListPinIcon", "unreadAmount", "channelAmount", "confirmDragActions"]) {
+        if (safe[k] !== undefined) this.settings[k] = safe[k];
+      }
+      Data.save("settings", this.settings);
+      Data.save("preCategories", this.preCategories);
+    }
+    if (config.categories?.custom && typeof config.categories.custom === "object") {
+      const uid = this.getCurrentUserId();
+      if (uid) {
+        const convertedCats = this._convertCategoryEntries(Object.entries(config.categories.custom));
+        const allPinned = Data.load("pinned") || {};
+        if (!allPinned[uid]) allPinned[uid] = {};
+        if (Object.keys(convertedCats).length) allPinned[uid].channelList = convertedCats;
+        Data.save("pinned", allPinned);
+      }
+    }
+  }
+  _importConfig() {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json";
+    input.style.display = "none";
+    input.addEventListener("change", async () => {
+      const file = input.files[0];
+      input.remove();
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const config = JSON.parse(text);
+        if (!config || typeof config !== "object") throw new Error("Invalid JSON");
+        const isCrossCompatExport = !!config.all;
+        const isBetterPinDMsLegacy = !!(config.categories?.custom && config.version && !config.plugin);
+        let formatLabel = "";
+        if (isCrossCompatExport) formatLabel = " (cross-compatible format detected)";
+        else if (isBetterPinDMsLegacy) formatLabel = " (BetterPinDMs legacy format detected)";
+        UI.showConfirmationModal("Import Configuration",
+          `This will overwrite your current settings, categories, and pins.${formatLabel} Continue?`,
+          {
+            danger: true, confirmText: "Import", cancelText: "Cancel",
+            onConfirm: () => {
+              if (isCrossCompatExport) {
+                this._importBetterPinDMs(config);
+              } else if (isBetterPinDMsLegacy) {
+                this._importBetterPinDMsLegacy(config);
+              } else {
+                if (config.settings && typeof config.settings === "object") {
+                  this.settings = { ...this.defaultSettings, ...safeClone(config.settings) };
+                  Data.save("settings", this.settings);
+                }
+                if (config.preCategories && typeof config.preCategories === "object") {
+                  for (const k of Object.keys(this.defaultPreCategories)) {
+                    this.preCategories[k] = { ...this.defaultPreCategories[k], ...config.preCategories[k] };
+                  }
+                  Data.save("preCategories", this.preCategories);
+                }
+                if (config.pinned && typeof config.pinned === "object") {
+                  Data.save("pinned", safeClone(config.pinned));
+                }
+              }
+              this.forceUpdateAll(true);
+              Logger.info("Configuration imported successfully");
+              UI.showToast("Configuration imported", { type: "success" });
+            }
+          }
+        );
+      } catch (e) {
+        Logger.error("Import failed:", e);
+        UI.showToast("Import failed: invalid file", { type: "error" });
+      }
+    });
+    document.body.appendChild(input);
+    input.click();
+  }
+  //#endregion Import & Export
+  //#region Store Listener
+  setupStoreListener() {
+    this._storeDebounceTimer = null;
+    this._channelChangeHandler = () => {
+      if (this._storeDebounceTimer) clearTimeout(this._storeDebounceTimer);
+      this._storeDebounceTimer = setTimeout(() => {
+        this._storeDebounceTimer = null;
+        const categories = this.getCategories("channelList", false);
+        for (const cat of categories) {
+          for (const id of cat.dms) {
+            if (!this.stores.ChannelStore.getChannel(id)) {
+              this.updateContainer("channelList");
+              return;
+            }
+          }
+        }
+      }, 500);
+    };
+    this.stores.ChannelStore?.addChangeListener(this._channelChangeHandler);
+  }
+  //#endregion Store Listener
+  //#region Keyboard Shortcuts
+  _handleKeyboardShortcut(e) {
+    if (e.repeat) return;
+    const target = e.target;
+    if (target instanceof HTMLElement && (
+      target.tagName === "INPUT" ||
+      target.tagName === "TEXTAREA" ||
+      target.isContentEditable ||
+      target.getAttribute("role") === "textbox"
+    )) return;
+    const s = this.settings;
+    const parseKeys = (keys) => {
+      const mods = { ctrl: false, shift: false, alt: false, meta: false };
+      let mainKey = null;
+      for (const raw of keys) {
+        const lower = String(raw).toLowerCase();
+        if (lower === "ctrl" || lower === "control") mods.ctrl = true;
+        else if (lower === "shift") mods.shift = true;
+        else if (lower === "alt" || lower === "option") mods.alt = true;
+        else if (lower === "meta" || lower === "cmd" || lower === "command" || lower === "win") mods.meta = true;
+        else mainKey = lower;
+      }
+      return { mods, mainKey };
+    };
+    const modsMatch = (mods, evt) =>
+      !!mods.ctrl === !!evt.ctrlKey && !!mods.shift === !!evt.shiftKey &&
+      !!mods.alt === !!evt.altKey && !!mods.meta === !!evt.metaKey;
+    const matchesBinding = (keys, evt) => {
+      if (!Array.isArray(keys) || !keys.length) return false;
+      const { mods, mainKey } = parseKeys(keys);
+      if (!modsMatch(mods, evt) || !mainKey) return false;
+      return String(evt.key || "").toLowerCase() === mainKey;
+    };
+    const matchesModifiers = (keys, evt) => {
+      if (!Array.isArray(keys) || !keys.length) return false;
+      return modsMatch(parseKeys(keys).mods, evt);
+    };
+    if (s.shortcutTogglePinEnabled && matchesBinding(s.shortcutTogglePinKeys, e)) {
+      e.preventDefault();
+      this.toggleCurrentDmPin();
+      return;
+    }
+    if (s.shortcutQuickPickerEnabled && matchesBinding(s.shortcutQuickPickerKeys, e)) {
+      e.preventDefault();
+      this.showQuickCategoryPicker();
+      return;
+    }
+    if (s.shortcutJumpCategoryEnabled && matchesModifiers(s.shortcutJumpCategoryKeys, e)) {
+      const key = String(e.key || "");
+      if (key >= "1" && key <= "9") {
+        e.preventDefault();
+        this.jumpToCategory(Number.parseInt(key, 10) - 1);
+      }
+    }
+  }
+  _getSelectedDmChannelId() {
+    const channelId = this.stores.SelectedChannelStore.getChannelId();
+    if (!channelId) return null;
+    const channel = this.stores.ChannelStore.getChannel(channelId);
+    if (!channel || ![CHANNEL_TYPES.DM, CHANNEL_TYPES.GROUP_DM].includes(channel.type)) return null;
+    return channelId;
+  }
+  toggleCurrentDmPin() {
+    const channelId = this._getSelectedDmChannelId();
+    if (!channelId) return;
+    const currentCat = this.getChannelListCategory(channelId);
+    if (currentCat) {
+      this.removeFromCategory(channelId, currentCat, "channelList");
+    } else {
+      const categories = this.getCategories("channelList", true).filter(c => !c.predefined);
+      if (categories.length) {
+        this.addToCategory(channelId, categories[0], "channelList");
+      } else {
+        UI.showToast("No categories available. Create one first.", { type: "warning" });
+      }
+    }
+  }
+  showQuickCategoryPicker() {
+    const channelId = this._getSelectedDmChannelId();
+    if (!channelId) return;
+    const categories = this.getCategories("channelList", true).filter(c => !c.predefined);
+    if (!categories.length) {
+      UI.showToast("No categories available", { type: "info" });
+      return;
+    }
+    const names = categories.map((c, i) => `${i + 1}. ${c.name}`).join("\n");
+    const selectionRef = { current: "" };
+    const content = ce("div", {},
+      ce("div", { style: { marginBottom: 8 } }, "Select category by number:"),
+      ce("div", { style: { whiteSpace: "pre-line", color: "var(--text-muted)", marginBottom: 8, fontSize: 13 } }, names),
+      ce("input", {
+        type: "number", min: 1, max: categories.length,
+        autoFocus: true,
+        className: "bpindms-input-field",
+        onChange: (e) => { selectionRef.current = e.target.value; }
+      })
+    );
+    UI.showConfirmationModal("Quick Category Picker", content, {
+      confirmText: "Go", cancelText: "Cancel",
+      onConfirm: () => {
+        const index = Number.parseInt(selectionRef.current, 10) - 1;
+        if (index >= 0 && index < categories.length) {
+          const currentCat = this.getChannelListCategory(channelId);
+          if (currentCat) this.removeFromCategory(channelId, currentCat, "channelList", true);
+          this.addToCategory(channelId, categories[index], "channelList");
+        }
+      }
+    });
+  }
+  jumpToCategory(index) {
+    const categories = this.getCategories("channelList", true);
+    if (categories[index]) {
+      const firstDm = this.filterDMs(categories[index].dms, !categories[index].predefined)[0];
+      if (firstDm) {
+        globalThis.location.hash = `#/channels/@me/${firstDm}`;
+      }
+    }
+  }
+  //#endregion Keyboard Shortcuts
 };
 //#endregion Main Plugin
