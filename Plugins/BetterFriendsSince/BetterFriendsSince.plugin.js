@@ -2,7 +2,7 @@
  * @name BetterFriendsSince
  * @author Pharaoh2k
  * @description Shows the date you and a friend became friends in the profile modal and Friends sidebar.
- * @version 1.3.6
+ * @version 1.3.7
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterFriendsSince/BetterFriendsSince.plugin.js
@@ -223,10 +223,10 @@ class UpdateManager {
 	_validateRemotePluginText(text) {
 		if (typeof text !== "string") return { ok: false, reason: "Not a string" };
 		if (text.length < 800) return { ok: false, reason: "File too small" };
-		const remoteName = text.match(/@name\s+([^\n\r]+)/)?.[1]?.trim();
+		const remoteName = /@name\s+([^\n\r]+)/.exec(text)?.[1]?.trim();
 		if (!remoteName) return { ok: false, reason: "Missing @name" };
 		if (remoteName !== this.name) return { ok: false, reason: `Unexpected @name (${remoteName})` };
-		const remoteVersion = text.match(/@version\s+([\d.]+)/)?.[1];
+		const remoteVersion = /@version\s+([\d.]+)/.exec(text)?.[1];
 		if (!remoteVersion) return { ok: false, reason: "Missing @version" };
 		if (!text.includes("module.exports")) return { ok: false, reason: "Missing module.exports" };
 		if (!text.includes("@updateUrl")) return { ok: false, reason: "Missing @updateUrl header" };
@@ -349,29 +349,16 @@ const BetterFriendsSince = meta => {
 	const settings = { ...DEFAULT_SETTINGS, ...Data.load("settings") };
 	const updateManager = new UpdateManager(meta.name, meta.version, "Pharaoh2k/BetterDiscordStuff");
 	const saveSettings = () => Data.save("settings", settings);
-	const extractTextComponent = module => {
-		if (!module) return null;
-		if (module.render) return module;
-		if (typeof module === "object") {
-			const candidate = Object.values(module).find(v => v && v.render);
-			if (candidate) return candidate;
-		}
-		return null;
-	};
 	const resolveTextComponent = async signal => {
-		const filters = [
-			Filters.bySource("data-text-variant"),
-			Filters.bySource("lineClamp", "selectable")
+		const sourceAttempts = [
+			["data-text-variant", "lineClamp", "selectable"],
+			["data-text-variant", "lineClamp"],
+			["lineClamp", "selectable", "variant"]
 		];
-		for (const filter of filters) {
-			try {
-				const textModule = await Webpack.waitForModule(filter, { signal });
-				if (signal.aborted) return null;
-				const component = extractTextComponent(textModule);
-				if (component) return component;
-			} catch (e) {
-				Logger.warn("Text resolution attempt failed.", e);
-			}
+		for (const sources of sourceAttempts) {
+			const result = await getWithKeyLazy(signal, ...sources);
+			if (signal.aborted) return null;
+			if (result) return result.fn;
 		}
 		return null;
 	};
@@ -617,7 +604,7 @@ const BetterFriendsSince = meta => {
 					type: "button",
 					id: "viewChangelog",
 					name: "View Changelog",
-					note: "View the changelog for this plugin",
+					note: "View the complete changelog for this plugin",
 					children: "View Changelog",
 					onClick: () => updateManager.showChangelog()
 				}
