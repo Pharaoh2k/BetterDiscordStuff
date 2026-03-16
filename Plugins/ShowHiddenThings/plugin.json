@@ -1,0 +1,23 @@
+{
+  "name": "ShowHiddenThings",
+  "description": "Displays various hidden & moderator-only things regardless of permissions. Shows member timeout icons in chat, invites paused tooltip in server list, and mod view context menu item in all servers.",
+  "author": "Pharaoh2k",
+  "version": "1.0.0",
+  "status": "Active",
+  "workingStatus": "Working",
+  "lastUpdated": "2026-02-17",
+  "releaseDate": "2026-02-17",
+  "features": [
+    "Show member timeout icons in chat without timeout permissions",
+    "Display invites paused tooltip in server list without manage server permission",
+    "Access Mod View context menu option in all servers",
+    "View your own profile in Mod View from context menu",
+    "Properly display highest role information in mod view",
+    "Automatic update checking with changelog display",
+    "Individual toggle controls for each feature",
+    "Settings panel for customization"
+  ],
+  "sourceUrl": "https://github.com/Pharaoh2k/BetterDiscordStuff/tree/main/Plugins/ShowHiddenThings",
+  "changelogUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/ShowHiddenThings/CHANGELOG.md",
+  "downloadUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/ShowHiddenThings/ShowHiddenThings.plugin.js"
+}

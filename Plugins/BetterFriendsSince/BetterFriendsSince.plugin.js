@@ -1,0 +1,624 @@
+/**
+ * @name BetterFriendsSince
+ * @author Pharaoh2k
+ * @description Shows the date you and a friend became friends in the profile modal and Friends sidebar.
+ * @version 1.3.7
+ * @authorId 874825550408089610
+ * @website https://pharaoh2k.github.io/BetterDiscordStuff/
+ * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterFriendsSince/BetterFriendsSince.plugin.js
+ * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BetterFriendsSince/BetterFriendsSince.plugin.js
+ */
+/*
+This project includes code originally licensed under the MIT License:
+Copyright (c) 2021 Robert Delaney
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+/*
+Substantial modifications, additions, and refactored components created by
+Pharaoh2k are © 2025-present Pharaoh2k. All rights reserved.
+These proprietary portions are licensed separately and may not be copied,
+modified, or redistributed without prior written consent from Pharaoh2k.
+This restriction applies only to Pharaoh2k's original contributions and does
+not affect code covered under the MIT License above.
+Contributions are welcome via GitHub pull requests. Please ensure submissions
+align with the project's guidelines and coding standards.
+*/
+"use strict";
+const { Webpack, Patcher, React, Utils, UI, Logger, Hooks, Data, Net, Plugins } = new BdApi("BetterFriendsSince");
+const { Filters } = Webpack;
+class UpdateManager {
+	/* using Net, UI, Logger, Data, Plugins, Utils from BdApi */
+	constructor(pluginName, version, github) {
+		this.name = pluginName;
+		this.version = version;
+		const [user, repo] = github.split('/');
+		this.urls = {
+			plugin: `https://raw.githubusercontent.com/${user}/${repo}/main/Plugins/${pluginName}/${pluginName}.plugin.js`,
+			changelog: `https://raw.githubusercontent.com/${user}/${repo}/main/Plugins/${pluginName}/CHANGELOG.md`
+		};
+		this.timer = null;
+		this.notification = null;
+		this._initialTimeout = null;
+	}
+	start(autoUpdate = true) {
+		this.stop();
+		if (autoUpdate) {
+			this._initialTimeout = setTimeout(() => this.check(true), 15000);
+			this.timer = setInterval(() => this.check(true), 24 * 60 * 60 * 1000);
+		}
+		this.showChangelog();
+	}
+	stop() {
+		clearTimeout(this._initialTimeout);
+		this._initialTimeout = null;
+		clearInterval(this.timer);
+		this.timer = null;
+		this._closeNotification();
+	}
+	_closeNotification() {
+		if (!this.notification) return;
+		if (typeof this.notification === "function") this.notification();
+		else if (this.notification.close) this.notification.close();
+		this.notification = null;
+	}
+	async check(silent = false) {
+		try {
+			const res = await Net.fetch(this.urls.plugin);
+			if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
+			const text = await res.text();
+			const validated = this._validateRemotePluginText(text);
+			if (!validated.ok) throw new Error(`Remote plugin validation failed: ${validated.reason}`);
+			const version = validated.version;
+			if (this.isNewer(version)) {
+				this.showUpdateNotice(version, text);
+			} else if (!silent) {
+				UI.showToast(`[${this.name}] You're up to date.`, { type: "info" });
+			}
+		} catch (e) {
+			Logger.error("Update check failed:", e);
+			if (!silent) UI.showToast(`[${this.name}] Update check failed`, { type: "error" });
+		}
+	}
+	showUpdateNotice(version, text) {
+		this._closeNotification();
+		const handle = UI.showNotification({
+			id: `bd-plugin-update:${this.name}`,
+			title: this.name,
+			content: `v${version} is available`,
+			type: "info",
+			duration: 6000000,
+			actions: [
+				{
+					label: "Update",
+					onClick: () => {
+						this._closeNotification();
+						this.applyUpdate(text);
+					},
+				},
+				{
+					label: "Dismiss",
+					onClick: () => this._closeNotification(),
+				},
+			],
+			onClose: () => {
+				if (this.notification === handle) this.notification = null;
+			},
+		});
+		this.notification = handle;
+	}
+	applyUpdate(text) {
+		try {
+			const validated = this._validateRemotePluginText(text);
+			if (!validated.ok) {
+				UI.showToast(`[${this.name}] Update blocked: ${validated.reason}`, { type: "error", timeout: 8000 });
+				return;
+			}
+			const nextVersion = validated.version;
+			require("fs").writeFileSync(__filename, text);
+			UI.showToast(`[${this.name}] Updated to v${nextVersion}. Reloading...`, { type: "success" });
+			setTimeout(() => {
+				try {
+					Plugins.reload(this.name);
+				} catch {
+					UI.showToast(`[${this.name}] Please reload Discord (Ctrl+R)`, { type: "info", timeout: 0 });
+				}
+			}, 100);
+		} catch (e) {
+			Logger.error("Update failed:", e);
+			UI.showToast(`[${this.name}] Update failed`, { type: "error" });
+		}
+	}
+	async showChangelog() {
+		const last = Data.load('version');
+		Logger.info(`showChangelog: last=${last}, current=${this.version}`);
+		if (last === this.version) { Logger.info("Skipping: versions match"); return; }
+		Data.save('version', this.version);
+		if (!last) { Logger.info("Skipping: fresh install"); return; }
+		try {
+			const res = await Net.fetch(this.urls.changelog);
+			Logger.info(`Changelog fetch status: ${res.status}`);
+			if (res.status !== 200) return;
+			const md = await res.text();
+			const changes = this.parseChangelog(md, last, this.version);
+			Logger.info("Parsed changes:", changes);
+			if (changes.length === 0) return;
+			UI.showChangelogModal({ title: this.name, subtitle: `Version ${this.version}`, changes });
+		} catch (e) { Logger.error("Changelog error:", e); }
+	}
+	parseChangelog(md, from, to) {
+		const versions = this._parseChangelogVersions(md);
+		const relevant = versions.filter(
+			v => this.isNewer(v.version, from) && !this.isNewer(v.version, to)
+		);
+		const getType = (lower) => {
+			if (lower.includes("fix")) return "fixed";
+			if (lower.includes("add") || lower.includes("initial")) return "added";
+			if (lower.includes("improv") || lower.includes("updat")) return "improved";
+			return "other";
+		};
+		const sections = [
+			["New Features", "added", "added"],
+			["Improvements", "improved", "improved"],
+			["Bug Fixes", "fixed", "fixed"],
+			["Other Changes", "other", "progress"]
+		];
+		const result = [];
+		for (const v of relevant) {
+			const grouped = { added: [], improved: [], fixed: [], other: [] };
+			for (const item of v.items) {
+				grouped[getType(item.toLowerCase())].push(item);
+			}
+			result.push({ title: `Version ${v.version}`, type: "", items: [] });
+			for (const [title, key, type] of sections) {
+				if (grouped[key].length) {
+					result.push({ title, type, items: grouped[key] });
+				}
+			}
+		}
+		return result;
+	}
+	_parseChangelogVersions(md) {
+		const lines = md.split("\n");
+		const versions = [];
+		let current = null;
+		let items = [];
+		const push = () => {
+			if (!current) return;
+			versions.push({ version: current, items });
+			items = [];
+		};
+		for (const line of lines) {
+			const ver = line.match(/^###\s+([\d.]+)/)?.[1];
+			if (ver) {
+				push();
+				current = ver;
+				continue;
+			}
+			if (!current) continue;
+			const trimmed = line.trim();
+			if (!trimmed.startsWith("-")) continue;
+			const item = trimmed.substring(1).trim();
+			if (item) items.push(item);
+		}
+		push();
+		return versions;
+	}
+	isNewer(remoteVersion, localVersion = this.version) {
+		return Utils.semverCompare(localVersion, remoteVersion) > 0;
+	}
+	_validateRemotePluginText(text) {
+		if (typeof text !== "string") return { ok: false, reason: "Not a string" };
+		if (text.length < 800) return { ok: false, reason: "File too small" };
+		const remoteName = /@name\s+([^\n\r]+)/.exec(text)?.[1]?.trim();
+		if (!remoteName) return { ok: false, reason: "Missing @name" };
+		if (remoteName !== this.name) return { ok: false, reason: `Unexpected @name (${remoteName})` };
+		const remoteVersion = /@version\s+([\d.]+)/.exec(text)?.[1];
+		if (!remoteVersion) return { ok: false, reason: "Missing @version" };
+		if (!text.includes("module.exports")) return { ok: false, reason: "Missing module.exports" };
+		if (!text.includes("@updateUrl")) return { ok: false, reason: "Missing @updateUrl header" };
+		return { ok: true, version: remoteVersion };
+	}
+}
+const HEADING_BY_LOCALE = Object.freeze({
+	"ar": "أصدقاء منذ",
+	"da": "Venner siden",
+	"de": "Freunde seit",
+	"en-GB": "Friends since",
+	"en-US": "Friends since",
+	"es-ES": "Amigos desde",
+	"es-419": "Amigos desde",
+	"fr": "Amis depuis",
+	"he": "חברים מאז",
+	"hr": "Prijatelji od",
+	"id": "Berteman sejak",
+	"it": "Amici dal",
+	"lt": "Draugai nuo",
+	"hu": "Barátok amióta",
+	"nl": "Vrienden sinds",
+	"no": "Venner siden",
+	"pl": "Znajomi od",
+	"pt-BR": "Amigos desde",
+	"pt-PT": "Amigos desde",
+	"ro": "Prieteni din",
+	"fi": "Ystäviä alkaen",
+	"sv-SE": "Vänner sedan",
+	"vi": "Bạn bè từ",
+	"tr": "Arkadaşlar desde",
+	"cs": "Přátelé od",
+	"el": "Φίλοι από",
+	"bg": "Приятели от",
+	"ru": "Друзья с",
+	"uk": "Друзі з",
+	"hi": "दोस्त तब से",
+	"th": "เป็นเพื่อนกันตั้งแต่",
+	"zh-CN": "成为好友自",
+	"ja": "友達になった日",
+	"zh-TW": "成為好友自",
+	"ko": "친구가 된 날짜",
+	"sk": "Priatelia od"
+});
+const DEFAULT_SETTINGS = Object.freeze({
+	autoUpdate: true
+});
+const formatSinceDate = (value, locale) => {
+	if (value == null || value === "") return null;
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return null;
+	return date.toLocaleDateString(locale || "en-US", {
+		month: "short",
+		day: "numeric",
+		year: "numeric"
+	});
+};
+const findProfileBody = tree =>
+	Utils.findInTree(tree, n => n && typeof n.className === "string" && n.className.includes("profileBody"), { walkable: ["props", "children"] });
+const getCurrentLocale = LocaleStore => LocaleStore.locale ?? LocaleStore.systemLocale ?? "en-US";
+const getHeadingForLocale = locale => HEADING_BY_LOCALE[locale] ?? HEADING_BY_LOCALE["en-US"];
+const isAbortError = err => err?.name === "AbortError";
+const matchesSources = (fn, sourceStrings) => {
+	try {
+		const source = fn?.toString?.();
+		return source && sourceStrings.every(s => source.includes(s));
+	} catch { return false; }
+};
+const getWithKey = (...sourceStrings) => {
+	const [mod, key] = Webpack.getWithKey(m => matchesSources(m, sourceStrings), { searchExports: true }) ?? [];
+	return mod && key ? { mod, key, fn: mod[key] } : null;
+};
+const getWithKeyLazy = async (signal, ...sourceStrings) => {
+	const sync = getWithKey(...sourceStrings);
+	if (sync) return sync;
+	const filter = Filters.bySource(...sourceStrings);
+	const mod = await Webpack.waitForModule(filter, { signal, defaultExport: false });
+	if (!mod || typeof mod !== "object") return null;
+	for (const key of Object.keys(mod)) {
+		const fn = mod[key];
+		if (typeof fn === "function" && matchesSources(fn, sourceStrings)) {
+			return { mod, key, fn };
+		}
+	}
+	return null;
+};
+const createGetFriendSince = store => {
+	const hasGetSince = typeof store.getSince === "function";
+	const hasGetSinces = typeof store.getSinces === "function";
+	if (!hasGetSince && !hasGetSinces) return () => null;
+	return userId => {
+		if (!store.isFriend(userId)) return null;
+		if (hasGetSince) return store.getSince(userId) ?? null;
+		const sinces = store.getSinces();
+		return sinces?.[userId] ?? null;
+	};
+};
+const createUseBetterFriendsSince = (RelationshipStore, LocaleStore, getFriendSince) =>
+	userId => {
+		const since = Hooks.useStateFromStores([RelationshipStore], () => getFriendSince(userId));
+		const locale = Hooks.useStateFromStores([LocaleStore], () => getCurrentLocale(LocaleStore));
+		const dateLabel = React.useMemo(() => formatSinceDate(since, locale), [since, locale]);
+		return { since, locale, dateLabel };
+	};
+const BetterFriendsSince = meta => {
+	let abortController = null;
+	let RelationshipStore = null;
+	let LocaleStore = null;
+	let Section = null;
+	let Text = null;
+	let SidebarSectionComponent = null;
+	const defaultUseBetterFriendsSince = () => {
+		Hooks.useStateFromStores([], () => null);
+		Hooks.useStateFromStores([], () => null);
+		React.useMemo(() => null, [null, null]);
+		return { since: null, locale: null, dateLabel: null };
+	};
+	let useBetterFriendsSince = defaultUseBetterFriendsSince;
+	let getFriendSince = null;
+	const settings = { ...DEFAULT_SETTINGS, ...Data.load("settings") };
+	const updateManager = new UpdateManager(meta.name, meta.version, "Pharaoh2k/BetterDiscordStuff");
+	const saveSettings = () => Data.save("settings", settings);
+	const resolveTextComponent = async signal => {
+		const sourceAttempts = [
+			["data-text-variant", "lineClamp", "selectable"],
+			["data-text-variant", "lineClamp"],
+			["lineClamp", "selectable", "variant"]
+		];
+		for (const sources of sourceAttempts) {
+			const result = await getWithKeyLazy(signal, ...sources);
+			if (signal.aborted) return null;
+			if (result) return result.fn;
+		}
+		return null;
+	};
+	const createBetterFriendsSinceComponent = (render, requiresSection) =>
+		React.memo(({ userId }) => {
+			const data = useBetterFriendsSince(userId);
+			if (!RelationshipStore || !LocaleStore || !Text) return null;
+			if (requiresSection && !Section) return null;
+			if (!data.since || !data.dateLabel) return null;
+			return render(data, userId);
+		});
+	const BetterFriendsSinceProfileSection = createBetterFriendsSinceComponent(
+		({ locale, dateLabel }) =>
+			React.createElement(
+				Section,
+				{ heading: getHeadingForLocale(locale) },
+				React.createElement(Text, { variant: "text-sm/normal" }, dateLabel)
+			),
+		true
+	);
+	const BetterFriendsSinceSidebarContent = createBetterFriendsSinceComponent(
+		({ dateLabel }) =>
+			React.createElement(
+				Text,
+				{
+					variant: "text-sm/normal"
+				},
+				dateLabel
+			)
+	);
+	const createSidebarElement = (SectionComp, userId, extraProps = {}) =>
+		React.createElement(
+			SectionComp,
+			{
+				key: `friends-since-sidebar-${userId}`,
+				heading: getHeadingForLocale(getCurrentLocale(LocaleStore)),
+				...extraProps
+			},
+			React.createElement(BetterFriendsSinceSidebarContent, { userId })
+		);
+	const handleSidebarPatch = (_, [props], returnValue) => {
+		try {
+			if (!returnValue) return;
+			if (props.__BetterFriendsSinceInjected) return;
+			const childProps = props.children?.props;
+			const userId = childProps?.userId ?? childProps?.userID;
+			if (!userId) return;
+			if (!RelationshipStore.isFriend(userId)) return;
+			if (Object.keys(childProps).length !== 1) return;
+			const BaseSection =
+				SidebarSectionComponent ||
+				(React.isValidElement(returnValue) ? returnValue.type : null);
+			if (!BaseSection) return;
+			const BetterFriendsSinceSection = createSidebarElement(BaseSection, userId, {
+				headingColor: props.headingColor,
+				__BetterFriendsSinceInjected: true
+			});
+			return React.createElement(React.Fragment, null, returnValue, BetterFriendsSinceSection);
+		} catch (err) {
+			Logger.warn("Sidebar section patch failed:", err);
+		}
+	};
+	const handleSidebarBodyPatch = (_, [props], returnValue) => {
+		try {
+			if (!returnValue) return;
+			const userId = props.user?.id;
+			if (!userId) return;
+			if (!RelationshipStore.isFriend(userId)) return;
+			const memberSinceSection = Utils.findInTree(
+				returnValue,
+				n => React.isValidElement(n) &&
+					n.props.heading &&
+					n.props.children?.props?.userId === userId,
+				{ walkable: ['props', 'children'] }
+			);
+			if (!memberSinceSection) return;
+			if (!SidebarSectionComponent) {
+				SidebarSectionComponent = memberSinceSection.type;
+			}
+			const overlay = Utils.findInTree(
+				returnValue,
+				n => React.isValidElement(n) &&
+					Array.isArray(n.props.children) &&
+					n.props.children.includes(memberSinceSection),
+				{ walkable: ['props', 'children'] }
+			);
+			if (!overlay) return;
+			const overlayChildren = overlay.props.children;
+			const alreadyInjected = overlayChildren.some(
+				child =>
+					React.isValidElement(child) &&
+					child.key?.startsWith('friends-since-sidebar-')
+			);
+			if (alreadyInjected) return;
+			const memberSinceIndex = overlayChildren.indexOf(memberSinceSection);
+			overlayChildren.splice(
+				memberSinceIndex + 1, 0,
+				createSidebarElement(SidebarSectionComponent, userId, { headingColor: 'text-strong' })
+			);
+		} catch (err) {
+			Logger.warn("Sidebar body patch failed:", err);
+		}
+	};
+	const handleProfilePatch = (_, [props], returnValue) => {
+		try {
+			if (!returnValue) return;
+			const body = findProfileBody(returnValue);
+			if (!body || !Array.isArray(body.children)) return;
+			const userId = props.user?.id;
+			if (!userId) return;
+			if (!Section) {
+				const firstSection = body.children.find(child => React.isValidElement(child) && child.props.heading && child.props.children);
+				if (firstSection) {
+					Section = firstSection.type;
+				}
+			}
+			if (!Section) {
+				Logger.warn("Section component not resolved; skipping profile injection.");
+				return;
+			}
+			const index = body.children.findIndex(child => React.isValidElement(child) && child.props.heading && child.props.children?.props?.userId);
+			if (index === -1) return;
+			const alreadyInjected = body.children.some(child => React.isValidElement(child) && child.type === BetterFriendsSinceProfileSection);
+			if (alreadyInjected) return;
+			body.children.splice(index + 1, 0, React.createElement(BetterFriendsSinceProfileSection, { key: `friends-since-profile-${userId}`, userId }));
+		} catch (err) {
+			Logger.warn("Profile patch failed:", err);
+		}
+	};
+	const patchSidebar = () => {
+		try {
+			const sidebarBody = getWithKey('UserProfileSidebarBody', 'isProvisional');
+			if (sidebarBody) {
+				Patcher.after(sidebarBody.mod, sidebarBody.key, handleSidebarBodyPatch);
+				return;
+			}
+			const sidebarSection = getWithKey('introText:', 'headingClassName:')
+				?? getWithKey('scrollTargetId:', 'headingIcon:', '"text-xs/semibold"')
+				?? getWithKey('scrollTargetId:', 'headingVariant:');
+			if (!sidebarSection) {
+				Logger.warn("sidebarSection not found via getWithKey");
+				return;
+			}
+			SidebarSectionComponent = sidebarSection.fn;
+			Patcher.after(sidebarSection.mod, sidebarSection.key, handleSidebarPatch);
+		} catch (err) {
+			Logger.warn("Sidebar patching failed or timed out", err);
+		}
+	};
+	const patchProfile = async (signal) => {
+		try {
+			const [sectionResult, userProfile] = await Promise.all([
+				getWithKeyLazy(signal, 'introText', 'headingClassName', 'headingVariant')
+					.then(r => r ?? getWithKeyLazy(signal, 'introText', 'headingIcon', '"text-xs/semibold"')),
+				getWithKeyLazy(signal, 'parentComponent:', '"UserProfileModalV2"')
+					.then(r => r ?? getWithKeyLazy(signal, 'SHAKE_PROFILE_MODAL', 'profileEffect'))
+					.then(r => r ?? getWithKeyLazy(signal, 'profileBody', 'profileHeader', 'profileButtons'))
+			]);
+			if (signal.aborted) return;
+			Section = sectionResult?.fn;
+			if (!Section) {
+				Logger.warn("Section module not found, profile patch will rely on tree fallback.");
+			}
+			if (userProfile) {
+				Patcher.after(userProfile.mod, userProfile.key, handleProfilePatch);
+			} else {
+				Logger.warn("UserProfileModal export key not found.");
+			}
+		} catch (err) {
+			if (isAbortError(err)) return;
+			Logger.warn("Profile patching failed (likely waiting for modal open)", err);
+		}
+	};
+
+	async function start() {
+		if (abortController) {
+			abortController.abort();
+			abortController = null;
+		}
+		abortController = new AbortController();
+		const signal = abortController.signal;
+		updateManager.start(settings.autoUpdate);
+		try {
+			RelationshipStore = Webpack.Stores.RelationshipStore;
+			LocaleStore = Webpack.Stores.LocaleStore;
+			if (!RelationshipStore || !LocaleStore) {
+				Logger.error("Required stores not found (RelationshipStore / LocaleStore).");
+				return;
+			}
+			getFriendSince = createGetFriendSince(RelationshipStore);
+			useBetterFriendsSince = createUseBetterFriendsSince(RelationshipStore, LocaleStore, getFriendSince);
+			Text = await resolveTextComponent(signal);
+			if (signal.aborted) return;
+			if (!Text) {
+				Logger.error("Text component not found (even with fallbacks).");
+				return;
+			}
+			patchSidebar();
+			patchProfile(signal);
+		} catch (err) {
+			if (isAbortError(err)) return;
+			Logger.error("Failed to start plugin.", err);
+			UI.showToast(
+				`${meta.name}: failed to start. See console for details.`,
+				{ type: "error" }
+			);
+		}
+	}
+	function stop() {
+		if (abortController) {
+			abortController.abort();
+			abortController = null;
+		}
+		Patcher.unpatchAll();
+		updateManager.stop();
+		RelationshipStore = null;
+		LocaleStore = null;
+		Section = null;
+		Text = null;
+		SidebarSectionComponent = null;
+		useBetterFriendsSince = defaultUseBetterFriendsSince;
+		getFriendSince = null;
+	}
+	const getSettingsPanel = () => {
+		return UI.buildSettingsPanel({
+			settings: [
+				{
+					type: "switch",
+					id: "autoUpdate",
+					name: "Automatic Updates",
+					note: "Automatically check for updates on startup and every 24 hours",
+					value: settings.autoUpdate
+				},
+				{
+					type: "button",
+					id: "checkUpdate",
+					name: "Check for Updates",
+					note: "Manually check if a new version is available",
+					children: "Check Now",
+					onClick: () => updateManager.check()
+				},
+				{
+					type: "button",
+					id: "viewChangelog",
+					name: "View Changelog",
+					note: "View the complete changelog for this plugin",
+					children: "View Changelog",
+					onClick: () => updateManager.showChangelog()
+				}
+			],
+			onChange: (_, id, value) => {
+				settings[id] = value;
+				saveSettings();
+				if (id === "autoUpdate") {
+					updateManager.stop();
+					if (value) updateManager.start(true);
+				}
+			}
+		});
+	};
+	return { start, stop, getSettingsPanel };
+};
+module.exports = BetterFriendsSince;

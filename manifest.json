@@ -1,0 +1,75 @@
+{
+  "lastUpdated": "2026-02-17",
+  "plugins": [
+    {
+      "id": "enhanced-channel-tabs",
+      "name": "EnhancedChannelTabs",
+      "enabled": true
+    },
+    {
+      "id": "Big File Transfers",
+      "name": "BigFileTransfers",
+      "enabled": true
+    },
+    {
+      "id": "Better Typing Indicator",
+      "name": "BetterTypingIndicator",
+      "enabled": true
+    },
+    {
+      "id": "Show Hidden Things",
+      "name": "ShowHiddenThings",
+      "enabled": true
+    },
+    {
+      "id": "Better Message Utilities",
+      "name": "BetterMessageUtilities",
+      "enabled": true
+    },
+    {
+      "id": "Better Server Details",
+      "name": "BetterServerDetails",
+      "enabled": true
+    },
+    {
+      "id": "Better Split Large Messages",
+      "name": "BetterSplitLargeMessages",
+      "enabled": true
+    },
+    {
+      "id": "Better Friends Since",
+      "name": "BetterFriendsSince",
+      "enabled": true
+    },
+    {
+      "id": "Better Pin DMs",
+      "name": "BetterPinDMs",
+      "enabled": true
+    },
+    {
+      "id": "Audio Toolbox",
+      "name": "AudioToolbox",
+      "enabled": true
+    },
+    {
+      "id": "Better File Viewer",
+      "name": "BetterFileViewer",
+      "enabled": true
+    },
+    {
+      "id": "Better Relative Timestamps",
+      "name": "BetterRelativeTimestamps",
+      "enabled": true
+    },
+    {
+      "id": "Show All Channels Automatically",
+      "name": "ShowAllChannelsAuto",
+      "enabled": true
+    },
+    {
+      "id": "Quick Messages Reborn",
+      "name": "QuickMessages-Reborn",
+      "enabled": true
+    }
+  ]
+}
