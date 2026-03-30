@@ -1,5 +1,9 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+### 5.0.12
+- Added Tab Name Tooltips setting with three modes: Always, Only When Truncated, and Never
+- Tab name tooltips now default to only showing on truncated names
+
 ### 5.0.11
 - Updated to match Discord changes
 
