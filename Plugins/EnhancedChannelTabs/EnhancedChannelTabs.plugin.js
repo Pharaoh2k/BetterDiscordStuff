@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 5.0.11
+ * @version 5.0.12
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
