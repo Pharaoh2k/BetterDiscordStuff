@@ -226,10 +226,10 @@ class UpdateManager {
 	_validateRemotePluginText(text) {
 		if (typeof text !== "string") return { ok: false, reason: "Not a string" };
 		if (text.length < 800) return { ok: false, reason: "File too small" };
-		const remoteName = text.match(/@name\s+([^\n\r]+)/)?.[1]?.trim();
+		const remoteName = /@name\s+([^\n\r]+)/.exec(text)?.[1]?.trim();
 		if (!remoteName) return { ok: false, reason: "Missing @name" };
 		if (remoteName !== this.name) return { ok: false, reason: `Unexpected @name (${remoteName})` };
-		const remoteVersion = text.match(/@version\s+([\d.]+)/)?.[1];
+		const remoteVersion = /@version\s+([\d.]+)/.exec(text)?.[1];
 		if (!remoteVersion) return { ok: false, reason: "Missing @version" };
 		if (!text.includes("module.exports")) return { ok: false, reason: "Missing module.exports" };
 		if (!text.includes("@updateUrl")) return { ok: false, reason: "Missing @updateUrl header" };
@@ -574,6 +574,7 @@ TabStateStore.state = {
 	reopenLastChannel: false,
 	folderDropStyle: "accentGlow",
 	openTabShortcut: "ctrlClick",
+	showTabTooltips: "truncated",
 };
 TabStateStore.getState = () => TabStateStore.state;
 TabStateStore.setState = (partial) => {
@@ -689,6 +690,7 @@ const STORE_SETTING_KEYS = [
 	"tabPeekDarkenLevel",
 	"tabPeekScrollBehavior",
 	"openTabShortcut",
+	"showTabTooltips",
 ];
 const debounce = (fn, wait = 250) => {
 	let timeout;
@@ -2858,6 +2860,37 @@ CTRL + Mouse Scroll - Switch Tab Layout
 											}),
 									},
 									{
+										type: "submenu",
+										id: "tabTooltips",
+										label: "Tab Name Tooltips",
+										items: [
+											{
+												type: "radio",
+												id: "tabTooltips_always",
+												group: "showTabTooltips",
+												label: "Always",
+												checked: getSetting("showTabTooltips") === "always" || getSetting("showTabTooltips") === true,
+												action: () => setSetting("showTabTooltips", "always"),
+											},
+											{
+												type: "radio",
+												id: "tabTooltips_truncated",
+												group: "showTabTooltips",
+												label: "Only When Truncated",
+												checked: getSetting("showTabTooltips") === "truncated" || getSetting("showTabTooltips") === undefined,
+												action: () => setSetting("showTabTooltips", "truncated"),
+											},
+											{
+												type: "radio",
+												id: "tabTooltips_never",
+												group: "showTabTooltips",
+												label: "Never",
+												checked: getSetting("showTabTooltips") === "never" || getSetting("showTabTooltips") === false,
+												action: () => setSetting("showTabTooltips", "never"),
+											},
+										],
+									},
+									{
 										type: "separator",
 									},
 									{
@@ -3611,17 +3644,52 @@ const TabStatus = (props) =>
 		(props.currentStatus == "offline" ? " enhancedChannelTabs-offlineIcon" : "") +
 		(props.currentStatus == "none" ? " enhancedChannelTabs-noneIcon" : ""),
 });
-const TabName = (props) =>
-	/* @__PURE__ */ React.createElement(
-	Tooltip,
-	{ text: props.name, position: "top", delay: 500 },
-	(tooltipProps) =>
-		/* @__PURE__ */ React.createElement(
-		"span",
-		{ ...tooltipProps, className: "enhancedChannelTabs-tabName" },
-		props.name,
-	),
-);
+const TabName = (props) => {
+	const spanRef = React.useRef(null);
+	const tooltipMode = TabStateStore.getState().showTabTooltips ?? "truncated";
+	if (tooltipMode === "never") {
+		return React.createElement(
+			"span",
+			{ className: "enhancedChannelTabs-tabName" },
+			props.name,
+		);
+	}
+	if (tooltipMode === "always" || tooltipMode === true) {
+		return React.createElement(
+			Tooltip,
+			{ text: props.name, position: "top", delay: 500 },
+			(tooltipProps) =>
+				React.createElement(
+					"span",
+					{ ...tooltipProps, className: "enhancedChannelTabs-tabName" },
+					props.name,
+				),
+		);
+	}
+	return React.createElement(
+		Tooltip,
+		{ text: props.name, position: "top", delay: 500 },
+		(tooltipProps) =>
+			React.createElement(
+				"span",
+				{
+					...tooltipProps,
+					ref: spanRef,
+					className: "enhancedChannelTabs-tabName",
+					onMouseEnter: (e) => {
+						const el = spanRef.current;
+						if (el && el.scrollWidth > el.clientWidth) {
+							tooltipProps.onMouseEnter?.(e);
+						}
+					},
+					onMouseLeave: (e) => {
+						tooltipProps.onMouseLeave?.(e);
+					},
+				},
+				props.name,
+			),
+	);
+};
 const TabClose = (props) =>
 	props.tabCount < 2
 		? null
@@ -6099,6 +6167,7 @@ module.exports = class EnhancedChannelTabs {
 			tabPeekDarkenLevel: 30,
 			tabPeekScrollBehavior: "default",
 			openTabShortcut: "ctrlClick",
+			showTabTooltips: "truncated",
 		};
 	}
 	getSettingsPath(useOldLocation) {
@@ -6324,6 +6393,19 @@ module.exports = class EnhancedChannelTabs {
 									this.applyStyle();
 								});
 							},
+						},
+						{
+							id: "showTabTooltips",
+							type: "radio",
+							name: "Tab Name Tooltips",
+							note: "Choose when to show tooltips on tab names",
+							value: this.settings.showTabTooltips || "truncated",
+							options: [
+								{ label: "Always", name: "Always", value: "always" },
+								{ label: "Only when truncated", name: "Only when truncated", value: "truncated" },
+								{ label: "Never", name: "Never", value: "never" },
+							],
+							onChange: (value) => this.updateSettings({ showTabTooltips: value }),
 						},
 						{
 							id: "tabWidthMode",
