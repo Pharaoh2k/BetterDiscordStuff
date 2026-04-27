@@ -1,5 +1,9 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+### 5.0.13
+- Fixed drag and drop being broken by recent Discord update (react-dnd is now lazy-loaded; lookup is deferred to first render)
+- Switched internal logging from console to BdApi Logger
+
 ### 5.0.12
 - Added Tab Name Tooltips setting with three modes: Always, Only When Truncated, and Never
 - Tab name tooltips now default to only showing on truncated names
