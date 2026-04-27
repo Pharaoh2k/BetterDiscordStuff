@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 5.0.12
+ * @version 5.0.13
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
@@ -40,7 +40,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ---- end MIT notice ---- */
-const { ContextMenu, Patcher, Webpack, React, ReactDOM, DOM, ReactUtils, UI, Hooks, Utils, Net, Logger, Plugins, Components, Data } = new BdApi("EnhancedChannelTabs",);
+const { ContextMenu, Patcher, Webpack, React, ReactDOM, DOM, ReactUtils, UI, Hooks, Utils, Net, Logger, Plugins, Components, Data } = new BdApi("EnhancedChannelTabs");
 class UpdateManager {
 	/* using Net, UI, Logger, Data, Plugins, Utils from BdApi */
 	constructor(pluginName, version, github = CONFIG.github) {
@@ -1517,7 +1517,7 @@ function missingModule({ name = "<unnamed>", feature, fatal = false }) {
 		(site) => site.getFunctionName() === "getModule",
 	);
 	const trace = stack.filter((_, i) => i > index).join("\n");
-	console.warn(`Could not find '${name}' module.
+	Logger.warn(`Could not find '${name}' module.
 ${trace}`);
 	if (fatal) throw new Error(`Could not find '${name}' module.`);
 	if (feature != null) {
@@ -1638,17 +1638,37 @@ const DiscordConstants = {
 		"DiscordConstants.ChannelTypes",
 	),
 };
-const DragSource =
-	Webpack.getModule(m => typeof m === "function" && m.toString().includes("DragSource") && m.toString().includes("containerDisplayName"), { searchExports: true })
-	?? Webpack.getModule(Webpack.Filters.byStrings("react-dnd.github.io/react-dnd/docs/api/drag-source", "createConnector"), { searchExports: true })
-	?? Webpack.getModule(Webpack.Filters.byStrings("returns a string given the current props"), { searchExports: true });
-// DropTarget
-const DropTarget =
-	Webpack.getModule(m => typeof m === "function" && m.toString().includes("DropTarget") && m.toString().includes("containerDisplayName"), { searchExports: true })
-	?? Webpack.getModule(Webpack.Filters.byStrings("react-dnd.github.io/react-dnd/docs/api/drop-target", "createConnector"), { searchExports: true })
-	?? Webpack.getModule(Webpack.Filters.byStrings("an array of strings, or a function that returns either"), { searchExports: true });
-if (!DragSource) console.error("[EnhancedChannelTabs] DragSource module not found! Drag and drop will not work.");
-if (!DropTarget) console.error("[EnhancedChannelTabs] DropTarget module not found! Drag and drop will not work.");
+// Discord lazy-loads react-dnd: the HOC factories aren't in the webpack cache at plugin
+// init time and only appear once the channel sidebar mounts. Resolution is deferred to
+// first render via getDragSource()/getDropTarget(), then cached.
+let _DragSource = null;
+let _DragSourceWarned = false;
+const getDragSource = () => {
+	if (_DragSource) return _DragSource;
+	_DragSource =
+		Webpack.getModule(m => typeof m === "function" && m.toString().includes("DragSource") && m.toString().includes("containerDisplayName"), { searchExports: true })
+		?? Webpack.getModule(Webpack.Filters.byStrings("react-dnd.github.io/react-dnd/docs/api/drag-source", "createConnector"), { searchExports: true })
+		?? Webpack.getModule(Webpack.Filters.byStrings("returns a string given the current props"), { searchExports: true });
+	if (!_DragSource && !_DragSourceWarned) {
+		_DragSourceWarned = true;
+		Logger.error("DragSource module not found! Drag and drop will not work.");
+	}
+	return _DragSource;
+};
+let _DropTarget = null;
+let _DropTargetWarned = false;
+const getDropTarget = () => {
+	if (_DropTarget) return _DropTarget;
+	_DropTarget =
+		Webpack.getModule(m => typeof m === "function" && m.toString().includes("DropTarget") && m.toString().includes("containerDisplayName"), { searchExports: true })
+		?? Webpack.getModule(Webpack.Filters.byStrings("react-dnd.github.io/react-dnd/docs/api/drop-target", "createConnector"), { searchExports: true })
+		?? Webpack.getModule(Webpack.Filters.byStrings("an array of strings, or a function that returns either"), { searchExports: true });
+	if (!_DropTarget && !_DropTargetWarned) {
+		_DropTargetWarned = true;
+		Logger.error("DropTarget module not found! Drag and drop will not work.");
+	}
+	return _DropTarget;
+};
 const Textbox = (props) =>
 	/* @__PURE__ */ React.createElement(
 	"div",
@@ -1734,7 +1754,7 @@ const TitleBarStyles =
 	Webpack.getModule(byKeys("base", "activityPanel")) ??
 	Webpack.getModule(byKeys("draggingMax", "draggingMin")) ??
 	Webpack.getModule((m) => m?.sidebarResizeHandle && m?.activityPanel && m?.guilds);
-if (!TitleBarStyles) console.warn("TitleBarStyles module not found - Discord may have updated");
+if (!TitleBarStyles) Logger.warn("TitleBarStyles module not found - Discord may have updated");
 const TitleBarComponent = TitleBar?.[TitleBarKey];
 if (TitleBarComponent?.compare) TitleBarComponent.compare = () => false;
 const IconUtilities = warnModule(
@@ -1925,14 +1945,43 @@ function collect(connect, monitor, props) {
 		dropRef: connect.dropTarget()
 	};
 }
+// Lazy HOC wrappers: react-dnd is resolved on first render (after the channel sidebar
+// pulls it into the bundle) and the wrapped component is cached. If react-dnd is still
+// unavailable when the wrapper renders, no-op refs are injected so the inner component
+// doesn't crash when it calls dragRef(node)/dropRef(node).
+const noopRef = () => { };
 function makeDraggable(type) {
-	return DragSource(type, { beginDrag: (a) => a }, (connect, monitor) => ({
-		isDragging: !!monitor.isDragging(),
-		dragRef: connect.dragSource()
-	}));
+	return function (Component) {
+		let Wrapped = null;
+		return function DraggableLazy(props) {
+			if (!Wrapped) {
+				const DragSource = getDragSource();
+				if (!DragSource) {
+					return React.createElement(Component, { ...props, dragRef: noopRef, isDragging: false });
+				}
+				Wrapped = DragSource(type, { beginDrag: (a) => a }, (connect, monitor) => ({
+					isDragging: !!monitor.isDragging(),
+					dragRef: connect.dragSource()
+				}))(Component);
+			}
+			return React.createElement(Wrapped, props);
+		};
+	};
 }
 function makeDroppable(types, drop, hover) {
-	return DropTarget(types, { drop, hover }, collect);
+	return function (Component) {
+		let Wrapped = null;
+		return function DroppableLazy(props) {
+			if (!Wrapped) {
+				const DropTarget = getDropTarget();
+				if (!DropTarget) {
+					return React.createElement(Component, { ...props, dropRef: noopRef, dragInProgress: false, isOver: false, canDrop: false, draggedIsMe: false });
+				}
+				Wrapped = DropTarget(types, { drop, hover }, collect)(Component);
+			}
+			return React.createElement(Wrapped, props);
+		};
+	};
 }
 const DragContext = React.createContext({
 	openPath: [],
@@ -3608,7 +3657,7 @@ const getCurrentIconUrl = (pathname = location.pathname) => {
 			}
 		}
 	} catch (error) {
-		console.error("Error in getCurrentIconUrl:", error);
+		Logger.error("Error in getCurrentIconUrl:", error);
 	}
 	return DefaultUserIconGrey;
 };
@@ -5599,7 +5648,7 @@ module.exports = class EnhancedChannelTabs {
 			try {
 				BdApi.Data.save(this.getSettingsPath(), "settings", this.settings);
 			} catch (error) {
-				console.error("Error saving settings:", error);
+				Logger.error("Error saving settings:", error);
 			}
 		}, 250);
 	}
@@ -5810,7 +5859,7 @@ module.exports = class EnhancedChannelTabs {
 				: injected;
 		});
 		const rerenderTitleBar = (phase = "start") => {
-			const log = (...args) => console.log("[ECT TitleBarRefresh]", phase, ...args);
+			const log = (...args) => Logger.info("[TitleBarRefresh]", phase, ...args);
 			const selector = TitleBarStyles?.base ? `.${TitleBarStyles.base}` : "[class*='titleBar']";
 			const targetEl =
 				document.querySelector(selector)?.parentElement ?? document.querySelector(selector);
@@ -5826,7 +5875,7 @@ module.exports = class EnhancedChannelTabs {
 				log("forceUpdate ownerInstance");
 				instance.forceUpdate(() => instance.forceUpdate());
 			} catch (e) {
-				console.warn("[ECT TitleBarRefresh] forceUpdate failed", e);
+				Logger.warn("[TitleBarRefresh] forceUpdate failed", e);
 			}
 		};
 		rerenderTitleBar("start");
