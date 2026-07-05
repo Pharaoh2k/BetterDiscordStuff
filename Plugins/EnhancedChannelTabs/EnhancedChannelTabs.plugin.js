@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 5.0.13
+ * @version 5.0.14
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
@@ -906,6 +906,7 @@ const TabActions = (() => {
 			const closingTab = state.tabs[tabIndex];
 			const closedTabEntry = {
 				...closingTab,
+				name: closingTab.name || "Unknown tab",
 				closedAt: Date.now(),
 				id: `closed-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
 			};
@@ -3261,7 +3262,8 @@ function getClosedTabsMenuItems() {
 		}];
 	}
 	const items = closedTabs.slice(0, 10).map(tab => ({
-		label: tab.name,
+		id: `closedTab-${tab.id}`,
+		label: tab.name || "Unknown tab",
 		subtext: formatTimeAgo(tab.closedAt),
 		action: () => TabActions.reopenClosedTab(tab.id)
 	}));
@@ -3315,7 +3317,7 @@ function showClosedTabsModal() {
 						}),
 						React.createElement("div", { className: "enhancedChannelTabs-closedTabInfo" },
 							React.createElement("div", { className: "enhancedChannelTabs-closedTabName" },
-								tab.name),
+								tab.name || "Unknown tab"),
 							React.createElement("div", { className: "enhancedChannelTabs-closedTabMeta" },
 								formatTimeAgo(tab.closedAt) +
 								(tab.history && tab.history.length > 1
