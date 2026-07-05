@@ -1,5 +1,8 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+### 5.0.14
+- Fixed a crash when opening Quick Settings if you had a closed tab with no name - it now shows as "Unknown tab" instead.
+
 ### 5.0.13
 - Fixed drag and drop being broken by recent Discord update (react-dnd is now lazy-loaded; lookup is deferred to first render)
 - Switched internal logging from console to BdApi Logger
