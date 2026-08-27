@@ -1,6 +1,6 @@
 /**
  * @name BetterRelativeTimestamps
- * @version 1.1.5
+ * @version 1.1.6
  * @description Relative timestamps with live tooltip, seamless toggle of "relative-only".
  * @author  Pharaoh2k
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
@@ -454,7 +454,7 @@ module.exports = class BetterRelativeTimestamps {
 		const prefix = this.settings.relativeOnly ? '' : ' - ';
 		const suffix = isPast ? `${visual} ago` : `in ${visual}`;
 		const text = visual === 'Just now' ? visual : suffix;
-		span.textContent = prefix + text;
+		span.dataset.brtText = prefix + text;
 		span.setAttribute('aria-label', aria);
 		hostTimeMap.get(span).title = aria;
 		return next;
@@ -495,7 +495,11 @@ module.exports = class BetterRelativeTimestamps {
 				color: var(--text-muted);
 				font-size: inherit;
 				white-space: nowrap;
-				user-select: text;
+				-webkit-user-select: none;
+				user-select: none;
+			}
+			.brt-span::after {
+				content: attr(data-brt-text);
 			}
 		`);
 	}
