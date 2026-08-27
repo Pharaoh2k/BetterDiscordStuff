@@ -3,7 +3,7 @@
  * @author Pharaoh2k, AGreenPig
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @authorLink https://github.com/Pharaoh2k
- * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/BetterFileViewer/BetterFileViewer.plugin.js
+ * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BetterFileViewer/BetterFileViewer.plugin.js
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterFileViewer/BetterFileViewer.plugin.js
  * @invite ComingSoon
  * @version 3.0.4

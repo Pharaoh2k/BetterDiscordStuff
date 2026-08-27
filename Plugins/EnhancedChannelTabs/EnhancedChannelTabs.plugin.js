@@ -6,6 +6,7 @@
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
+ * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
  */
 // SPDX-License-Identifier: GPL-3.0-only AND MIT
 /*
