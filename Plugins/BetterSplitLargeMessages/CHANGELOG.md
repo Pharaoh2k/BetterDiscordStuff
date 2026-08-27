@@ -1,7 +1,10 @@
 # [BetterSplitLargeMessages](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterSplitLargeMessages "BetterSplitLargeMessages") Changelog
 
 ### 1.0.3
+- Fixed split messages going over the character limit when a code block or spoiler carried across chunks
+- Fixed the language tag being dropped when a message split right after a code block opened
 - Fixed the auto-updater installing updates to the wrong location
+- Refactored and improved code
 
 ### 1.0.2
 - Improved updates manager reliability
