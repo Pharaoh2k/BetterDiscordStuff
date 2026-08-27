@@ -2,7 +2,7 @@
  * @name BetterServerDetails
  * @author Pharaoh2k
  * @description Shows Server Details (owner, creation/join date, members, etc.) in a custom tooltip on the server list.
- * @version 1.0.3
+ * @version 1.0.4
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
@@ -160,7 +160,9 @@ class UpdateManager {
 				return;
 			}
 			const nextVersion = validated.version ?? version;
-			require("fs").writeFileSync(__filename, text);
+			const nodePath = require("path");
+			const updateTarget = nodePath.join(__dirname, nodePath.basename(__filename));
+			require("fs").writeFileSync(updateTarget, text);
 			BdApi.UI.showToast(`Updated to v${nextVersion}. Reloading...`, { type: "success" });
 			setTimeout(() => {
 				try {

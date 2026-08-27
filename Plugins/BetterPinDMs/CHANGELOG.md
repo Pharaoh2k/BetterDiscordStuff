@@ -1,5 +1,8 @@
 # [BetterPinDMs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterPinDMs "BetterPinDMs") Changelog
 
+### 3.0.1
+- Fixed the auto-updater installing updates to the wrong location
+
 ### 3.0.0
 - Major internal rewrite for better performance and reliability
 - Added multi-account support: each Discord account now keeps its own separate pin configurations

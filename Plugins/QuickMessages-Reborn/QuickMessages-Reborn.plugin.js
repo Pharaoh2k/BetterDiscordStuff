@@ -1,6 +1,6 @@
 /**
  * @name QuickMessages-Reborn
- * @version 1.0.1
+ * @version 1.0.2
  * @description Save messages to quickly send them later. Right-click the chat bar to save or send messages. Hold Shift while clicking a message to delete it.
  * @author Pharaoh2k
  * @authorId 874825550408089610
@@ -118,7 +118,9 @@ class UpdateManager {
                 return;
             }
             const nextVersion = validated.version;
-            require("fs").writeFileSync(__filename, text);
+            const nodePath = require("path");
+            const updateTarget = nodePath.join(__dirname, nodePath.basename(__filename));
+            require("fs").writeFileSync(updateTarget, text);
             UI.showToast(`[${this.name}] Updated to v${nextVersion}. Reloading...`, { type: "success" });
             setTimeout(() => {
                 try {

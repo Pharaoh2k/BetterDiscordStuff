@@ -1,5 +1,8 @@
 # [AudioToolbox](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=AudioToolbox "AudioToolbox") Changelog
 
+### 2.0.2
+- Fixed the auto-updater installing updates to the wrong location
+
 ### 2.0.1
 - Updated meta name and description
 

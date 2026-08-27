@@ -1,6 +1,6 @@
 /**
  * @name AudioToolbox
- * @version 2.0.1
+ * @version 2.0.2
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/AudioToolbox/AudioToolbox.plugin.js
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/AudioToolbox/AudioToolbox.plugin.js
@@ -221,7 +221,8 @@ class UpdateManager {
                     return;
                }
                const nextVersion = validated.version;
-               fs.writeFileSync(__filename, text);
+               const updateTarget = path.join(__dirname, path.basename(__filename));
+               fs.writeFileSync(updateTarget, text);
                UI.showToast(`Updated to v${nextVersion}. Reloading...`, { type: "success" });
                setTimeout(() => {
                     try {

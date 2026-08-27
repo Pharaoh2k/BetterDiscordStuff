@@ -3,7 +3,7 @@
  * @author Pharaoh2k
  * @authorId 874825550408089610
  * @description Displays various hidden & moderator-only things regardless of permissions. Shows member timeout icons in chat, invites paused tooltip in server list, and mod view context menu item in all servers.
- * @version 1.0.0
+ * @version 1.0.1
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/ShowHiddenThings/ShowHiddenThings.plugin.js
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/refs/heads/main/Plugins/ShowHiddenThings/ShowHiddenThings.plugin.js
@@ -104,7 +104,9 @@ class UpdateManager {
                 return;
             }
             const nextVersion = validated.version;
-            require("fs").writeFileSync(__filename, text);
+            const nodePath = require("path");
+            const updateTarget = nodePath.join(__dirname, nodePath.basename(__filename));
+            require("fs").writeFileSync(updateTarget, text);
             UI.showToast(`[${this.name}] Updated to v${nextVersion}. Reloading...`, { type: "success" });
             setTimeout(() => Plugins.reload(this.name), 100);
         } catch (e) {

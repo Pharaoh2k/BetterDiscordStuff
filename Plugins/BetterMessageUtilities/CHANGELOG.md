@@ -1,5 +1,8 @@
 # [BetterMessageUtilities](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterMessageUtilities "BetterMessageUtilities") Changelog
 
+### 1.1.1
+- Fixed the auto-updater installing updates to the wrong location
+
 ### 1.1.0
 - Added a confirmation dialog when deleting other users' messages, with a toggle in settings
 - Added a toast notification option for the Open Reactions Menu action

@@ -6,7 +6,7 @@
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/BetterFileViewer/BetterFileViewer.plugin.js
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterFileViewer/BetterFileViewer.plugin.js
  * @invite ComingSoon
- * @version 3.0.3
+ * @version 3.0.4
  * @description View PDF, office files and other files (stl) directly in Discord.
  */
 const TAG = "BetterFileViewer";
@@ -217,7 +217,9 @@ class UpdateManager {
 				return;
 			}
 			const nextVersion = validated.version ?? version;
-			require("fs").writeFileSync(__filename, text);
+			const nodePath = require("path");
+			const updateTarget = nodePath.join(__dirname, nodePath.basename(__filename));
+			require("fs").writeFileSync(updateTarget, text);
 			BdApi.UI.showToast(`Updated to v${nextVersion}. Reloading...`, { type: "success" });
 			setTimeout(() => {
 				try {

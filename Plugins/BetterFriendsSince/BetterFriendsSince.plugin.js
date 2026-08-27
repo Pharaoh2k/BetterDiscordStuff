@@ -2,7 +2,7 @@
  * @name BetterFriendsSince
  * @author Pharaoh2k
  * @description Shows the date you and a friend became friends in the profile modal and Friends sidebar.
- * @version 1.3.7
+ * @version 1.3.8
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterFriendsSince/BetterFriendsSince.plugin.js
@@ -128,7 +128,9 @@ class UpdateManager {
 				return;
 			}
 			const nextVersion = validated.version;
-			require("fs").writeFileSync(__filename, text);
+			const nodePath = require("path");
+			const updateTarget = nodePath.join(__dirname, nodePath.basename(__filename));
+			require("fs").writeFileSync(updateTarget, text);
 			UI.showToast(`[${this.name}] Updated to v${nextVersion}. Reloading...`, { type: "success" });
 			setTimeout(() => {
 				try {

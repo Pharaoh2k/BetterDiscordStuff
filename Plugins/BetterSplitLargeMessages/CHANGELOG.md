@@ -1,5 +1,8 @@
 # [BetterSplitLargeMessages](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterSplitLargeMessages "BetterSplitLargeMessages") Changelog
 
+### 1.0.3
+- Fixed the auto-updater installing updates to the wrong location
+
 ### 1.0.2
 - Improved updates manager reliability
 

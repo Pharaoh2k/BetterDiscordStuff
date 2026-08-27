@@ -1,7 +1,7 @@
 /**
  * @name BetterSplitLargeMessages
  * @author Pharaoh2k
- * @version 1.0.2
+ * @version 1.0.3
  * @description Splits large messages to smaller ones (~2000/4000 chars). No Nitro spoofing. Honors server limits & slowmode, optional chunk cap, hides upsell banners/modals.
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterSplitLargeMessages/BetterSplitLargeMessages.plugin.js
@@ -134,7 +134,9 @@ class UpdateManager {
 				return;
 			}
 			const nextVersion = validated.version ?? version;
-			require("fs").writeFileSync(__filename, text);
+			const nodePath = require("path");
+			const updateTarget = nodePath.join(__dirname, nodePath.basename(__filename));
+			require("fs").writeFileSync(updateTarget, text);
 			BdApi.UI.showToast(`Updated to v${nextVersion}. Reloading...`, { type: "success" });
 			setTimeout(() => {
 				try {

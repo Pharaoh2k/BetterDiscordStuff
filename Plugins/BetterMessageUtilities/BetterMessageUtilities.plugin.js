@@ -1,6 +1,6 @@
 /**
  * @name BetterMessageUtilities
- * @version 1.1.0
+ * @version 1.1.1
  * @description Adds customizable hotkeys for message actions (delete, edit, pin, reply, etc.)
  * @author Pharaoh2k
  * @authorId 874825550408089610
@@ -106,7 +106,9 @@ class UpdateManager {
                 return;
             }
             const nextVersion = validated.version;
-            require("fs").writeFileSync(__filename, text);
+            const nodePath = require("path");
+            const updateTarget = nodePath.join(__dirname, nodePath.basename(__filename));
+            require("fs").writeFileSync(updateTarget, text);
             UI.showToast(`[${this.name}] Updated to v${nextVersion}. Reloading...`, { type: "success" });
             setTimeout(() => Plugins.reload(this.name), 100);
         } catch (e) {

@@ -1,5 +1,8 @@
 # [BigFileTransfers](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BigFileTransfers "BigFileTransfers") Changelog
 
+### 1.0.6
+- Fixed the auto-updater installing updates to the wrong location
+
 ### 1.0.5
 - Improved compatibility with other plugins
 - Adjusted to match Discord changes

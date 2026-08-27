@@ -1,5 +1,8 @@
 # [BetterServerDetails](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterServerDetails "BetterServerDetails") Changelog
 
+### 1.0.4
+- Fixed the auto-updater installing updates to the wrong location
+
 ### 1.0.3
 - Improved updates manager reliability
 

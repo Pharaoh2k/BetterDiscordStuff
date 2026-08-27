@@ -1,6 +1,6 @@
 /**
  * @name BetterTypingIndicator
- * @version 2.9.7
+ * @version 2.9.8
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/edit/main/Plugins/BetterTypingIndicator/BetterTypingIndicator.plugin.js
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BetterTypingIndicator/BetterTypingIndicator.plugin.js
@@ -288,7 +288,9 @@ class UpdateManager {
 				return;
 			}
 			const nextVersion = validated.version;
-			require("fs").writeFileSync(__filename, text);
+			const nodePath = require("path");
+			const updateTarget = nodePath.join(__dirname, nodePath.basename(__filename));
+			require("fs").writeFileSync(updateTarget, text);
 			UI.showToast(`[${this.name}] Updated to v${nextVersion}. Reloading...`, { type: "success" });
 			setTimeout(() => {
 				try {

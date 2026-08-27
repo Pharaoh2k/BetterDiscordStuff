@@ -1,5 +1,8 @@
 # [BetterTypingIndicator](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterTypingIndicator "BetterTypingIndicator") Changelog
 
+### 2.9.8
+- Fixed the auto-updater installing updates to the wrong location
+
 ### 2.9.7
 - Code cleaned up and optimized
 

@@ -1,5 +1,8 @@
 # [BetterFriendsSince](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterFriendsSince "BetterFriendsSince") Changelog
 
+### 1.3.8
+- Fixed the auto-updater installing updates to the wrong location
+
 ### 1.3.7
 - Updated to match Discord changes
 

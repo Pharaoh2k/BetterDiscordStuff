@@ -1,5 +1,8 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+### 5.0.15
+- Fixed the auto-updater installing updates to the wrong location
+
 ### 5.0.14
 - Fixed a crash when opening Quick Settings if you had a closed tab with no name - it now shows as "Unknown tab" instead.
 
