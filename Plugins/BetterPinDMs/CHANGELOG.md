@@ -1,6 +1,8 @@
 # [BetterPinDMs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterPinDMs "BetterPinDMs") Changelog
 
 ### 3.0.1
+- Added drag & drop for unpinned DMs: drag one straight into a pinned category
+- Pins saved by version 2.2.2 are now carried over automatically
 - Fixed the auto-updater installing updates to the wrong location
 
 ### 3.0.0

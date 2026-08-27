@@ -77,9 +77,8 @@ const CSS = String.raw`
 //#endregion CSS
 //#region Utility Helpers
 const DRAG_CLASSES = ["bpindms-drop-target-top", "bpindms-drop-target-bottom", "bpindms-drop-target-center"];
-const removeDragClasses = (el) => {
-  if (el) for (const c of DRAG_CLASSES) el.classList.remove(c);
-};
+const DRAG_SELECTOR = DRAG_CLASSES.map(c => `.${c}`).join(", ");
+const removeDragClasses = (el) => el?.classList?.remove(...DRAG_CLASSES);
 const _isUnsafeKey = (key) => {
   return key === "__proto__" || key === "prototype" || key === "constructor";
 };
@@ -326,10 +325,10 @@ class UpdateManager {
 	_validateRemotePluginText(text) {
 		if (typeof text !== "string") return { ok: false, reason: "Not a string" };
 		if (text.length < 800) return { ok: false, reason: "File too small" };
-		const remoteName = text.match(/@name\s+([^\n\r]+)/)?.[1]?.trim();
+		const remoteName = /@name\s+([^\n\r]+)/.exec(text)?.[1]?.trim();
 		if (!remoteName) return { ok: false, reason: "Missing @name" };
 		if (remoteName !== this.name) return { ok: false, reason: `Unexpected @name (${remoteName})` };
-		const remoteVersion = text.match(/@version\s+([\d.]+)/)?.[1];
+		const remoteVersion = /@version\s+([\d.]+)/.exec(text)?.[1];
 		if (!remoteVersion) return { ok: false, reason: "Missing @version" };
 		if (!text.includes("module.exports")) return { ok: false, reason: "Missing module.exports" };
 		if (!text.includes("@updateUrl")) return { ok: false, reason: "Missing @updateUrl header" };
@@ -390,7 +389,7 @@ module.exports = class BetterPinDMs {
         "data-category-id": category.id,
         draggable: !category.predefined,
         onDragStart: category.predefined ? null : (e) => plugin._handleDragStart(e, "category", category.id),
-        onDragOver: (e) => plugin._handleDragOver(e, "category"),
+        onDragOver: (e) => plugin._handleDragOver(e, "category", category.id),
         onDrop: (e) => plugin._handleDrop(e, "category", category.id),
         onDragLeave: (e) => plugin._handleDragLeave(e),
         onClick: () => {
@@ -446,7 +445,22 @@ module.exports = class BetterPinDMs {
       if (section === 0) return st.origRenderDM.call(inst, section, row, ...rest);
       const catIndex = section - 1;
       if (catIndex >= categories.length) {
-        return st.origRenderDM.call(inst, section, row + st.totalPinnedCount, ...rest);
+        const adjUnpinnedRow = row + st.totalPinnedCount;
+        const unpinnedId = inst.props.privateChannelIds[adjUnpinnedRow];
+        let result = st.origRenderDM.call(inst, section, adjUnpinnedRow, ...rest);
+        if (result && unpinnedId) {
+          result = ce("div", {
+            className: "bpindms-dm-wrapper",
+            key: "bpindms-unwrap-" + unpinnedId,
+            "data-bpindms-channel": unpinnedId,
+            draggable: true,
+            onDragStart: (e) => this._handleDragStart(e, "dm", unpinnedId),
+            onDragOver: (e) => this._handleDragOver(e, "dm", unpinnedId),
+            onDrop: (e) => this._handleDrop(e, "dm", unpinnedId),
+            onDragLeave: (e) => this._handleDragLeave(e)
+          }, result);
+        }
+        return result;
       }
       const cat = categories[catIndex];
       const offset = st.pinnedIdsReversed.slice(0, catIndex).flat().length;
@@ -477,7 +491,7 @@ module.exports = class BetterPinDMs {
       const st = this._dmListPatchState;
       if (a[0] !== 0 && a[0] !== st.totalSections - 1) {
         const cat = st.categories[a[0] - 1];
-        if (cat && cat.collapsed) return 0;
+        if (cat?.collapsed) return 0;
       }
       const orig = st.origRowHeight;
       return typeof orig === "function" ? orig(...a) : orig;
@@ -503,7 +517,7 @@ module.exports = class BetterPinDMs {
       const result = st.origRenderSection(...a);
       if (idx === st.totalSections - 1 && React.isValidElement(result)) {
         return React.cloneElement(result, {
-          onDragOver: this._composeHandler(result.props.onDragOver, (e) => this._handleDragOver(e, "header-unpin")),
+          onDragOver: this._composeHandler(result.props.onDragOver, (e) => this._handleDragOver(e, "header-unpin", "unpin")),
           onDrop: this._composeHandler(result.props.onDrop, (e) => this._handleDrop(e, "header-unpin", null)),
           onDragLeave: this._composeHandler(result.props.onDragLeave, (e) => this._handleDragLeave(e))
         });
@@ -526,6 +540,7 @@ module.exports = class BetterPinDMs {
       if (!this.stores[name]) Logger.warn(`Store not found: ${name}`);
     }
     this.LocaleMessages = Webpack.getModule(m => m.Messages?.UNPIN && m.Messages?.SAVE)?.Messages;
+    this._migrateLegacyPinData();
     Logger.info("Starting BetterPinDMs v" + this.meta.version);
     this.updateManager.start(this.settings.autoUpdate);
     DOM.addStyle(CSS);
@@ -555,12 +570,13 @@ module.exports = class BetterPinDMs {
     if (this._storeDebounceTimer) { clearTimeout(this._storeDebounceTimer); this._storeDebounceTimer = null; }
     if (this._channelListRenderingTimer) { clearTimeout(this._channelListRenderingTimer); this._channelListRenderingTimer = null; }
     this._channelListRendering = false;
-    if (this._onDragEnd) document.removeEventListener("dragend", this._onDragEnd, true);
+    if (this._onDragEnd) {
+      document.removeEventListener("dragend", this._onDragEnd, true);
+      this._handleDragEnd();
+    }
     if (this._onKeyDown) document.removeEventListener("keydown", this._onKeyDown);
     this._flushUpdatesDebounced.cancel();
     this._updatePending = null;
-    this._dragInfo = null;
-    this._cleanupDragVisuals();
     this._dmListForceUpdate = null;
     this._remountTarget = null;
     this._dmListPatched = false;
@@ -1416,7 +1432,7 @@ module.exports = class BetterPinDMs {
         "data-bpindms-channel": id,
         draggable: true,
         onDragStart: (e) => this._handleDragStart(e, "dm", id),
-        onDragOver: (e) => this._handleDragOver(e, "dm"),
+        onDragOver: (e) => this._handleDragOver(e, "dm", id),
         onDrop: (e) => this._handleDrop(e, "dm", id),
         onDragLeave: (e) => this._handleDragLeave(e)
       },
@@ -1453,11 +1469,11 @@ module.exports = class BetterPinDMs {
   _cleanupDragVisuals() {
     if (this._dragEl) this._dragEl.style.opacity = "";
     this._dragEl = null;
-    for (const el of document.querySelectorAll(DRAG_CLASSES.map(c => `.${c}`).join(", "))) {
+    for (const el of document.querySelectorAll(DRAG_SELECTOR)) {
       removeDragClasses(el);
     }
   }
-  _handleDragOver(e, targetType) {
+  _handleDragOver(e, targetType, targetId) {
     if (!this._dragInfo) return;
     e.preventDefault();
     e.stopPropagation();
@@ -1474,10 +1490,12 @@ module.exports = class BetterPinDMs {
         target.classList.add(offsetY < height / 2 ? "bpindms-drop-target-top" : "bpindms-drop-target-bottom");
         e.dataTransfer.dropEffect = "move";
       }
-    } else if (targetType === "dm" && this._dragInfo.type === "dm") {
-      target.classList.add(offsetY < height / 2 ? "bpindms-drop-target-top" : "bpindms-drop-target-bottom");
-      e.dataTransfer.dropEffect = "move";
-    } else if (targetType === "header-unpin" && this._dragInfo.type === "dm") {
+    } else if (targetType === "dm") {
+      if (this._dragInfo.type === "dm") {
+        target.classList.add(offsetY < height / 2 ? "bpindms-drop-target-top" : "bpindms-drop-target-bottom");
+        e.dataTransfer.dropEffect = "move";
+      }
+    } else if (targetType === "header-unpin") {
       target.classList.add("bpindms-drop-target-center");
       e.dataTransfer.dropEffect = "move";
     }
@@ -1488,22 +1506,27 @@ module.exports = class BetterPinDMs {
   _handleDrop(e, targetType, targetId) {
     e.preventDefault();
     e.stopPropagation();
+    removeDragClasses(e.currentTarget);
     this._cleanupDragVisuals();
     if (!this._dragInfo) return;
     const { type: dragType, id: dragId } = this._dragInfo;
     this._dragInfo = null;
     const rect = e.currentTarget.getBoundingClientRect();
     const isTop = (e.clientY - rect.top) < rect.height / 2;
-    if (dragType === "dm" && targetType === "header-unpin") {
-      this._confirmUnpin(dragId);
-      return;
-    }
     if (dragType === "category" && targetType === "category") {
       this._reorderCategories(dragId, targetId, isTop);
-    } else if (dragType === "dm" && targetType === "category") {
+      return;
+    }
+    if (dragType === "dm" && targetType === "category") {
       this._moveDmToCategory(dragId, targetId);
-    } else if (dragType === "dm" && targetType === "dm") {
+      return;
+    }
+    if (dragType === "dm" && targetType === "dm") {
       this._reorderDm(dragId, targetId, isTop);
+      return;
+    }
+    if (dragType === "dm" && targetType === "header-unpin") {
+      this._reorderDm(dragId, null, true);
     }
   }
   _handleDragEnd() {
@@ -1526,51 +1549,60 @@ module.exports = class BetterPinDMs {
       doUnpin();
     }
   }
-  _reorderDm(dragId, targetId, insertBefore) {
-    if (dragId === targetId) return;
-    const categories = this.getCategories("channelList", true);
-    const sourceCat = categories.find(c => !c.predefined && c.dms.includes(dragId));
-    const targetCat = categories.find(c => !c.predefined && c.dms.includes(targetId));
-    if (!sourceCat || !targetCat) return;
-    if (sourceCat.id === targetCat.id) {
-      if (this.settings.recentOrderChannelList) {
-        this.settings.recentOrderChannelList = false;
-        Data.save("settings", this.settings);
-        UI.showToast("Disabled 'Sort by Recent (Channel List)' to apply manual order", { type: "info" });
-      }
-      const dms = targetCat.dms;
-      const fromIdx = dms.indexOf(dragId);
-      let toIdx = dms.indexOf(targetId);
-      if (fromIdx === -1 || toIdx === -1) return;
-      dms.splice(fromIdx, 1);
-      if (fromIdx < toIdx) toIdx--;
-      if (!insertBefore) toIdx++;
-      dms.splice(toIdx, 0, dragId);
-    } else {
-      arrRemove(sourceCat.dms, dragId);
-      let toIdx = targetCat.dms.indexOf(targetId);
-      if (!insertBefore) toIdx++;
-      targetCat.dms.splice(toIdx, 0, dragId);
+  _reorderDm(dragId, targetId, insertBefore = true) {
+    if (!targetId) {
+      if (this.getChannelListCategory(dragId)) this._confirmUnpin(dragId);
+      return;
     }
-    const channels = this.getPinnedChannels("channelList");
-    channels[sourceCat.id] = sourceCat;
-    channels[targetCat.id] = targetCat;
-    this.savePinnedChannels(channels, "channelList");
-    this.forceUpdateChannelList(true);
+    if (dragId === targetId) return;
+    const dragCat = this.getChannelListCategory(dragId);
+    const targetCat = this.getChannelListCategory(targetId);
+    if (dragCat && !targetCat) {
+      this._confirmUnpin(dragId);
+      return;
+    }
+    if (!dragCat && targetCat) {
+      this.addToCategory(dragId, targetCat, "channelList");
+      return;
+    }
+    if (dragCat && targetCat) {
+      if (dragCat.id === targetCat.id) {
+        if (this.settings.recentOrderChannelList) {
+          this.settings.recentOrderChannelList = false;
+          Data.save("settings", this.settings);
+          UI.showToast("Disabled 'Sort by Recent (Channel List)' to apply manual order", { type: "info" });
+        }
+        const dms = targetCat.dms;
+        const fromIdx = dms.indexOf(dragId);
+        let toIdx = dms.indexOf(targetId);
+        if (fromIdx === -1 || toIdx === -1) return;
+        dms.splice(fromIdx, 1);
+        if (fromIdx < toIdx) toIdx--;
+        if (!insertBefore) toIdx++;
+        dms.splice(toIdx, 0, dragId);
+      } else {
+        arrRemove(dragCat.dms, dragId);
+        let toIdx = targetCat.dms.indexOf(targetId);
+        if (!insertBefore) toIdx++;
+        targetCat.dms.splice(toIdx, 0, dragId);
+      }
+      const channels = this.getPinnedChannels("channelList");
+      channels[dragCat.id] = dragCat;
+      channels[targetCat.id] = targetCat;
+      this.savePinnedChannels(channels, "channelList");
+      this.forceUpdateChannelList(true);
+    }
   }
   _moveDmToCategory(dragId, targetCatId) {
     const categories = this.getCategories("channelList", true);
     const sourceCat = categories.find(c => !c.predefined && c.dms.includes(dragId));
     const targetCat = categories.find(c => c.id === targetCatId && !c.predefined);
     if (!targetCat) return;
-    if (sourceCat) arrRemove(sourceCat.dms, dragId);
-    if (!targetCat.dms.includes(dragId)) targetCat.dms.unshift(dragId);
-    const channels = this.getPinnedChannels("channelList");
-    if (sourceCat) channels[sourceCat.id] = sourceCat;
-    channels[targetCat.id] = targetCat;
-    this.savePinnedChannels(channels, "channelList");
-    this.forceUpdateChannelList(true);
-    UI.showToast(`Moved to "${targetCat.name}"`, { type: "success" });
+    if (sourceCat) {
+      arrRemove(sourceCat.dms, dragId);
+      this.saveCategory(sourceCat, "channelList");
+    }
+    this.addToCategory(dragId, targetCat, "channelList");
   }
   _reorderCategories(dragId, targetId, insertBefore) {
     if (dragId === targetId) return;
@@ -1685,7 +1717,7 @@ module.exports = class BetterPinDMs {
       if (!this.settings.guildListPinIcon) return;
       const to = args[0]?.children?.props?.to;
       if (typeof to !== "string") return;
-      const match = to.match(/^\/channels\/@me\/(\d+)$/);
+      const match = /^\/channels\/@me\/(\d+)$/.exec(to);
       if (!match) return;
       if (this.isGuildPinned(match[1])) {
         args[0] = { ...args[0], upperBadge: this._pinBadgeElement };
@@ -1741,6 +1773,38 @@ module.exports = class BetterPinDMs {
     return { ...structuredClone(this.defaultSettings), ...safeClone(saved) };
   }
   //#endregion Settings Migration
+  //#region Data Migration
+  _migrateLegacyPinData() {
+    const oldCategories = Data.load("categories");
+    const oldPinned = Data.load("pinned");
+    const hasOldCategories = oldCategories?.custom && typeof oldCategories.custom === "object";
+    const hasOldPinned = oldPinned && (Array.isArray(oldPinned.channelList) || Array.isArray(oldPinned.guildList));
+    if (!hasOldCategories && !hasOldPinned) return;
+    const uid = this.getCurrentUserId();
+    if (!uid) { Logger.warn("Cannot migrate legacy pin data: no current user ID"); return; }
+    Logger.info("Migrating legacy pin data from v2.2.2 format");
+    const allPinned = {};
+    allPinned[uid] = {};
+    if (hasOldCategories) {
+      const convertedCats = this._convertCategoryEntries(Object.entries(oldCategories.custom));
+      if (Object.keys(convertedCats).length) allPinned[uid].channelList = convertedCats;
+    }
+    if (hasOldPinned && Array.isArray(oldPinned.guildList)) {
+      const guildList = Object.create(null);
+      for (let i = 0; i < oldPinned.guildList.length; i++) {
+        const id = oldPinned.guildList[i];
+        if (typeof id === "string") guildList[id] = i;
+      }
+      if (Object.keys(guildList).length) allPinned[uid].guildList = guildList;
+    }
+    if (Object.keys(allPinned[uid]).length) {
+      Data.save("pinned", allPinned);
+      Logger.info("Legacy pin data migrated successfully");
+    }
+    Data.save("categories", null);
+    if (hasOldPinned) Data.save("pinned_legacy_backup", oldPinned);
+  }
+  //#endregion Data Migration
   //#region Import & Export
   _exportConfig() {
     try {
