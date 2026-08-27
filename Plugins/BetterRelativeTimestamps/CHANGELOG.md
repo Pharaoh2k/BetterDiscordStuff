@@ -1,5 +1,8 @@
 # [BetterRelativeTimestamps](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterRelativeTimestamps "BetterRelativeTimestamps") Changelog
 
+### 1.1.6
+- Improved copy behavior: relative timestamps are no longer selectable or copied along with message text
+
 ### 1.1.5
 - Refactored and improved code
 
