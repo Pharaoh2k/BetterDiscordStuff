@@ -1,7 +1,7 @@
 /**
  * @name ShowAllChannelsAuto
  * @version 1.0.5
- * @website https://github.com/Pharaoh2k/BetterDiscordStuff
+ * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/ShowAllChannelsAuto/ShowAllChannelsAuto.plugin.js
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/ShowAllChannelsAuto/ShowAllChannelsAuto.plugin.js
  * @authorId 874825550408089610

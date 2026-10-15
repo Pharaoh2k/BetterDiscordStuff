@@ -2,9 +2,10 @@
  * @name BetterRelativeTimestamps
  * @version 1.1.7
  * @description Relative timestamps with live tooltip, seamless toggle of "relative-only".
- * @author  Pharaoh2k
+ * @author Pharaoh2k
+ * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
- * @source  https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterRelativeTimestamps/BetterRelativeTimestamps.plugin.js
+ * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterRelativeTimestamps/BetterRelativeTimestamps.plugin.js
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BetterRelativeTimestamps/BetterRelativeTimestamps.plugin.js
  */
 /*

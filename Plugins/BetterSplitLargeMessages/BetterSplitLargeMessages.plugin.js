@@ -4,6 +4,7 @@
  * @version 1.0.3
  * @description Splits large messages to smaller ones (~2000/4000 chars). No Nitro spoofing. Honors server limits & slowmode, optional chunk cap, hides upsell banners/modals.
  * @authorId 874825550408089610
+ * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterSplitLargeMessages/BetterSplitLargeMessages.plugin.js
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BetterSplitLargeMessages/BetterSplitLargeMessages.plugin.js
  */

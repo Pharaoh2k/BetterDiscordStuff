@@ -6,7 +6,7 @@
   "status": "Active",
   "workingStatus": "Working",
   "lastUpdated": "2026-10-15",
-  "releaseDate": "2025-31-12",
+  "releaseDate": "2025-12-31",
   "features": [
     "Upload files up to ~2GB by automatically splitting into chunks",
     "Automatic chunk sending with configurable delays",

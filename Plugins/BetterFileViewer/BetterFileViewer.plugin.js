@@ -2,10 +2,10 @@
  * @name BetterFileViewer
  * @author Pharaoh2k, AGreenPig
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
+ * @authorId 874825550408089610
  * @authorLink https://github.com/Pharaoh2k
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BetterFileViewer/BetterFileViewer.plugin.js
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterFileViewer/BetterFileViewer.plugin.js
- * @invite ComingSoon
  * @version 3.0.5
  * @description View PDF, office files and other files (stl) directly in Discord.
  */
