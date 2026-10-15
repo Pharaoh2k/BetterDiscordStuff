@@ -1,0 +1,6 @@
+# Line-ending policy.
+# Every text file is stored in the repo with LF and checked out with LF, on
+# every OS and regardless of core.autocrlf. This keeps edits from producing
+# whole-file CRLF/LF diffs, and means BetterDiscord downloads the exact same
+# bytes from raw.githubusercontent.com that are committed here.
+* text=auto eol=lf

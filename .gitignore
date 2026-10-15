@@ -1,0 +1,28 @@
+# Local-only files. Everything below stays on your machine and must never be
+# committed or pushed to GitHub.
+
+# Editors and IDEs
+.vscode/
+.vs/
+.idea/
+*.swp
+*.swo
+*~
+
+# Claude Code (local settings, memory and session files)
+.claude/
+
+# Dependencies
+node_modules/
+
+# OS files
+Thumbs.db
+ehthumbs.db
+desktop.ini
+.DS_Store
+
+# Logs, temp files and local secrets
+*.log
+*.tmp
+.env
+.env.*
