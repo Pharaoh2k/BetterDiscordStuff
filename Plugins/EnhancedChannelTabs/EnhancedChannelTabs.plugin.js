@@ -1263,10 +1263,9 @@ const TabActions = (() => {
 			? { type: "group", groupId: group.groupId, groupIndex: fromIndex }
 			: entries[currentEntryIndex];
 		const sameParent = currentParentId === parentId;
+		// toIndex is already the final position with this folder removed, which is what
+		// moveEntryToParentIndex expects, so it must not be shifted again when moving right.
 		let targetIndex = clampIndex(toIndex, entries.length - (sameParent ? 1 : 0));
-		if (sameParent && currentEntryIndex !== -1 && currentEntryIndex < targetIndex) {
-			targetIndex += 1;
-		}
 		targetIndex = clampIndex(targetIndex, entries.length);
 		if (currentEntryIndex === targetIndex) return;
 		if (!currentEntry) return;
@@ -1586,7 +1585,6 @@ const bulkModules = Webpack.getBulkKeyed({
 	NavShortcuts: { filter: byKeys("NAVIGATE_BACK", "NAVIGATE_FORWARD") },
 	IconUtilities: { filter: byKeys("getChannelIconURL") },
 	systemBarClasses: { filter: byKeys("systemBar") },
-	backdropClasses: { filter: byKeys("backdrop", "withLayer") },
 	scrimClasses: { filter: byKeys("scrim") },
 	PlusIcon: { filter: (m) => m.toString?.().includes("M13 6a1 1") },
 	ChevronDownIcon: { filter: (m) => m.toString?.().includes("M5.3 9.3a1") },
@@ -1733,16 +1731,8 @@ const IconUtilities = warnModule(
 	bulkModules.IconUtilities,
 	"IconUtilities",
 );
-const standardSidebarView =
-	Webpack.getByKeys("standardSidebarView")?.standardSidebarView ?? "";
-const backdropClasses = warnModule(
-	bulkModules.backdropClasses,
-	"backdropClasses",
-);
 const scrimClasses = warnModule(bulkModules.scrimClasses, "scrimClasses");
 const noDragClasses = [
-	standardSidebarView,
-	backdropClasses?.backdrop,
 	scrimClasses?.scrim,
 ].filter(Boolean);
 const systemBarClasses = warnModule(
@@ -2492,15 +2482,15 @@ function CreateFavGroupContextMenu(props, e) {
 						],
 					},
 					{
-						include: props.groupCount > 1,
+						include: props.entryCount > 1,
 						values: [
 							{
 								label: "Move left",
 								action: () =>
 									props.moveFavGroup(
 										props.groupIndex,
-										(props.groupIndex + props.groupCount - 1) %
-										props.groupCount,
+										(props.entryIndex + props.entryCount - 1) %
+										props.entryCount,
 									),
 								icon: Icons.LeftCaret
 							},
@@ -2509,7 +2499,7 @@ function CreateFavGroupContextMenu(props, e) {
 								action: () =>
 									props.moveFavGroup(
 										props.groupIndex,
-										(props.groupIndex + 1) % props.groupCount,
+										(props.entryIndex + 1) % props.entryCount,
 									),
 								icon: Icons.RightCaret
 							},
@@ -5028,13 +5018,9 @@ const DroppableGroup = makeDroppable(
 		if (itemType === DNDTypes.FAVORITE) {
 			props.moveFav(dropped.favIndex, insertIndex, parentId);
 		} else if (itemType === DNDTypes.GROUP) {
+			// insertIndex is already relative to the list without the dragged folder when it shares this parent.
 			const filteredEntries = dropEntry ? entries.filter((entry) => !entriesMatch(entry, dropEntry)) : entries;
-			let targetIndex = insertIndex;
-			const sourceIndex = dropEntry ? entries.findIndex((entry) => entriesMatch(entry, dropEntry)) : -1;
-			if (sourceParentId === parentId && sourceIndex !== -1 && sourceIndex < targetIndex) {
-				targetIndex -= 1;
-			}
-			targetIndex = clampIndex(targetIndex, filteredEntries.length);
+			const targetIndex = clampIndex(insertIndex, filteredEntries.length);
 			props.moveFavGroup(dropped.groupIndex, targetIndex, parentId);
 		} else if (itemType === DNDTypes.TAB) {
 			props.addTabAsFavAt({ ...dropped, groupId: parentId }, insertIndex);
@@ -5079,6 +5065,8 @@ const FavFolders = (props) => {
 						...props,
 						favGroups,
 						favs,
+						entryIndex,
+						entryCount: entries.length,
 					});
 				}
 				const fav = favs[entry.favIndex];
