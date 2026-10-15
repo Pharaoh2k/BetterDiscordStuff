@@ -12,7 +12,6 @@ Built on BetterDiscord's own API, with **zero library dependencies**.
 [![Website](https://img.shields.io/badge/Website-pharaoh2k.github.io-5865F2?style=for-the-badge&logo=githubpages&logoColor=white)](https://pharaoh2k.github.io/BetterDiscordStuff/)
 [![BetterDiscord](https://img.shields.io/badge/BetterDiscord-Plugins-3E82E5?style=for-the-badge&logo=betterdiscord&logoColor=white)](https://betterdiscord.app)
 [![Last commit](https://img.shields.io/github/last-commit/Pharaoh2k/BetterDiscordStuff?style=for-the-badge&color=5865F2&label=Last%20update)](https://github.com/Pharaoh2k/BetterDiscordStuff/commits/main)
-[![Stars](https://img.shields.io/github/stars/Pharaoh2k/BetterDiscordStuff?style=for-the-badge&color=F5C518&logo=github)](https://github.com/Pharaoh2k/BetterDiscordStuff/stargazers)
 
 [**🌐 Website**](https://pharaoh2k.github.io/BetterDiscordStuff/) &nbsp;·&nbsp;
 [**🧩 Plugins**](#-plugins) &nbsp;·&nbsp;
