@@ -2,7 +2,7 @@
 
 A BetterDiscord plugin that enhances DM pinning with category organization, drag & drop, unread tracking, keyboard shortcuts, and import/export functionality.
 
-![Version](https://img.shields.io/badge/version-3.0.1-blue.svg)
+![Version](https://img.shields.io/badge/version-3.0.2-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Discord](https://img.shields.io/badge/discord-BetterDiscord-7289DA.svg)
 
@@ -10,7 +10,7 @@ A BetterDiscord plugin that enhances DM pinning with category organization, drag
 
 BetterPinDMs transforms how you manage your Discord Direct Messages by adding a dedicated **📌 PINNED DMs** section above your regular DM list. Organize your important conversations into color-coded categories, drag and drop to reorder, and never lose track of unread messages again.
 
-*Inspired by mwittrien/Devilbro's "PinDMs" — rebuilt from scratch using modern BdApi (no BDFDB dependency).*
+*Inspired by mwittrien/Devilbro's "PinDMs" - rebuilt from scratch using modern BdApi (no BDFDB dependency).*
 
 ## ✨ Features
 

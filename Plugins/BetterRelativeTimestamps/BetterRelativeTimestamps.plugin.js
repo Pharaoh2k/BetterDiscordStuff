@@ -1,6 +1,6 @@
 /**
  * @name BetterRelativeTimestamps
- * @version 1.1.6
+ * @version 1.1.7
  * @description Relative timestamps with live tooltip, seamless toggle of "relative-only".
  * @author  Pharaoh2k
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
@@ -271,8 +271,6 @@ module.exports = class BetterRelativeTimestamps {
 			meta.version,
 			GITHUB
 		);
-	}
-	load() {
 		this.defaultSettings = Object.fromEntries(
 			panelConfig.map(s => [s.id, s.value])
 		);

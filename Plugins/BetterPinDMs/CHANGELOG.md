@@ -1,5 +1,8 @@
 # [BetterPinDMs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterPinDMs "BetterPinDMs") Changelog
 
+### 3.0.2
+- Fixed an error when the DM list refreshes on BetterDiscord 1.14
+
 ### 3.0.1
 - Added drag & drop for unpinned DMs: drag one straight into a pinned category
 - Pins saved by version 2.2.2 are now carried over automatically

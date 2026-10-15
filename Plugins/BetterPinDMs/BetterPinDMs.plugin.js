@@ -2,7 +2,7 @@
  * @name BetterPinDMs
  * @author Pharaoh2k
  * @description Enhanced DM pinning with category headers, drag & drop, unread tracking, hotkeys, import/export (from similar plugins too), and smart categories. Pinned DMs are shown in a separate PINNED DMs section above "Direct Messages".
- * @version 3.0.1
+ * @version 3.0.2
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterPinDMs/BetterPinDMs.plugin.js
@@ -1653,9 +1653,9 @@ module.exports = class BetterPinDMs {
     }
     if (!this._remountTarget) return;
     const fragmentKey = String(Math.random());
-    const restore = Patcher.instead(this._remountTarget, "render", (_, args, originalRender) => {
+    const restore = Patcher.instead(this._remountTarget, "render", (thisObject, args, originalRender) => {
       restore();
-      return React.createElement(React.Fragment, { key: fragmentKey }, originalRender(...args));
+      return React.createElement(React.Fragment, { key: fragmentKey }, originalRender.apply(thisObject, args));
     });
     try {
       this._remountTarget.forceUpdate();

@@ -3,7 +3,7 @@
  * @author Pharaoh2k
  * @authorId 874825550408089610
  * @description Enables uploading and downloading very large files (up to ~2GB) by splitting them into chunks and reassembling them automatically. Both sender and receiver need the plugin. Includes automatic chunk sending, low‑memory mode, and other conveniences. Like BetterSplitLargeMessages, it doesn’t bypass Discord’s limits or Nitro, it simply works within them to make large transfers possible.
- * @version 1.0.6
+ * @version 1.0.7
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BigFileTransfers/BigFileTransfers.plugin.js
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BigFileTransfers/BigFileTransfers.plugin.js
@@ -555,10 +555,10 @@ module.exports = class BigFileTransfers {
     /*---  UPLOAD LOGIC ---*/
     _patchUploadPipeline() {
         const mgr = this._discordModules.MessageAttachmentManager;
-        Patcher.instead(mgr, "addFiles", async (_that, [args], original) => {
+        Patcher.instead(mgr, "addFiles", async (thisObj, [args], original) => {
             const files = args?.files ?? [];
             const channelId = args?.channelId;
-            if (!Array.isArray(files) || !channelId) return original(args);
+            if (!Array.isArray(files) || !channelId) return original.call(thisObj, args);
             const maxSize = this._realUploadLimit;
             const regular = [];
             const oversized = [];
@@ -568,7 +568,7 @@ module.exports = class BigFileTransfers {
                 if (f.size <= maxSize - UPLOAD_OVERHEAD) regular.push(container);
                 else oversized.push(container);
             }
-            if (oversized.length === 0) return original(args);
+            if (oversized.length === 0) return original.call(thisObj, args);
             try {
                 const queue = this._queuedUploads.get(channelId) ?? [];
                 for (const c of regular) queue.push({ kind: "container", container: c });
@@ -592,12 +592,12 @@ module.exports = class BigFileTransfers {
                 if (progress) {
                     progress.sent += batch.filter(item => this._isChunkFile((item.file ?? item).name)).length;
                 }
-                return original({ ...args, files: batch, showLargeMessageDialog: false });
+                return original.call(thisObj, { ...args, files: batch, showLargeMessageDialog: false });
             } catch (e) {
                 this._logError("Split failed", e);
                 UI.showToast("Split failed: " + (e.message || String(e)), { type: "error" });
                 this._uploadProgress.delete(channelId);
-                return original(args);
+                return original.call(thisObj, args);
             }
         });
     }

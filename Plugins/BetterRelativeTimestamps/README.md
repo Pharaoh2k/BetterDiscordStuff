@@ -2,7 +2,7 @@
 
 A BetterDiscord plugin that adds live-updating relative timestamps to Discord messages.
 
-![Version](https://img.shields.io/badge/version-1.1.6-blue.svg)
+![Version](https://img.shields.io/badge/version-1.1.7-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Discord](https://img.shields.io/badge/discord-BetterDiscord-7289DA.svg)
 
@@ -41,7 +41,7 @@ Once enabled, the plugin works automatically:
 
 Access settings through Discord Settings → Plugins → BetterRelativeTimestamps ⚙️
 
-- **Show alongside absolute time**: Display "— 5m ago" next to Discord's timestamp (default: on)
+- **Show alongside absolute time**: Display "- 5m ago" next to Discord's timestamp (default: on)
 - **Show relative time only**: Replace Discord's timestamp entirely (default: off)
 - **Hide seconds**: Skip seconds for cleaner display (default: off)
 - **Enable debug logging**: Log errors to console for troubleshooting (default: off)
