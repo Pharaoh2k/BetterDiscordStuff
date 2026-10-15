@@ -1,6 +1,6 @@
 /**
  * @name BetterMessageUtilities
- * @version 1.1.2
+ * @version 1.2.0
  * @description Adds customizable hotkeys for message actions (delete, edit, pin, reply, etc.)
  * @author Pharaoh2k
  * @authorId 874825550408089610

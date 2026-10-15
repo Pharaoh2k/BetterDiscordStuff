@@ -2,7 +2,7 @@
   "name": "BetterMessageUtilities",
   "description": "Adds customizable hotkeys for message actions (delete, edit, pin, reply, etc.)",
   "author": "Pharaoh2k",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "status": "Active",
   "workingStatus": "Working",
   "lastUpdated": "2026-10-15",
@@ -14,6 +14,7 @@
     "Single-click and double-click trigger options",
     "Configurable toast notifications",
     "Clear input on Escape key option",
+    "Optional setting to always show all message buttons (the full toolbar you normally see while holding Shift)",
     "Auto-updates with changelog notifications"
   ],
   "sourceUrl": "https://github.com/Pharaoh2k/BetterDiscordStuff/tree/main/Plugins/BetterMessageUtilities",

@@ -1,5 +1,8 @@
 # [BetterMessageUtilities](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterMessageUtilities "BetterMessageUtilities") Changelog
 
+### 1.2.0
+- Added "Always Show All Message Buttons" setting: always shows the full message toolbar (Copy Message ID, Copy Link, Mark Unread, Pin, Delete and more) that you normally only see while holding Shift ([#30](https://github.com/Pharaoh2k/BetterDiscordStuff/issues/30))
+
 ### 1.1.2
 - Added a "View Changelog" button to the settings
 
@@ -9,11 +12,11 @@
 ### 1.1.0
 - Added a confirmation dialog when deleting other users' messages, with a toggle in settings
 - Added a toast notification option for the Open Reactions Menu action
-- Completely redesigned the settings panel with a modern card-based layout — each action now has its own card with inline controls for keybind, click type, toast, and enable/disable
+- Completely redesigned the settings panel with a modern card-based layout - each action now has its own card with inline controls for keybind, click type, toast, and enable/disable
 - Settings now update in real-time without needing to close and reopen the panel
 - Improved "Clear on Escape" to properly clear Discord drafts instead of manipulating the input field directly
 - Improved the Open Reactions Menu to more reliably detect and click the reaction button
-- Smarter keybind matching — when multiple bindings match, the most specific (longest) key combination is now preferred
+- Smarter keybind matching - when multiple bindings match, the most specific (longest) key combination is now preferred
 - Added a window blur handler to prevent modifier keys from getting stuck when switching windows
 - Pin/Unpin now checks for Manage Messages permission before attempting the action
 - Updated the changelog modal to display changes grouped by version for better readability
