@@ -16,7 +16,7 @@
  * Contributions are welcome via GitHub pull requests. 
  * Please ensure submissions align with the project's guidelines and coding standards.
 ============================================= */
-const { Data, Hooks, Logger, Net, Plugins, Components, React, ReactUtils, UI, Utils, Webpack } = new BdApi("BetterMessageUtilities");
+const { Data, Hooks, Logger, Net, Patcher, Plugins, Components, React, ReactUtils, UI, Utils, Webpack } = new BdApi("BetterMessageUtilities");
 const { SwitchInput, DropdownInput, KeybindInput, SettingItem, SettingGroup, Button } = Components;
 class UpdateManager {
     /* using Net, UI, Logger, Data, Plugins, Utils from BdApi */
@@ -233,7 +233,7 @@ module.exports = class BetterMessageUtilities {
             "Pharaoh2k/BetterDiscordStuff"
         );
         this.defaultSettings = {
-            general: { clearOnEscape: true, autoUpdate: true, confirmDelete: true },
+            general: { clearOnEscape: true, autoUpdate: true, confirmDelete: true, showAllButtons: false },
             toasts: { Delete_Message: true, Edit_Message: false, Pin_Unpin_Message: true, Reply_to_Message: true, React_to_Message: false, Copy_Raw: true, Copy_Link: true },
             bindings: {
                 Delete_Message: { name: "Delete Message", keycombo: [46], click: 0, enabled: true },
@@ -254,6 +254,7 @@ module.exports = class BetterMessageUtilities {
         this.updateManager.start(this.settings.general.autoUpdate);
         this.getDiscordModules();
         this.addEventListeners();
+        this.patchShiftHook();
         UI.showToast(`${this.meta.name} started!`, {
             type: "success"
         });
@@ -261,10 +262,23 @@ module.exports = class BetterMessageUtilities {
     stop() {
         this.updateManager.stop();
         this.removeEventListeners();
+        this.abortController?.abort();
+        Patcher.unpatchAll();
         document.getElementById("bmu-settings-css")?.remove();
         UI.showToast(`${this.meta.name} stopped!`, {
             type: "info"
         });
+    }
+    // Discord expands the message toolbar while a "Shift is held" hook returns true. That hook is only
+    // used by the toolbar, so forcing it to true shows all message buttons, just like holding Shift.
+    patchShiftHook() {
+        this.abortController = new AbortController();
+        const filter = Webpack.Filters.bySource('"keydown"', '"keyup"', '"mousemove"', '"blur"', ".shiftKey", "useState");
+        Webpack.waitForModule(filter, { defaultExport: false, signal: this.abortController.signal }).then(mod => {
+            const key = mod && Object.keys(mod).find(k => typeof mod[k] === "function");
+            if (!key) return Logger.warn("Shift key hook not found, Always Show All Message Buttons is unavailable");
+            Patcher.after(mod, key, (_, args, ret) => this.settings.general.showAllButtons || ret);
+        }).catch(() => {});
     }
     getDiscordModules() {
         this.ChannelStore = Webpack.Stores.ChannelStore;
@@ -590,6 +604,9 @@ module.exports = class BetterMessageUtilities {
                 h(SettingGroup, { name: "General", shown: true },
                     h(SettingItem, { name: "Clear Input on Escape", note: "Clear message input when pressing Escape", inline: true },
                         h(SwitchInput, { value: settings.general.clearOnEscape, onChange: (v) => updateGeneral("clearOnEscape", v) })
+                    ),
+                    h(SettingItem, { name: "Always Show All Message Buttons", note: "Always show the full message toolbar you normally only see while holding Shift", inline: true },
+                        h(SwitchInput, { value: !!settings.general.showAllButtons, onChange: (v) => updateGeneral("showAllButtons", v) })
                     ),
                     h(SettingItem, { name: "Auto Update", note: "Check for updates every 24 hours", inline: true },
                         h(SwitchInput, { value: settings.general.autoUpdate, onChange: (v) => updateGeneral("autoUpdate", v) })
