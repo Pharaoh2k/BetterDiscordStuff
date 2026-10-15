@@ -97,7 +97,7 @@ Contributions are welcome! Please feel free to submit a Pull Request. Ensure sub
 
 ## 📝 License
 
-This project includes code originally licensed under the MIT License (PermissionsViewer and RoleMembers by Zerebos).
+This project includes code originally licensed under an MIT-style license (PermissionsViewer and RoleMembers by Zerebos). See [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md) for the full notice.
 
 Substantial modifications, additions, and refactored components created by Pharaoh2k are © 2026 Pharaoh2k. All rights reserved. These proprietary portions may not be copied, modified, or redistributed without prior written consent from Pharaoh2k.
 

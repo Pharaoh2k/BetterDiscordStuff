@@ -155,6 +155,12 @@ Modern circular status indicators:
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
+## 📝 License
+
+EnhancedChannelTabs is free software, licensed under the [GNU General Public License v3.0 only](LICENSE).
+
+It is based on ChannelTabs, which is licensed under the MIT License (Copyright © 2023-2025 samfundev, 2023 l0c4lh057, 2020-2023 CarJem Generations). See [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md) for the full notice.
+
 ## 👥 Credits
 
 - **Pharaoh2k** - EnhancedChannelTabs maintainer & developer (GPL-3 license)
@@ -166,7 +172,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 - [GitHub Repository](https://github.com/Pharaoh2k/BetterDiscordStuff)
 - [Bug Reports](https://github.com/Pharaoh2k/BetterDiscordStuff/issues)
-- [Plugin Source](https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs.plugin.js)
+- [Plugin Source](https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js)
 
 ## 📈 Version History
 

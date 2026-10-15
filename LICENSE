@@ -1,0 +1,38 @@
+Copyright (c) 2024-present Pharaoh2k. All rights reserved.
+
+This repository and everything in it (plugins, plugin metadata, manifests,
+documentation and all other files) is proprietary, except for the parts
+listed under "Exceptions" below.
+
+Permission is granted to download, install and use the plugins in this
+repository for personal use with BetterDiscord. No other rights are granted.
+Copying, modifying, redistributing, republishing or creating derivative works
+from any part of this repository, in whole or in part, is prohibited without
+prior written consent from Pharaoh2k.
+
+
+Exceptions
+----------
+
+1. EnhancedChannelTabs (Plugins/EnhancedChannelTabs/) is free software,
+   licensed under the GNU General Public License, version 3 only
+   (GPL-3.0-only). See Plugins/EnhancedChannelTabs/LICENSE for the full
+   license text.
+
+2. Some plugins include code written by third parties and published under
+   the MIT License or a similar permissive license. That code stays under its
+   original copyright and license, and the restrictions above apply only to
+   Pharaoh2k's own contributions. See THIRD_PARTY_NOTICES.md for the list of
+   affected plugins and the full license texts.
+
+
+Disclaimer
+----------
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHOR OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

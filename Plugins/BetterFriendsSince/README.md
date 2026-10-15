@@ -72,7 +72,7 @@ Contributions are welcome! Please feel free to submit a Pull Request. Ensure sub
 
 ## 📝 License
 
-This project includes code originally licensed under the MIT License (Copyright © 2021 Robert Delaney).
+This project includes code originally licensed under the MIT License (Copyright © 2021 Robert Delaney). See [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md) for the full notice.
 
 Substantial modifications, additions, and refactored components created by Pharaoh2k are © 2025 Pharaoh2k. All rights reserved. These proprietary portions may not be copied, modified, or redistributed without prior written consent from Pharaoh2k.
 
