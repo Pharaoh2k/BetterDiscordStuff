@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-02-17",
+  "lastUpdated": "2026-10-15",
   "plugins": [
     {
       "id": "enhanced-channel-tabs",
@@ -69,6 +69,11 @@
     {
       "id": "Quick Messages Reborn",
       "name": "QuickMessages-Reborn",
+      "enabled": true
+    },
+    {
+      "id": "Permissions Toolkit",
+      "name": "PermissionsToolkit",
       "enabled": true
     }
   ]

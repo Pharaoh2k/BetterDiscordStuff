@@ -1,0 +1,27 @@
+{
+  "name": "PermissionsToolkit",
+  "description": "Inspect user and role permissions, compare roles or users side by side, look up who has specific permissions, and scan for dangerous configurations.",
+  "author": "Pharaoh2k",
+  "version": "1.0.0",
+  "status": "Active",
+  "workingStatus": "Working",
+  "lastUpdated": "2026-10-15",
+  "releaseDate": "2026-10-15",
+  "features": [
+    "View a user's total server permissions in their popout and profile",
+    "Inspect a channel's permission overrides for every role and member",
+    "Browse permissions role by role, including each role's members",
+    "Compare two roles or two users side by side",
+    "Look up every role and member that has a specific permission",
+    "Trace where each permission comes from (role, channel override or server owner)",
+    "Security Audit for dangerous @everyone permissions, too many admin roles and risky overwrites",
+    "Filter permissions by allowed, denied or neutral, and search by name",
+    "Permissions entries in server, channel and user context menus",
+    "Localized in English, Spanish, Portuguese, German, Russian, French and Dutch",
+    "Automatic update checking with changelog display",
+    "Modern BdApi based (no BDFDB dependency)"
+  ],
+  "sourceUrl": "https://github.com/Pharaoh2k/BetterDiscordStuff/tree/main/Plugins/PermissionsToolkit",
+  "changelogUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/PermissionsToolkit/CHANGELOG.md",
+  "downloadUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/PermissionsToolkit/PermissionsToolkit.plugin.js"
+}
