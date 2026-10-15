@@ -1,5 +1,11 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+### 5.0.16
+- Fixed a major slowdown when enabling the plugin and switching tabs
+- Fixed Discord sometimes going blank when the plugin starts or is toggled
+- Restored drag and drop for tabs, favorites and folders (now built on native drag and drop instead of Discord's react-dnd)
+- Fixed a favorite dropped on the right half of another landing one spot too far, and "Move right" on a favorite skipping a spot
+
 ### 5.0.15
 - Fixed the auto-updater installing updates to the wrong location
 

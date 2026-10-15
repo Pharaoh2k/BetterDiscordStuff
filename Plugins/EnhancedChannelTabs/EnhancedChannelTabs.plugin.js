@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 5.0.15
+ * @version 5.0.16
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
@@ -1103,10 +1103,9 @@ const TabActions = (() => {
 			? { type: "fav", favIndex: fromIndex, url: fav.url }
 			: entries[currentEntryIndex];
 		const sameParent = normalizeParentId(fav.groupId) === parentId;
+		// toIndex is already the final position with this fav removed, which is what
+		// moveEntryToParentIndex expects, so it must not be shifted again when moving right.
 		let targetIndex = clampIndex(toIndex, entries.length - (sameParent ? 1 : 0));
-		if (sameParent && currentEntryIndex !== -1 && currentEntryIndex < targetIndex) {
-			targetIndex += 1;
-		}
 		targetIndex = clampIndex(targetIndex, entries.length);
 		if (currentEntryIndex === targetIndex) return;
 		if (!currentEntry) return;
@@ -1642,37 +1641,6 @@ const DiscordConstants = {
 		"DiscordConstants.ChannelTypes",
 	),
 };
-// Discord lazy-loads react-dnd: the HOC factories aren't in the webpack cache at plugin
-// init time and only appear once the channel sidebar mounts. Resolution is deferred to
-// first render via getDragSource()/getDropTarget(), then cached.
-let _DragSource = null;
-let _DragSourceWarned = false;
-const getDragSource = () => {
-	if (_DragSource) return _DragSource;
-	_DragSource =
-		Webpack.getModule(m => typeof m === "function" && m.toString().includes("DragSource") && m.toString().includes("containerDisplayName"), { searchExports: true })
-		?? Webpack.getModule(Webpack.Filters.byStrings("react-dnd.github.io/react-dnd/docs/api/drag-source", "createConnector"), { searchExports: true })
-		?? Webpack.getModule(Webpack.Filters.byStrings("returns a string given the current props"), { searchExports: true });
-	if (!_DragSource && !_DragSourceWarned) {
-		_DragSourceWarned = true;
-		Logger.error("DragSource module not found! Drag and drop will not work.");
-	}
-	return _DragSource;
-};
-let _DropTarget = null;
-let _DropTargetWarned = false;
-const getDropTarget = () => {
-	if (_DropTarget) return _DropTarget;
-	_DropTarget =
-		Webpack.getModule(m => typeof m === "function" && m.toString().includes("DropTarget") && m.toString().includes("containerDisplayName"), { searchExports: true })
-		?? Webpack.getModule(Webpack.Filters.byStrings("react-dnd.github.io/react-dnd/docs/api/drop-target", "createConnector"), { searchExports: true })
-		?? Webpack.getModule(Webpack.Filters.byStrings("an array of strings, or a function that returns either"), { searchExports: true });
-	if (!_DropTarget && !_DropTargetWarned) {
-		_DropTargetWarned = true;
-		Logger.error("DropTarget module not found! Drag and drop will not work.");
-	}
-	return _DropTarget;
-};
 const Textbox = (props) =>
 	/* @__PURE__ */ React.createElement(
 	"div",
@@ -1939,52 +1907,79 @@ const DNDTypes = {
 const tabNodeRefs = new Map();
 const favNodeRefs = new Map();
 const groupNodeRefs = new Map();
-function collect(connect, monitor, props) {
-	const item = monitor.getItem();
-	return {
-		dragInProgress: !!item,
-		isOver: monitor.isOver({ shallow: true }),
-		canDrop: monitor.canDrop(),
-		draggedIsMe: item?.id === props.id,
-		dropRef: connect.dropTarget()
-	};
-}
-// Lazy HOC wrappers: react-dnd is resolved on first render (after the channel sidebar
-// pulls it into the bundle) and the wrapped component is cached. If react-dnd is still
-// unavailable when the wrapper renders, no-op refs are injected so the inner component
-// doesn't crash when it calls dragRef(node)/dropRef(node).
-const noopRef = () => { };
+// Native HTML5 drag and drop behind the props the react-dnd HOCs used to provide (those HOCs
+// can no longer be found in Discord's webpack). One drag runs at a time, so its state lives
+// here. dragover and drop bubble from the innermost target, which claims the event, like
+// react-dnd's shallow isOver and its didDrop()/getDropResult() for outer targets.
+const dnd = { item: null, type: null, over: null, overEvent: null, dropEvent: null, didDrop: false, dropResult: null };
+const dndListeners = new Set();
+const setDnd = (next) => {
+	Object.assign(dnd, next);
+	dndListeners.forEach((listener) => listener());
+};
+const subscribeDnd = (listener) => {
+	dndListeners.add(listener);
+	return () => dndListeners.delete(listener);
+};
+// Discord's react-dnd backend listens on window and cancels drags it didn't start (dropEffect
+// "none"), so ours stop at the tab bar container once every target in it has seen them.
+const stopOwnDrag = (e) => {
+	if (dnd.item) e.stopPropagation();
+};
 function makeDraggable(type) {
-	return function (Component) {
-		let Wrapped = null;
-		return function DraggableLazy(props) {
-			if (!Wrapped) {
-				const DragSource = getDragSource();
-				if (!DragSource) {
-					return React.createElement(Component, { ...props, dragRef: noopRef, isDragging: false });
-				}
-				Wrapped = DragSource(type, { beginDrag: (a) => a }, (connect, monitor) => ({
-					isDragging: !!monitor.isDragging(),
-					dragRef: connect.dragSource()
-				}))(Component);
-			}
-			return React.createElement(Wrapped, props);
-		};
+	return (Component) => function Draggable(props) {
+		const propsRef = React.useRef(props);
+		propsRef.current = props;
+		const isDragging = React.useSyncExternalStore(subscribeDnd, () => dnd.type === type && dnd.item?.id === props.id);
+		const dragRef = React.useCallback((node) => {
+			if (!node) return;
+			node.draggable = true;
+			node.ondragstart = (e) => {
+				e.stopPropagation();
+				e.dataTransfer.effectAllowed = "move";
+				setDnd({ item: propsRef.current, type, over: null });
+			};
+			node.ondragend = () => setDnd({ item: null, type: null, over: null });
+		}, []);
+		return React.createElement(Component, { ...props, dragRef, isDragging });
 	};
 }
-function makeDroppable(types, drop, hover) {
-	return function (Component) {
-		let Wrapped = null;
-		return function DroppableLazy(props) {
-			if (!Wrapped) {
-				const DropTarget = getDropTarget();
-				if (!DropTarget) {
-					return React.createElement(Component, { ...props, dropRef: noopRef, dragInProgress: false, isOver: false, canDrop: false, draggedIsMe: false });
-				}
-				Wrapped = DropTarget(types, { drop, hover }, collect)(Component);
-			}
-			return React.createElement(Wrapped, props);
-		};
+function makeDroppable(types, drop) {
+	return (Component) => function Droppable(props) {
+		const propsRef = React.useRef(props);
+		propsRef.current = props;
+		const nodeRef = React.useRef(null);
+		const isOver = React.useSyncExternalStore(subscribeDnd, () => dnd.over != null && dnd.over === nodeRef.current);
+		const canDrop = React.useSyncExternalStore(subscribeDnd, () => types.includes(dnd.type));
+		const draggedIsMe = React.useSyncExternalStore(subscribeDnd, () => dnd.item != null && dnd.item.id === props.id);
+		const dropRef = React.useCallback((node) => {
+			nodeRef.current = node;
+			if (!node) return;
+			node.ondragover = (e) => {
+				if (!types.includes(dnd.type) || dnd.overEvent === e) return;
+				e.preventDefault();
+				dnd.overEvent = e;
+				if (dnd.over !== node) setDnd({ over: node });
+			};
+			node.ondragleave = (e) => {
+				if (dnd.over === node && !node.contains(e.relatedTarget)) setDnd({ over: null });
+			};
+			node.ondrop = (e) => {
+				if (!types.includes(dnd.type)) return;
+				e.preventDefault();
+				if (dnd.dropEvent !== e) Object.assign(dnd, { dropEvent: e, didDrop: false, dropResult: {} });
+				const result = drop(propsRef.current, {
+					getItem: () => dnd.item,
+					getItemType: () => dnd.type,
+					getClientOffset: () => ({ x: e.clientX, y: e.clientY }),
+					didDrop: () => dnd.didDrop,
+					getDropResult: () => dnd.dropResult,
+				});
+				dnd.didDrop = true;
+				if (result !== undefined) dnd.dropResult = result;
+			};
+		}, []);
+		return React.createElement(Component, { ...props, dropRef, isOver, canDrop, draggedIsMe });
 	};
 }
 const DragContext = React.createContext({
@@ -5558,7 +5553,7 @@ const TopBar = (props) => {
 	}, [tabs.length]);
 	return /* @__PURE__ */ React.createElement(
 		"div",
-		{ id: "enhancedChannelTabs-container", ref: containerRef },
+		{ id: "enhancedChannelTabs-container", ref: containerRef, onDragEnter: stopOwnDrag, onDragOver: stopOwnDrag, onDrop: stopOwnDrag },
 		React.createElement(TabPeekPortal, null),
 		showTabBar
 			? /* @__PURE__ */ React.createElement(TabBar, {
@@ -5875,7 +5870,13 @@ module.exports = class EnhancedChannelTabs {
 				log("ownerNotFound");
 				return;
 			}
-			const unpatch = Patcher.instead(instance, "render", () => unpatch());
+			// The patched render returns nothing to force a remount. Remounts can overlap (start and
+			// start-late, or stop and start), stacking two patches whose forceUpdate callbacks batch
+			// into a single render, so every empty render queues one more to leave the app rendered.
+			const unpatch = Patcher.instead(instance, "render", () => {
+				unpatch();
+				queueMicrotask(() => instance.forceUpdate());
+			});
 			try {
 				log("forceUpdate ownerInstance");
 				instance.forceUpdate(() => instance.forceUpdate());
