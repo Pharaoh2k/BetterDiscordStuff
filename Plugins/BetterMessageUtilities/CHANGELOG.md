@@ -1,5 +1,8 @@
 # [BetterMessageUtilities](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterMessageUtilities "BetterMessageUtilities") Changelog
 
+### 1.1.2
+- Added a "View Changelog" button to the settings
+
 ### 1.1.1
 - Fixed the auto-updater installing updates to the wrong location
 

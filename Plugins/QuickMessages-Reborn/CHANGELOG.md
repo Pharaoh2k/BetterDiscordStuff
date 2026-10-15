@@ -1,5 +1,8 @@
 # [QuickMessages-Reborn](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=QuickMessages-Reborn "QuickMessages-Reborn") Changelog
 
+### 1.0.3
+- Added a "View Changelog" button to the settings
+
 ### 1.0.2
 - Fixed the auto-updater installing updates to the wrong location
 

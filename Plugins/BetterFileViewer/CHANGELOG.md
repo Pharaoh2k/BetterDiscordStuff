@@ -1,5 +1,8 @@
 # [BetterFileViewer](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterFileViewer "BetterFileViewer") Changelog
 
+### 3.0.5
+- Restored the "View Changelog" button in the settings
+
 ### 3.0.4
 - Fixed the auto-updater installing updates to the wrong location
 

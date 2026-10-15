@@ -2,6 +2,7 @@
 
 ### 3.0.2
 - Fixed an error when the DM list refreshes on BetterDiscord 1.14
+- Fixed "View Changelog" in the settings showing nothing; it now shows the full changelog
 
 ### 3.0.1
 - Added drag & drop for unpinned DMs: drag one straight into a pinned category

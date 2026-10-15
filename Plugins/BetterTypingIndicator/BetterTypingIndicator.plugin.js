@@ -1,6 +1,6 @@
 /**
  * @name BetterTypingIndicator
- * @version 2.9.8
+ * @version 2.9.9
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/edit/main/Plugins/BetterTypingIndicator/BetterTypingIndicator.plugin.js
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BetterTypingIndicator/BetterTypingIndicator.plugin.js
@@ -9,7 +9,7 @@
  * @author Pharaoh2k
  */
 /*
- * Copyright © 2024–2025 Pharaoh2k. All rights reserved.
+ * Copyright © 2024-2025 Pharaoh2k. All rights reserved.
 * Unauthorized copying, modification, or redistribution of this code is prohibited without prior written consent from the author.
 ***
  * Contributions are welcome via GitHub pull requests. 
@@ -320,6 +320,21 @@ class UpdateManager {
 			if (changes.length === 0) return;
 			UI.showChangelogModal({ title: this.name, subtitle: `Version ${this.version}`, changes });
 		} catch (e) { Logger.error("Changelog error:", e); }
+	}
+	async showFullChangelog() {
+		try {
+			const res = await Net.fetch(this.urls.changelog);
+			if (res.status !== 200) throw new Error("Failed to fetch changelog");
+			const md = await res.text();
+			const changes = this.parseChangelog(md, "0.0.0", this.version);
+			UI.showChangelogModal({
+				title: this.name,
+				subtitle: `All Changes`,
+				changes: changes.length ? changes : [{ title: "No changes found", items: [] }]
+			});
+		} catch {
+			UI.showToast("Could not fetch changelog", { type: "error" });
+		}
 	}
 	parseChangelog(md, from, to) {
 		const versions = this._parseChangelogVersions(md);
@@ -1168,7 +1183,10 @@ class BetterTypingIndicator {
     }
     getSettingsPanel() {
         return UI.buildSettingsPanel({
-            settings: getConfigWithCurrentValues(this.settings),
+            settings: [
+                ...getConfigWithCurrentValues(this.settings),
+                { type: "button", id: "viewChangelog", name: "View Changelog", note: "View the complete changelog for this plugin", children: "View Changelog", onClick: () => this.updateManager.showFullChangelog() }
+            ],
             onChange: (_, id, value) => this.saveSettings({ [id]: value })
         });
     }

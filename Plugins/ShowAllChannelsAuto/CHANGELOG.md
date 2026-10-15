@@ -1,5 +1,8 @@
 # [ShowAllChannelsAuto](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=ShowAllChannelsAuto "ShowAllChannelsAuto") Changelog
 
+### 1.0.5
+- Added a "View Changelog" button to the settings
+
 ### 1.0.4
 - Fixed the auto-updater installing updates to the wrong location
 

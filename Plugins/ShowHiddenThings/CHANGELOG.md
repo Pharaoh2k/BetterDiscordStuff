@@ -1,5 +1,8 @@
 # [ShowHiddenThings](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=ShowHiddenThings "ShowHiddenThings") Changelog
 
+### 1.0.2
+- Added a "View Changelog" button to the settings
+
 ### 1.0.1
 - Fixed the auto-updater installing updates to the wrong location
 

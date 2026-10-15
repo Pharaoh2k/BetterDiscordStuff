@@ -6,6 +6,7 @@
 - Restored drag and drop for tabs, favorites and folders (now built on native drag and drop instead of Discord's react-dnd)
 - Fixed a favorite dropped on the right half of another landing one spot too far, and "Move right" on a favorite skipping a spot
 - Fixed folders landing one spot too far when dropped on the right half of a favorite, some folder drops onto the edge of another folder doing nothing, and "Move left"/"Move right" on a folder jumping to the wrong spot
+- Fixed "View Full Changelog" in the quick settings doing nothing
 
 ### 5.0.15
 - Fixed the auto-updater installing updates to the wrong location

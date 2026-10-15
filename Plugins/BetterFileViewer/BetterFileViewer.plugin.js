@@ -6,7 +6,7 @@
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BetterFileViewer/BetterFileViewer.plugin.js
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterFileViewer/BetterFileViewer.plugin.js
  * @invite ComingSoon
- * @version 3.0.4
+ * @version 3.0.5
  * @description View PDF, office files and other files (stl) directly in Discord.
  */
 const TAG = "BetterFileViewer";
@@ -655,6 +655,14 @@ module.exports = class BetterFileViewer {
             name: "Check for Updates",
             note: "Manually check for plugin updates",
             onClick: () => this.updateManager.check()
+        });
+        config.push({
+            type: "button",
+            id: "viewChangelog",
+            name: "View Changelog",
+            note: "View the complete changelog for this plugin",
+            children: "View Changelog",
+            onClick: () => this.updateManager.showFullChangelog()
         });
         const panel = BdApi.UI.buildSettingsPanel({
             settings: config,

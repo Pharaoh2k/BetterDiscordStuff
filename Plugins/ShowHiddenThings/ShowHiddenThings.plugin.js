@@ -3,7 +3,7 @@
  * @author Pharaoh2k
  * @authorId 874825550408089610
  * @description Displays various hidden & moderator-only things regardless of permissions. Shows member timeout icons in chat, invites paused tooltip in server list, and mod view context menu item in all servers.
- * @version 1.0.1
+ * @version 1.0.2
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/ShowHiddenThings/ShowHiddenThings.plugin.js
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/refs/heads/main/Plugins/ShowHiddenThings/ShowHiddenThings.plugin.js
@@ -127,6 +127,21 @@ class UpdateManager {
             if (changes.length === 0) return;
             UI.showChangelogModal({ title: this.name, subtitle: `Version ${this.version}`, changes });
         } catch (e) { Logger.error("Changelog error:", e); }
+    }
+    async showFullChangelog() {
+        try {
+            const res = await Net.fetch(this.urls.changelog);
+            if (res.status !== 200) throw new Error("Failed to fetch changelog");
+            const md = await res.text();
+            const changes = this.parseChangelog(md, "0.0.0", this.version);
+            UI.showChangelogModal({
+                title: this.name,
+                subtitle: `All Changes`,
+                changes: changes.length ? changes : [{ title: "No changes found", items: [] }]
+            });
+        } catch {
+            UI.showToast("Could not fetch changelog", { type: "error" });
+        }
     }
     parseChangelog(md, from, to) {
         const versions = this._parseChangelogVersions(md);
@@ -416,7 +431,8 @@ module.exports = class ShowHiddenThings {
                 { type: "switch", id: "showTimeouts", name: "Show Timeouts", note: "Shows member timeout icons in chat", value: this.settings.showTimeouts },
                 { type: "switch", id: "showInvitesPaused", name: "Show Invites Paused", note: "Shows the invites paused tooltip in the server list", value: this.settings.showInvitesPaused },
                 { type: "switch", id: "showModView", name: "Show Mod View", note: "Shows the Mod View context menu item, highest role fix, and self mod view in all servers", value: this.settings.showModView },
-                { type: "switch", id: "autoUpdate", name: "Auto Update", note: "Check for updates every 24 hours", value: this.settings.autoUpdate }
+                { type: "switch", id: "autoUpdate", name: "Auto Update", note: "Check for updates every 24 hours", value: this.settings.autoUpdate },
+                { type: "button", id: "viewChangelog", name: "View Changelog", note: "View the complete changelog for this plugin", children: "View Changelog", onClick: () => this.updateManager.showFullChangelog() }
             ],
             onChange: (_, id, value) => {
                 if (id === "autoUpdate") {

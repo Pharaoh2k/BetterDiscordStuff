@@ -1,5 +1,8 @@
 # [BetterTypingIndicator](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterTypingIndicator "BetterTypingIndicator") Changelog
 
+### 2.9.9
+- Added a "View Changelog" button to the settings
+
 ### 2.9.8
 - Fixed the auto-updater installing updates to the wrong location
 

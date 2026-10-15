@@ -130,11 +130,12 @@ class UpdateManager {
 			UI.showToast(`[${this.name}] Update failed`, { type: "error" });
 		}
 	}
-	async showChangelog(force = false) {
+	async showChangelog() {
 		const last = Data.load('version');
-		Logger.info(`showChangelog: last=${last}, current=${this.version}, force=${force}`);
-		if (!force && last === this.version) { Logger.info("Skipping: versions match"); return; }
-		if (!last && !force) { Data.save('version', this.version); Logger.info("Skipping: fresh install"); return; }
+		Logger.info(`showChangelog: last=${last}, current=${this.version}`);
+		if (last === this.version) { Logger.info("Skipping: versions match"); return; }
+		Data.save('version', this.version);
+		if (!last) { Logger.info("Skipping: fresh install"); return; }
 		try {
 			const res = await Net.fetch(this.urls.changelog);
 			Logger.info(`Changelog fetch status: ${res.status}`);
@@ -144,8 +145,22 @@ class UpdateManager {
 			Logger.info("Parsed changes:", changes);
 			if (changes.length === 0) return;
 			UI.showChangelogModal({ title: this.name, subtitle: `Version ${this.version}`, changes });
-			Data.save('version', this.version);
 		} catch (e) { Logger.error("Changelog error:", e); }
+	}
+	async showFullChangelog() {
+		try {
+			const res = await Net.fetch(this.urls.changelog);
+			if (res.status !== 200) throw new Error("Failed to fetch changelog");
+			const md = await res.text();
+			const changes = this.parseChangelog(md, "0.0.0", this.version);
+			UI.showChangelogModal({
+				title: this.name,
+				subtitle: `All Changes`,
+				changes: changes.length ? changes : [{ title: "No changes found", items: [] }]
+			});
+		} catch {
+			UI.showToast("Could not fetch changelog", { type: "error" });
+		}
 	}
 	parseChangelog(md, from, to) {
 		const versions = this._parseChangelogVersions(md);
@@ -2465,7 +2480,7 @@ module.exports = (() => {
           name: "View Changelog",
           note: "View the complete changelog for this plugin",
           children: "View Changelog",
-          onClick: () => this.updateManager.showChangelog(true)
+          onClick: () => this.updateManager.showFullChangelog()
         }
       );
       return UI.buildSettingsPanel({

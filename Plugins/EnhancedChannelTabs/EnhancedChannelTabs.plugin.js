@@ -165,6 +165,21 @@ class UpdateManager {
 			UI.showChangelogModal({ title: this.name, subtitle: `Version ${this.version}`, changes });
 		} catch (e) { Logger.error("Changelog error:", e); }
 	}
+	async showFullChangelog() {
+		try {
+			const res = await Net.fetch(this.urls.changelog);
+			if (res.status !== 200) throw new Error("Failed to fetch changelog");
+			const md = await res.text();
+			const changes = this.parseChangelog(md, "0.0.0", this.version);
+			UI.showChangelogModal({
+				title: this.name,
+				subtitle: `All Changes`,
+				changes: changes.length ? changes : [{ title: "No changes found", items: [] }]
+			});
+		} catch {
+			UI.showToast("Could not fetch changelog", { type: "error" });
+		}
+	}
 	parseChangelog(md, from, to) {
 		const versions = this._parseChangelogVersions(md);
 		const relevant = versions.filter(

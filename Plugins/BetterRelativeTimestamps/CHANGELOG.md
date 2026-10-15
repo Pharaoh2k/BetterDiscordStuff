@@ -2,6 +2,7 @@
 
 ### 1.1.7
 - Fixed the plugin failing to start on BetterDiscord 1.14
+- Added a "View Changelog" button to the settings
 
 ### 1.1.6
 - Improved copy behavior: relative timestamps are no longer selectable or copied along with message text
