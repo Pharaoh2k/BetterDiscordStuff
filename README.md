@@ -1,6 +1,6 @@
 <div align="center">
 
-**Note that I do not accept donations, so if any of my plugins make your Discord better, please star the repo ⭐ for appreciation. That would motivate me to maintain, improve and bring more awesome plugins.**
+**I don’t take donations, but if my plugins improve your Discord, dropping a ⭐ on the repo means a lot. It keeps me motivated to update and build more cool stuff.**
 
 # 🧩 BetterDiscord Stuff
 
