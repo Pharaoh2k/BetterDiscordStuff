@@ -2258,7 +2258,6 @@ module.exports = (() => {
       Webpack.waitForModule(Filters.bySource("user-context", "data-menu-migrated"), { defaultExport: false, signal: this._abortController.signal })
         .then(mod => { this.UserContextMenu ??= mod?.default ?? null; })
         .catch(() => {});
-      this.TextClasses = Webpack.getByKeys("defaultColor", "text-xs/normal", { searchExports: true }) ?? {};
       const mods = Webpack.getBulkKeyed({
         DiscordPermissions: {
           filter: Filters.byKeys("ADD_REACTIONS", "ADMINISTRATOR"),
@@ -2328,13 +2327,25 @@ module.exports = (() => {
         Logger.error("Could not find DiscordPermissions module!");
         this.notify(this.strings.permissionsModuleError, "error", 5000);
       }
-      const popoutRoleClasses = Webpack.getByKeys("roleCircle", "dot", { searchExports: true });
-      const roleClasses = Webpack.getByKeys("role", "roleName", "roleListContainer", { searchExports: true });
-      this.RoleClasses = {
-        role: roleClasses?.role,
-        roleCircle: popoutRoleClasses?.roleCircle,
-        roleName: roleClasses?.roleName,
-      };
+      this._resolveClasses();
+    }
+    // Discord's role pill and text classes live in lazy-loaded chunks, so they are usually missing when
+    // the plugin starts together with Discord. Look up whatever is still missing again on every call.
+    _resolveClasses() {
+      if (!this.TextClasses?.["text-xs/normal"] || !this.TextClasses?.defaultColor) {
+        this.TextClasses = Webpack.getByKeys("defaultColor", "text-xs/normal", { searchExports: true }) ?? {};
+      }
+      const rc = this.RoleClasses;
+      if (!rc?.role || !rc?.roleCircle || !rc?.roleName) {
+        const popoutRoleClasses = Webpack.getByKeys("roleCircle", "dot", { searchExports: true });
+        const roleClasses = Webpack.getByKeys("role", "roleName", "roleListContainer", { searchExports: true });
+        this.RoleClasses = {
+          role: roleClasses?.role,
+          roleCircle: popoutRoleClasses?.roleCircle,
+          roleName: roleClasses?.roleName,
+        };
+      }
+      return { textClasses: this.TextClasses, roleClasses: this.RoleClasses };
     }
     get strings() {
       const locale = this.LocaleManager?.locale?.split("-")[0] ?? "en";
@@ -2625,6 +2636,8 @@ module.exports = (() => {
     createPopoutPermissionsComponent() {
       const defaultSettings = this.defaultSettings;
       return ({ user, guildId }) => {
+        // Resolved once per popout: by the time a popout renders, Discord has loaded its role pill classes.
+        const { textClasses, roleClasses } = React.useMemo(() => this._resolveClasses(), []);
         const rawSettings = Hooks.useData("settings");
         const settings = React.useMemo(() => Utils.extend({}, defaultSettings, rawSettings ?? {}), [rawSettings]);
         const { guild, member, name } = Hooks.useStateFromStores(
@@ -2666,16 +2679,16 @@ module.exports = (() => {
             permData.permissions.map(permKey => {
               const color = permData.roleColors.get(permKey) || PT_ROLE_DEFAULT_COLOR;
               return RcE("div", {
-                className: `member-perm ${this.RoleClasses.role || ""}`,
+                className: `member-perm ${roleClasses.role || ""}`,
                 key: permKey,
                 role: "listitem"
               },
                 RcE("div", {
-                  className: `perm-circle ${this.RoleClasses.roleCircle || ""}`,
+                  className: `perm-circle ${roleClasses.roleCircle || ""}`,
                   style: { backgroundColor: color }
                 }),
                 RcE("div", {
-                  className: `${this.TextClasses["text-xs/normal"] || ""} ${this.RoleClasses.roleName || ""} ${this.TextClasses.defaultColor || ""}`.trim()
+                  className: `${textClasses["text-xs/normal"] || ""} ${roleClasses.roleName || ""} ${textClasses.defaultColor || ""}`.trim()
                 }, this.getPermString(permKey))
               );
             })
