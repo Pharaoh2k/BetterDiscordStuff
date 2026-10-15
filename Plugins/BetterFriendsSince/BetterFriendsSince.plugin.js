@@ -301,8 +301,6 @@ const formatSinceDate = (value, locale) => {
 		year: "numeric"
 	});
 };
-const findProfileBody = tree =>
-	Utils.findInTree(tree, n => n && typeof n.className === "string" && n.className.includes("profileBody"), { walkable: ["props", "children"] });
 const getCurrentLocale = LocaleStore => LocaleStore.locale ?? LocaleStore.systemLocale ?? "en-US";
 const getHeadingForLocale = locale => HEADING_BY_LOCALE[locale] ?? HEADING_BY_LOCALE["en-US"];
 const isAbortError = err => err?.name === "AbortError";
@@ -352,7 +350,6 @@ const BetterFriendsSince = meta => {
 	let abortController = null;
 	let RelationshipStore = null;
 	let LocaleStore = null;
-	let Section = null;
 	let Text = null;
 	let SidebarSectionComponent = null;
 	const defaultUseBetterFriendsSince = () => {
@@ -379,23 +376,13 @@ const BetterFriendsSince = meta => {
 		}
 		return null;
 	};
-	const createBetterFriendsSinceComponent = (render, requiresSection) =>
+	const createBetterFriendsSinceComponent = render =>
 		React.memo(({ userId }) => {
 			const data = useBetterFriendsSince(userId);
 			if (!RelationshipStore || !LocaleStore || !Text) return null;
-			if (requiresSection && !Section) return null;
 			if (!data.since || !data.dateLabel) return null;
 			return render(data, userId);
 		});
-	const BetterFriendsSinceProfileSection = createBetterFriendsSinceComponent(
-		({ locale, dateLabel }) =>
-			React.createElement(
-				Section,
-				{ heading: getHeadingForLocale(locale) },
-				React.createElement(Text, { variant: "text-sm/normal" }, dateLabel)
-			),
-		true
-	);
 	const BetterFriendsSinceSidebarContent = createBetterFriendsSinceComponent(
 		({ dateLabel }) =>
 			React.createElement(
@@ -479,32 +466,6 @@ const BetterFriendsSince = meta => {
 			Logger.warn("Sidebar body patch failed:", err);
 		}
 	};
-	const handleProfilePatch = (_, [props], returnValue) => {
-		try {
-			if (!returnValue) return;
-			const body = findProfileBody(returnValue);
-			if (!body || !Array.isArray(body.children)) return;
-			const userId = props.user?.id;
-			if (!userId) return;
-			if (!Section) {
-				const firstSection = body.children.find(child => React.isValidElement(child) && child.props.heading && child.props.children);
-				if (firstSection) {
-					Section = firstSection.type;
-				}
-			}
-			if (!Section) {
-				Logger.warn("Section component not resolved; skipping profile injection.");
-				return;
-			}
-			const index = body.children.findIndex(child => React.isValidElement(child) && child.props.heading && child.props.children?.props?.userId);
-			if (index === -1) return;
-			const alreadyInjected = body.children.some(child => React.isValidElement(child) && child.type === BetterFriendsSinceProfileSection);
-			if (alreadyInjected) return;
-			body.children.splice(index + 1, 0, React.createElement(BetterFriendsSinceProfileSection, { key: `friends-since-profile-${userId}`, userId }));
-		} catch (err) {
-			Logger.warn("Profile patch failed:", err);
-		}
-	};
 	const patchSidebar = () => {
 		try {
 			const sidebarBody = getWithKey('UserProfileSidebarBody', 'isProvisional');
@@ -523,30 +484,6 @@ const BetterFriendsSince = meta => {
 			Patcher.after(sidebarSection.mod, sidebarSection.key, handleSidebarPatch);
 		} catch (err) {
 			Logger.warn("Sidebar patching failed or timed out", err);
-		}
-	};
-	const patchProfile = async (signal) => {
-		try {
-			const [sectionResult, userProfile] = await Promise.all([
-				getWithKeyLazy(signal, 'introText', 'headingClassName', 'headingVariant')
-					.then(r => r ?? getWithKeyLazy(signal, 'introText', 'headingIcon', '"text-xs/semibold"')),
-				getWithKeyLazy(signal, 'parentComponent:', '"UserProfileModalV2"')
-					.then(r => r ?? getWithKeyLazy(signal, 'SHAKE_PROFILE_MODAL', 'profileEffect'))
-					.then(r => r ?? getWithKeyLazy(signal, 'profileBody', 'profileHeader', 'profileButtons'))
-			]);
-			if (signal.aborted) return;
-			Section = sectionResult?.fn;
-			if (!Section) {
-				Logger.warn("Section module not found, profile patch will rely on tree fallback.");
-			}
-			if (userProfile) {
-				Patcher.after(userProfile.mod, userProfile.key, handleProfilePatch);
-			} else {
-				Logger.warn("UserProfileModal export key not found.");
-			}
-		} catch (err) {
-			if (isAbortError(err)) return;
-			Logger.warn("Profile patching failed (likely waiting for modal open)", err);
 		}
 	};
 
@@ -574,7 +511,6 @@ const BetterFriendsSince = meta => {
 				return;
 			}
 			patchSidebar();
-			patchProfile(signal);
 		} catch (err) {
 			if (isAbortError(err)) return;
 			Logger.error("Failed to start plugin.", err);
@@ -593,7 +529,6 @@ const BetterFriendsSince = meta => {
 		updateManager.stop();
 		RelationshipStore = null;
 		LocaleStore = null;
-		Section = null;
 		Text = null;
 		SidebarSectionComponent = null;
 		useBetterFriendsSince = defaultUseBetterFriendsSince;
