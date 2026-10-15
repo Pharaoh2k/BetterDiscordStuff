@@ -1,5 +1,7 @@
 <div align="center">
 
+**Note that I do not accept donations, so if any of my plugins make your Discord better, please star the repo ⭐ for appreciation. That would motivate me to maintain, improve and bring more awesome plugins**
+
 # 🧩 BetterDiscord Stuff
 
 ### Polished, self-updating plugins for BetterDiscord
@@ -176,7 +178,5 @@ This project is not affiliated with, endorsed by or supported by Discord Inc. or
 
 [![GitHub](https://img.shields.io/badge/Pharaoh2k-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Pharaoh2k)
 [![X](https://img.shields.io/badge/%40__Pharaoh2k-000000?style=for-the-badge&logo=x&logoColor=white)](https://x.com/_Pharaoh2k)
-
-**If these plugins make your Discord better, consider leaving a ⭐**
 
 </div>
