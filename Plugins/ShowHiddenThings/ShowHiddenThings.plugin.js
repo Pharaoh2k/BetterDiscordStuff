@@ -3,7 +3,7 @@
  * @author Pharaoh2k
  * @authorId 874825550408089610
  * @description Displays various hidden & moderator-only things regardless of permissions. Shows member timeout icons in chat, invites paused tooltip in server list, and mod view context menu item in all servers.
- * @version 1.0.2
+ * @version 1.0.3
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/ShowHiddenThings/ShowHiddenThings.plugin.js
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/ShowHiddenThings/ShowHiddenThings.plugin.js
@@ -243,8 +243,7 @@ module.exports = class ShowHiddenThings {
         this.UserStore = Webpack.Stores.UserStore;
         this.GuildStore = Webpack.Stores.GuildStore;
         let invitesCanKey = null;
-        let modViewPermKey = null, modViewHookKey = null;
-        const { invitesMod, modViewMod, openModViewMod, GuildSections, ModViewPanel } = Webpack.getBulkKeyed({
+        const { invitesMod } = Webpack.getBulkKeyed({
             invitesMod: {
                 filter: m => {
                     if (!m || typeof m !== "object") return false;
@@ -265,76 +264,75 @@ module.exports = class ShowHiddenThings {
                     return false;
                 },
                 searchExports: false
-            },
-            modViewMod: {
-                filter: m => {
-                    if (!m || typeof m !== "object") return false;
-                    const keys = Object.keys(m);
-                    if (keys.length > 5) return false;
-                    let foundPermKey = null, foundHookKey = null;
-                    for (const key of keys) {
-                        try {
-                            const src = m[key]?.toString();
-                            if (src?.includes("checkElevated") && src?.includes("getCurrentUser") && !src?.includes("getIncidentsByGuild")) foundPermKey = key;
-                            else if (typeof m[key] === "function") foundHookKey = key;
-                        } catch { continue; }
-                    }
-                    if (foundPermKey) {
-                        modViewPermKey = foundPermKey;
-                        modViewHookKey = foundHookKey;
-                        return true;
-                    }
-                    return false;
-                },
-                searchExports: false
-            },
-            openModViewMod: {
-                filter: m => {
-                    if (!m || typeof m !== "object") return false;
-                    const keys = Object.keys(m);
-                    if (keys.length !== 1) return false;
-                    const fn = m[keys[0]];
-                    if (typeof fn !== "function") return false;
-                    const src = fn.toString();
-                    return src.includes("modViewPanel") && src.includes("MEMBER_SAFETY_PAGE");
-                },
-                searchExports: false
-            },
-            GuildSections: {
-                filter: m => m?.MEMBER_SAFETY === "member-safety" && m?.GUILD_HOME === "@home",
-                searchExports: true
-            },
-            ModViewPanel: {
-                filter: m => m?.INFO === 1 && m?.MESSAGE_HISTORY === 2 && m?.PERMISSIONS === 3 && m?.UNKNOWN === 0,
-                searchExports: true
             }
         });
         this.invitesMod = invitesMod;
         this.invitesCanKey = invitesCanKey;
-        this.modViewMod = modViewMod;
-        this.modViewPermKey = modViewPermKey;
-        this.modViewHookKey = modViewHookKey;
-        this.openModView = openModViewMod?.[Object.keys(openModViewMod)[0]] ?? null;
-        this.GuildSections = GuildSections;
-        this.ModViewPanel = ModViewPanel;
+    }
+    // Discord loads the mod view modules some time after startup, so wait for them
+    // instead of looking them up once. Each promise resolves to undefined if the signal aborts.
+    waitForModViewModules(signal) {
+        return {
+            modViewMod: Webpack.waitForModule(m => {
+                if (!m || typeof m !== "object") return false;
+                const keys = Object.keys(m);
+                if (keys.length > 5) return false;
+                let foundPermKey = null, foundHookKey = null;
+                for (const key of keys) {
+                    try {
+                        const src = m[key]?.toString();
+                        if (src?.includes("checkElevated") && src?.includes("getCurrentUser") && !src?.includes("getIncidentsByGuild")) foundPermKey = key;
+                        else if (typeof m[key] === "function") foundHookKey = key;
+                    } catch { continue; }
+                }
+                if (foundPermKey) {
+                    this.modViewPermKey = foundPermKey;
+                    this.modViewHookKey = foundHookKey;
+                    return true;
+                }
+                return false;
+            }, { signal, searchExports: false }),
+            openModViewMod: Webpack.waitForModule(m => {
+                if (!m || typeof m !== "object") return false;
+                const keys = Object.keys(m);
+                if (keys.length !== 1) return false;
+                const fn = m[keys[0]];
+                if (typeof fn !== "function") return false;
+                const src = fn.toString();
+                return src.includes("modViewPanel") && src.includes("MEMBER_SAFETY_PAGE");
+            }, { signal, searchExports: false }),
+            GuildSections: Webpack.waitForModule(
+                m => m?.MEMBER_SAFETY === "member-safety" && m?.GUILD_HOME === "@home",
+                { signal, searchExports: true }
+            ),
+            ModViewPanel: Webpack.waitForModule(
+                m => m?.INFO === 1 && m?.MESSAGE_HISTORY === 2 && m?.PERMISSIONS === 3 && m?.UNKNOWN === 0,
+                { signal, searchExports: true }
+            )
+        };
     }
     start() {
         this.settings = this.loadSettings();
         this.updateManager.start(this.settings.autoUpdate);
+        this.abortController = new AbortController();
         try {
             this.getModules();
             if (this.settings.showTimeouts) this.patchShowTimeouts();
             if (this.settings.showInvitesPaused) this.patchShowInvitesPaused();
             if (this.settings.showModView) {
-                this.patchShowModView();
+                const modViewModules = this.waitForModViewModules(this.abortController.signal);
+                this.patchShowModView(modViewModules, this.abortController.signal)
+                    .catch(e => Logger.error("Failed to patch mod view:", e));
                 this.patchHighestRole();
-                if (!this.modViewPermKey) this.patchModViewSelf();
+                this.patchModViewSelf(modViewModules, this.abortController.signal);
             }
         } catch (e) {
             Logger.error("Failed to initialize patches:", e);
         }
     }
     stop() {
+        this.abortController?.abort();
+        this.abortController = null;
         this.updateManager.stop();
         try {
             Patcher.unpatchAll();
@@ -370,10 +368,14 @@ module.exports = class ShowHiddenThings {
         if (!this.invitesMod || !this.invitesCanKey) return Logger.error("Invites paused module not found");
         Patcher.instead(this.invitesMod, this.invitesCanKey, () => true);
     }
-    patchShowModView() {
-        if (!this.modViewMod || !this.modViewPermKey) return Logger.error("Mod view module not found");
-        Patcher.instead(this.modViewMod, this.modViewPermKey, () => true);
-        if (this.modViewHookKey) Patcher.after(this.modViewMod, this.modViewHookKey, () => true);
+    async patchShowModView(modules, signal) {
+        this.modViewMod = null;
+        const modViewMod = await modules.modViewMod;
+        if (signal.aborted) return;
+        if (!modViewMod || !this.modViewPermKey) return Logger.error("Mod view module not found");
+        this.modViewMod = modViewMod;
+        Patcher.instead(modViewMod, this.modViewPermKey, () => true);
+        if (this.modViewHookKey) Patcher.after(modViewMod, this.modViewHookKey, () => true);
     }
     patchHighestRole() {
         if (!this.MemberSafetyStore || !this.GuildMemberStore) {
@@ -395,11 +397,18 @@ module.exports = class ShowHiddenThings {
             return ret;
         });
     }
-    patchModViewSelf() {
-        if (!this.openModView || !this.GuildSections || !this.ModViewPanel || !this.UserStore) {
-            return Logger.error("Could not find mod view navigation utilities");
-        }
+    patchModViewSelf(modules, signal) {
+        this.openModView = this.GuildSections = this.ModViewPanel = null;
+        Promise.all([modules.openModViewMod, modules.GuildSections, modules.ModViewPanel]).then(([openModViewMod, GuildSections, ModViewPanel]) => {
+            if (signal.aborted) return;
+            this.openModView = openModViewMod?.[Object.keys(openModViewMod)[0]] ?? null;
+            this.GuildSections = GuildSections;
+            this.ModViewPanel = ModViewPanel;
+        });
         this.contextMenuUnpatchers.push(ContextMenu.patch("user-context", (tree, props) => {
+            // Fallback for when the native Mod View item could not be patched in.
+            if (this.modViewMod) return;
+            if (!this.openModView || !this.GuildSections || !this.ModViewPanel || !this.UserStore) return;
             if (!props.user || !props.guildId) return;
             const currentUser = this.UserStore.getCurrentUser();
             if (!currentUser || props.user.id !== currentUser.id) return;

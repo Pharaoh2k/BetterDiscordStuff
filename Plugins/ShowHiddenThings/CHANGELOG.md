@@ -1,5 +1,8 @@
 # [ShowHiddenThings](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=ShowHiddenThings "ShowHiddenThings") Changelog
 
+### 1.0.3
+- Fixed "Open in Mod View" missing from the user context menu after Discord starts
+
 ### 1.0.2
 - Added a "View Changelog" button to the settings
 
