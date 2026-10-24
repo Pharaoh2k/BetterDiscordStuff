@@ -1,5 +1,8 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+### 5.0.17
+- Fixed notifications and popouts drawn over the tab and favorites bars not responding to clicks over empty bar space
+
 ### 5.0.16
 - Fixed a major slowdown when enabling the plugin and switching tabs
 - Fixed Discord sometimes going blank when the plugin starts or is toggled

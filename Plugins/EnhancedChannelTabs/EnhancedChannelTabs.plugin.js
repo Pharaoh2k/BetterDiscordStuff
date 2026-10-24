@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 5.0.16
+ * @version 5.0.17
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
@@ -314,6 +314,8 @@ class StyleManager {
 			.enhancedChannelTabs-tabContainer { display: flex; align-items: center; }
 			.enhancedChannelTabs-trailing { display: flex; align-items: center; gap: var(--space-12); margin-left: auto; }
 			.enhancedChannelTabs-tabContainer > *, .enhancedChannelTabs-favContainer > * { -webkit-app-region: no-drag; }
+			/* Overlays drawn over the taller title bar must opt out of window dragging, or clicks on them hit the drag region */
+			#bd-notifications-container > *, #bd-modal-container > *, [class*="layerContainer_"] > * { -webkit-app-region: no-drag; }
 			#enhancedChannelTabs-container>:not(#enhancedChannelTabs-settingsMenu)+div { padding-top: var(--space-4); border-top: 1px solid var(--border-subtle); }
 			/* Tabs */
 			.enhancedChannelTabs-tab { position: relative; display: flex; align-items: center; height: var(--enhancedChannelTabs-tabHeight); background: none; border-radius: var(--radius-xs); max-width: var(--enhancedChannelTabs-tabWidth); min-width: var(--enhancedChannelTabs-tabWidthMin); flex: 1 1 var(--enhancedChannelTabs-tabWidthMin); margin-bottom: 3px; }
