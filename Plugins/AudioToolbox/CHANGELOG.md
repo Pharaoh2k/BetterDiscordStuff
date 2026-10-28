@@ -1,5 +1,8 @@
 # [AudioToolbox](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=AudioToolbox "AudioToolbox") Changelog
 
+### 2.0.3
+- Fixed the audio controls not showing after Discord starts until the plugin was restarted
+
 ### 2.0.2
 - Fixed the auto-updater installing updates to the wrong location
 

@@ -2,6 +2,7 @@
 
 ### 5.0.17
 - Fixed notifications and popouts drawn over the tab and favorites bars not responding to clicks over empty bar space
+- Fixed unread count badges and the closed tabs button losing their background color after a Discord update
 
 ### 5.0.16
 - Fixed a major slowdown when enabling the plugin and switching tabs

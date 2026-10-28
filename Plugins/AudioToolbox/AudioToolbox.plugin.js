@@ -1,6 +1,6 @@
 /**
  * @name AudioToolbox
- * @version 2.0.2
+ * @version 2.0.3
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/AudioToolbox/AudioToolbox.plugin.js
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/AudioToolbox/AudioToolbox.plugin.js
@@ -387,10 +387,11 @@ module.exports = class AudioToolbox {
           try {
                log("started");
                this._queueMode = false;
+               this._abort = new AbortController();
                document.getElementById("audiotoolbox-cleanup")?.remove();
                ContextMenu.patch("message", this.patchMenu);
                DOM.addStyle(DOWNLOAD_BTN_CSS);
-               this._patchAudioRenderers();
+               this._patchAudioRenderers().catch(err => Logger.error("Failed to patch audio renderers", err));
                this._startAutoDownload();
           } catch (err) {
                Logger.error("Failed to start", err);
@@ -398,6 +399,7 @@ module.exports = class AudioToolbox {
           }
      }
      stop() {
+          this._abort?.abort();
           ContextMenu.unpatch("message", this.patchMenu);
           Patcher.unpatchAll();
           DOM.removeStyle();
@@ -864,7 +866,11 @@ module.exports = class AudioToolbox {
                UI.showToast("Queue: Could not find play button", { type: "warning" });
           }
      }
-     _patchAudioRenderers() {
+     async _patchAudioRenderers() {
+          // The attachment renderers are lazy-loaded with the chat, so they may not exist yet when the plugin starts.
+          const { signal } = this._abort;
+          await Webpack.waitForModule(Filters.byStrings("durationSecs", "waveform", "playbackCacheKey"), { searchExports: true, signal }).catch(() => null);
+          if (signal.aborted) return;
           const audioMod = Webpack.getMangled(
                Filters.bySource("duration_secs", "originalItem", "waveform"),
                {
@@ -876,7 +882,7 @@ module.exports = class AudioToolbox {
                     )
                }
           );
-          if (!audioMod) {
+          if (!audioMod?.voiceRenderer && !audioMod?.audioRenderer) {
                Logger.warn("Audio renderer module not found, inline button disabled");
                return;
           }
