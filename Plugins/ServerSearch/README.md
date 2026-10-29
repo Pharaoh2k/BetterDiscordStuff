@@ -10,6 +10,8 @@ A BetterDiscord plugin that adds a search button to your server list, so you can
 
 ServerSearch pins a search button below your server list. Click it, start typing, and the list narrows to the servers that match, best matches first. Press Enter or click a server to open it. It is the quickest way to reach a server buried in a long list or a closed folder.
 
+![The ServerSearch popout listing servers next to the server list](https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/ServerSearch/screenshot.png)
+
 ## ✨ Features
 
 - **🔍 Always in Reach**: The search button stays pinned below the server list, however far you scroll
