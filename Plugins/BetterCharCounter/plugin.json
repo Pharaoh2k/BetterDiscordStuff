@@ -1,6 +1,6 @@
 {
   "name": "BetterCharCounter",
-  "description": "Adds a live character counter to the message box that shows how close you are to your limit and changes color as you approach it.",
+  "description": "Adds live character counters to the message box, profile notes, your custom status and profile popouts that show how close you are to each limit and change color as you approach it.",
   "author": "Pharaoh2k",
   "version": "1.0.0",
   "status": "Active",
@@ -11,6 +11,7 @@
     "Live character counter on the message box",
     "Shows your limit: 2,000 characters, or 4,000 with Nitro",
     "Counts multi-line messages and long pastes exactly",
+    "Counters on profile notes, your custom status and the \"Message @user\" box in profile popouts",
     "Turns yellow at 70% and red at 90% of the limit",
     "Optional threshold to only show the counter near the limit",
     "Automatic update checking with changelog display",

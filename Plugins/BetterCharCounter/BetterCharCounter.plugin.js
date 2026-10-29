@@ -17,7 +17,7 @@
 ============================================= */
 /* BdApi based, BDFDB-free feature-packed plugin. Inspired by mwittrien / Devilbro's "CharCounter" */
 "use strict";
-const { Webpack, Patcher, React, Utils, UI, Logger, Hooks, Data, DOM, Net } = BdApi;
+const { Webpack, Patcher, React, ReactUtils, Utils, UI, Logger, Hooks, Data, DOM, Net } = BdApi;
 const { Filters } = Webpack;
 class UpdateManager {
     constructor(pluginName, version, sourceUrl) {
@@ -278,7 +278,6 @@ class UpdateManager {
 }
 const MAX_LENGTHS = Object.freeze({
     customstatus: 128,
-    popoutnote: 256,
     profilenote: 256,
     nick: 32
 });
@@ -294,7 +293,6 @@ const CSS = `
 .BetterCharCounter-edit { right: 0; bottom: -1.3em; }
 .BetterCharCounter-threadcreation { right: 16px; bottom: 0.3em; }
 .BetterCharCounter-customstatus { right: 0 !important; top: -1.5em; }
-.BetterCharCounter-popoutnote { right: 3px !important; bottom: -8px !important; font-size: 10px !important; }
 .BetterCharCounter-profilenote { right: 0 !important; bottom: -10px !important; font-size: 12px !important; }
 .BetterCharCounter-nick { right: 0 !important; bottom: -1.3em !important; font-size: 12px !important; }
 .BetterCharCounter-popoutdm { bottom: -6px;font-size: 11px;position: relative !important;width: 100%;display: flex;flex-direction: row-reverse; }
@@ -338,19 +336,6 @@ const tryFilters = async (filterConfigs, signal) => {
         return null;
     }
 };
-const createDOMUpdateHandler = (input, textRef, forceUpdate) => () => {
-    const value = cleanText(input.value || input.textContent || "");
-    if (value !== textRef.current) {
-        textRef.current = value;
-        forceUpdate();
-    }
-};
-const attachDOMListeners = (input, events, handler) => {
-    for (const e of events) input.addEventListener(e, handler);
-    return () => {
-        for (const e of events) input.removeEventListener(e, handler);
-    };
-};
 class ErrorBoundary extends React.Component {
     constructor(props) {
         super(props);
@@ -371,6 +356,17 @@ const BetterCharCounter = meta => {
     const Api = new BdApi(meta.name);
     let abortController = null;
     let modules = {};
+    let chatFormMemo = null;
+    // Instances of the class the chat box memo renders, for the chat boxes currently on screen
+    const getMountedChatForms = () => {
+        const instances = new Set();
+        for (const editor of document.querySelectorAll("[data-slate-editor='true']")) {
+            let fiber = ReactUtils.getInternalInstance(editor);
+            while (fiber && fiber.elementType !== chatFormMemo) fiber = fiber.return;
+            if (fiber?.child?.stateNode instanceof React.Component) instances.add(fiber.child.stateNode);
+        }
+        return instances;
+    };
     let settings = { ...DEFAULT_SETTINGS, ...Data.load(meta.name, "settings") };
     const updateManager = new UpdateManager(meta.name, meta.version, meta.source);
     const saveSettings = () => Data.save(meta.name, "settings", settings);
@@ -417,49 +413,48 @@ const BetterCharCounter = meta => {
     });
     const DOMCounter = React.memo(({ selector, maxLength, className, initialValue }) => {
         const [, forceUpdate] = Hooks.useForceUpdate();
-        const textRef = React.useRef(initialValue || "");
+        const counterRef = React.useRef(null);
+        const textRef = React.useRef(cleanText(initialValue));
         const savedSettings = Api.Hooks.useData("settings");
         const showPercentage = savedSettings?.showPercentage ?? DEFAULT_SETTINGS.showPercentage;
         React.useEffect(() => {
-            let cleanup = () => { };
-            let retryCount = 0;
-            let timeoutId = null;
-            let mounted = true;
-            const maxRetries = 20;
-            const findAndAttach = () => {
-                if (!mounted) return;
-                const input = document.querySelector(selector);
-                if (!input) {
-                    if (retryCount < maxRetries) {
-                        retryCount++;
-                        timeoutId = setTimeout(findAndAttach, 50);
-                    } else {
-                        Logger.warn(meta.name, `DOMCounter gave up finding "${selector}" after ${maxRetries} retries`);
-                    }
-                    return;
+            // Listen on the element the counter was added to, so inputs that are swapped in later (like a note
+            // switching from preview to editing) are still counted
+            const root = counterRef.current?.closest(".BetterCharCounter-added") ?? document;
+            const update = input => {
+                const value = cleanText(input.value ?? input.textContent);
+                if (value !== textRef.current) {
+                    textRef.current = value;
+                    forceUpdate();
                 }
-                textRef.current = cleanText(input.value || input.textContent || initialValue || "");
-                forceUpdate();
-                const events = ['input', 'keydown', 'keyup', 'paste', 'cut', 'change'];
-                const updateFromDOM = createDOMUpdateHandler(input, textRef, forceUpdate);
-                cleanup = attachDOMListeners(input, events, updateFromDOM);
             };
-            timeoutId = setTimeout(findAndAttach, 10);
-            return () => {
-                mounted = false;
-                clearTimeout(timeoutId);
-                cleanup();
-            };
-        }, [selector, initialValue]);
+            const input = root.querySelector(selector);
+            if (input) update(input);
+            const onInput = e => { if (e.target.matches?.(selector)) update(e.target); };
+            root.addEventListener("input", onInput);
+            return () => root.removeEventListener("input", onInput);
+        }, [selector]);
         const length = textRef.current.length;
         const percentage = (length / maxLength) * 100;
-        if (percentage < showPercentage) return null;
         const color = getColorForPercentage(percentage);
         return React.createElement("div", {
-            className: `BetterCharCounter-counter ${className} visible`,
+            ref: counterRef,
+            className: `BetterCharCounter-counter ${className}${percentage < showPercentage ? "" : " visible"}`,
             style: { color }
         }, `${length}/${maxLength}`);
     });
+    // For inputs whose text Discord already passes around as a prop
+    const ValueCounter = ({ value, maxLength, className }) => {
+        const savedSettings = Api.Hooks.useData("settings");
+        const showPercentage = savedSettings?.showPercentage ?? DEFAULT_SETTINGS.showPercentage;
+        const length = (value ?? "").length;
+        const percentage = (length / maxLength) * 100;
+        if (percentage < showPercentage) return null;
+        return React.createElement("div", {
+            className: `BetterCharCounter-counter ${className} visible`,
+            style: { color: getColorForPercentage(percentage) }
+        }, `${length}/${maxLength}`);
+    };
     const getMaxLength = type => {
         if (MAX_LENGTHS[type]) return MAX_LENGTHS[type];
         const canUseExtended = modules.NitroUtils?.canUseIncreasedMessageLength?.(
@@ -530,45 +525,40 @@ const BetterCharCounter = meta => {
         const isMemo = component?.$$typeof === Symbol.for('react.memo');
         const isForwardRef = typeof component?.render === 'function';
         if (isMemo) {
-            const originalType = component.type;
+            // Patch the memo and the class it renders in place, so unpatchAll undoes both
             let innerPatched = false;
-            const wrappedType = (props, ref) => {
-                const ret = originalType(props, ref);
-                try {
-                    if (ret?.type?.prototype?.render && !innerPatched) {
-                        innerPatched = true;
-                        const innerClass = ret.type;
-                        Patcher.after(meta.name, innerClass.prototype, "render", (thisObj, _args, innerRet) => {
-                            try {
-                                const innerProps = thisObj.props;
-                                if (!innerRet?.props || !innerProps?.channel || innerProps.disabled) return;
-                                const bottomBarClass = modules.bottomBarClass;
-                                if (!bottomBarClass) return;
-                                const channelId = innerProps.channel.id;
-                                const analyticsName = innerProps.type?.analyticsName || innerProps.chatInputType?.analyticsName || "chat";
-                                const draftType = getDraftType(analyticsName);
-                                const maxLength = getMaxLength(analyticsName);
-                                const bottomBar = Utils.findInTree(innerRet,
-                                    createBottomBarMatcher(bottomBarClass),
-                                    { walkable: ["props", "children"] }
-                                );
-                                if (bottomBar) {
-                                    injectDraftCounter(bottomBar, channelId, draftType, maxLength, analyticsName);
-                                }
-                            } catch (e) {
-                                Logger.error(meta.name, "Error in inner render patch", e);
-                            }
-                        });
+            const patchInnerClass = innerClass => {
+                if (innerPatched || !innerClass?.prototype?.render) return;
+                innerPatched = true;
+                Patcher.after(meta.name, innerClass.prototype, "render", (thisObj, _args, innerRet) => {
+                    try {
+                        const innerProps = thisObj.props;
+                        if (!innerRet?.props || !innerProps?.channel || innerProps.disabled) return;
+                        const bottomBarClass = modules.bottomBarClass;
+                        if (!bottomBarClass) return;
+                        const channelId = innerProps.channel.id;
+                        const analyticsName = innerProps.type?.analyticsName || innerProps.chatInputType?.analyticsName || "chat";
+                        const draftType = getDraftType(analyticsName);
+                        const maxLength = getMaxLength(analyticsName);
+                        const bottomBar = Utils.findInTree(innerRet,
+                            createBottomBarMatcher(bottomBarClass),
+                            { walkable: ["props", "children"] }
+                        );
+                        if (bottomBar) {
+                            injectDraftCounter(bottomBar, channelId, draftType, maxLength, analyticsName);
+                        }
+                    } catch (e) {
+                        Logger.error(meta.name, "Error in inner render patch", e);
                     }
-                } catch (e) {
-                    Logger.error(meta.name, "Error in ChannelTextArea patch", e);
-                }
-                return ret;
+                });
             };
-            Object.assign(wrappedType, originalType);
-            const newMemo = React.memo(wrappedType, component.compare);
-            mod[exportKey] = newMemo;
-            Logger.info(meta.name, `Patched ChannelTextAreaForm (React.memo replacement via .${exportKey})`);
+            Patcher.after(meta.name, component, "type", (_, _args, ret) => patchInnerClass(ret?.type));
+            // Chat boxes already on screen keep the memo's old render, so patch their class directly and redraw them
+            chatFormMemo = component;
+            const mounted = getMountedChatForms();
+            for (const instance of mounted) patchInnerClass(instance.constructor);
+            for (const instance of mounted) instance.forceUpdate();
+            Logger.info(meta.name, `Patched ChannelTextAreaForm (React.memo via .${exportKey})`);
             return;
         }
         let target, patchKey;
@@ -624,24 +614,11 @@ const BetterCharCounter = meta => {
     };
     const patchCustomStatus = async signal => {
         try {
-            let mod = Webpack.getModule(Filters.bySource("setCustomStatus"));
-            if (!mod && !signal.aborted) {
-                mod = await Webpack.waitForModule(
-                    Filters.bySource("setCustomStatus"),
-                    { signal }
-                );
-            }
-            if (!mod && !signal.aborted) {
-                mod = await Webpack.waitForModule(
-                    Filters.bySource("CustomStatusModalWithPreview"),
-                    { signal }
-                );
-            }
+            // The custom status modal is only loaded when it is first opened
+            const filter = Filters.bySource("custom-status-input");
+            const mod = Webpack.getModule(filter, { defaultExport: false })
+                ?? await Webpack.waitForModule(filter, { signal, defaultExport: false });
             if (signal.aborted) return;
-            if (!mod) {
-                Logger.warn(meta.name, "Could not find CustomStatusModal");
-                return;
-            }
             const patchKey = findExportKey(mod);
             if (!patchKey) {
                 Logger.warn(meta.name, "Could not find export key for CustomStatusModal");
@@ -649,19 +626,18 @@ const BetterCharCounter = meta => {
             }
             Patcher.after(meta.name, mod, patchKey, (_, _args, ret) => {
                 try {
-                    if (!ret?.props) return;
-                    const input = Utils.findInTree(ret,
-                        e => e?.type === 'input' && (e?.props?.maxLength === 128 || e?.props?.placeholder),
-                        { walkable: ["props", "children"] }
+                    // The modal keeps the status text in its own state and passes it to the input as value
+                    const isInput = e => e?.props?.id === "custom-status-input";
+                    const row = Utils.findInTree(ret,
+                        e => Array.isArray(e?.props?.children) && e.props.children.some(isInput),
+                        { walkable: ["props", "children", "actionBarInput"] }
                     );
-                    const selector = "#custom-status-input, textarea[maxlength='128']";
-                    const initialValue = input?.props?.value || input?.props?.defaultValue || "";
-                    const container = Utils.findInTree(ret,
-                        e => e?.type === 'div' && e?.props?.className?.includes?.("input"),
-                        { walkable: ["props", "children"] }
-                    );
-                    const target = container || ret;
-                    injectDOMCounter(target, selector, MAX_LENGTHS.customstatus, "customstatus", initialValue);
+                    if (!row) return;
+                    const input = row.props.children.find(isInput);
+                    row.props.className = Utils.className(row.props.className, "BetterCharCounter-added");
+                    row.props.children.push(React.createElement(ErrorBoundary, { key: "bcc-customstatus-counter", pluginName: meta.name },
+                        React.createElement(ValueCounter, { value: input.props.value, maxLength: input.props.maxLength ?? MAX_LENGTHS.customstatus, className: "BetterCharCounter-customstatus" })
+                    ));
                 } catch (e) {
                     Logger.error(meta.name, "Error in CustomStatus patch", e);
                 }
@@ -674,46 +650,21 @@ const BetterCharCounter = meta => {
     };
     const patchNotes = async signal => {
         try {
-            let mod = Webpack.getModule(Filters.bySource("note", "userId"));
-            if (!mod && !signal.aborted) {
-                mod = await Webpack.waitForModule(
-                    Filters.bySource("note", "userId"),
-                    { signal }
-                );
-            }
-            if (!mod && !signal.aborted) {
-                mod = Webpack.getModule(
-                    Filters.byComponentType(c =>
-                        c?.displayName === "Note" ||
-                        c?.displayName === "UserNote"
-                    ),
-                    { searchExports: true }
-                );
-            }
+            // Notes are drawn by Discord's shared editable text field, which is loaded with profiles
+            const filter = Filters.bySource("--custom-editable-text-max-rows");
+            const mod = Webpack.getModule(filter, { defaultExport: false })
+                ?? await Webpack.waitForModule(filter, { signal, defaultExport: false });
             if (signal.aborted) return;
-            if (!mod) {
-                Logger.warn(meta.name, "Could not find Note component");
-                return;
-            }
             const patchKey = findExportKey(mod);
             if (!patchKey) {
                 Logger.warn(meta.name, "Could not find export key for Note component");
                 return;
             }
-            Patcher.after(meta.name, mod, patchKey, (_, args, ret) => {
+            Patcher.after(meta.name, mod, patchKey, (_, [props], ret) => {
                 try {
-                    if (!ret?.props) return;
-                    const userId = args[0]?.userId;
-                    if (!userId) return;
-                    const isPopout = args[0]?.className?.includes?.("popout");
-                    const type = isPopout ? "popoutnote" : "profilenote";
-                    const textareaChild = ret.props.children;
-                    const initialValue = textareaChild?.props?.defaultValue || "";
-                    const textareaClass = textareaChild?.props?.className || "";
-                    const selector = textareaClass
-                        ? `textarea.${textareaClass.split(' ')[0]}`
-                        : `.${ret.props.className} textarea`;
-                    injectDOMCounter(ret, selector, MAX_LENGTHS[type], type, initialValue);
+                    // The field is shared with other profile inputs, so only count the multiline 256 character note
+                    if (!ret?.props || !props?.multiline || props.maxLength !== MAX_LENGTHS.profilenote) return;
+                    injectDOMCounter(ret, "textarea", MAX_LENGTHS.profilenote, "profilenote", props.value);
                 } catch (e) {
                     Logger.error(meta.name, "Error in Note patch", e);
                 }
@@ -774,9 +725,11 @@ const BetterCharCounter = meta => {
     };
     const patchPopoutFooter = async signal => {
         try {
-            const mod = Webpack.getBySource("profileUserId:", "upsell:")
-                || Webpack.getBySource("canShowProfilePopoutGiftIntents");
-            if (signal.aborted || !mod) return;
+            // The "Message @user" box in profile popouts
+            const filter = Filters.bySource("SEND_DIRECT_MESSAGE", "disableAutoFocus");
+            const mod = Webpack.getModule(filter, { defaultExport: false })
+                ?? await Webpack.waitForModule(filter, { signal, defaultExport: false });
+            if (signal.aborted) return;
             const patchKey = findExportKey(mod);
             if (!patchKey) {
                 Logger.warn(meta.name, "Could not find export key for PopoutFooter");
@@ -784,23 +737,13 @@ const BetterCharCounter = meta => {
             }
             Patcher.after(meta.name, mod, patchKey, (_, _args, ret) => {
                 try {
-                    if (!ret?.props) return;
-                    if (ret.props.className?.includes?.("BetterCharCounter-added")) return;
-                    const maxLength = getMaxLength("chat");
-                    if (!Array.isArray(ret.props.children)) {
-                        ret.props.children = [ret.props.children];
-                    }
-                    ret.props.className = Utils.className(ret.props.className, "BetterCharCounter-added");
-                    const selector = "[class*='user-profile-popout'] [data-slate-editor='true']";
-                    const counter = React.createElement(ErrorBoundary, { key: "bcc-popout-counter", pluginName: meta.name },
-                        React.createElement(DOMCounter, {
-                            selector,
-                            maxLength,
-                            className: "BetterCharCounter-popoutdm",
-                            initialValue: ""
-                        })
+                    // It keeps the typed text in its own state and passes it to the text area as textValue
+                    if (typeof ret?.props?.textValue !== "string") return;
+                    return React.createElement(React.Fragment, null, ret,
+                        React.createElement(ErrorBoundary, { key: "bcc-popout-counter", pluginName: meta.name },
+                            React.createElement(ValueCounter, { value: ret.props.textValue, maxLength: getMaxLength("chat"), className: "BetterCharCounter-popoutdm" })
+                        )
                     );
-                    ret.props.children.push(counter);
                 } catch (e) {
                     Logger.error(meta.name, "Error in PopoutFooter patch", e);
                 }
@@ -839,6 +782,8 @@ const BetterCharCounter = meta => {
             abortController = null;
         }
         Patcher.unpatchAll(meta.name);
+        for (const instance of getMountedChatForms()) instance.forceUpdate();
+        chatFormMemo = null;
         DOM.removeStyle(meta.name);
         updateManager.stop();
         modules = {};

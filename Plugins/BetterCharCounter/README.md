@@ -1,6 +1,6 @@
 # BetterCharCounter
 
-A BetterDiscord plugin that adds a live character counter to the message box, so you always know how close you are to Discord's message limit.
+A BetterDiscord plugin that adds live character counters to the message box and other Discord inputs, so you always know how close you are to the limit.
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
@@ -8,7 +8,7 @@ A BetterDiscord plugin that adds a live character counter to the message box, so
 
 ## 📖 Description
 
-BetterCharCounter shows how many characters you have typed next to your limit, right in the corner of the message box. It knows whether your limit is 2,000 or 4,000 characters, counts long and multi-line messages exactly, and changes color as you get close, so you are never surprised by a "message too long" error.
+BetterCharCounter shows how many characters you have typed next to your limit, right in the corner of the message box. It knows whether your limit is 2,000 or 4,000 characters, counts long and multi-line messages exactly, and changes color as you get close, so you are never surprised by a "message too long" error. Profile notes, your custom status and the "Message @user" box in profile popouts get a counter too.
 
 *Inspired by mwittrien/Devilbro's "CharCounter", rebuilt from scratch using modern BdApi (no BDFDB dependency).*
 
@@ -17,6 +17,7 @@ BetterCharCounter shows how many characters you have typed next to your limit, r
 - **🔢 Live Counter**: Shows your character count and limit (for example `1250/2000`) as you type
 - **💎 Nitro Aware**: Uses your real limit, 2,000 characters or 4,000 with Nitro
 - **📏 Exact Counts**: Counts newlines in multi-line messages and long pastes past Discord's 4,500 character draft limit
+- **📝 Notes & Status**: Counters on profile notes (256 characters), your custom status (128) and the "Message @user" box in profile popouts
 - **🎨 Color Warnings**: Turns yellow at 70% and red at 90% of the limit
 - **🎚️ Show Threshold**: Optionally hide the counter until you reach a percentage of the limit
 - **🔄 Auto Updates**: Automatic update checking with changelog display every 24 hours
@@ -37,6 +38,8 @@ BetterCharCounter shows how many characters you have typed next to your limit, r
 3. Watch the color: it turns yellow at 70% of the limit and red at 90%
 4. Once the count goes past the limit, Discord will refuse to send the message, so shorten it or split it with a plugin like [BetterSplitLargeMessages](../BetterSplitLargeMessages)
 
+The same counter appears in the corner of a note in someone's full profile, above your custom status when you edit it, and below the "Message @user" box in profile popouts.
+
 ## ⚙️ Settings
 
 Access settings through Discord Settings → Plugins → BetterCharCounter ⚙️
@@ -56,7 +59,7 @@ Access settings through Discord Settings → Plugins → BetterCharCounter ⚙�
 
 ### Counter not showing?
 - Check that **Show Percentage Threshold** is not set higher than you expect
-- If you just enabled the plugin, switch to another channel or reload Discord (Ctrl+R)
+- The custom status counter appears from the second time you open the custom status window after starting Discord
 
 ### Update issues?
 - Manually check for updates from the settings panel
