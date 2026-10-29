@@ -97,6 +97,7 @@ These plugins build on ideas or earlier plugins by other developers, credited he
 
 | Plugin | Builds on | Original author |
 | --- | --- | --- |
+| [BetterCharCounter](Plugins/BetterCharCounter) | CharCounter (inspiration) | mwittrien (DevilBro) |
 | [BetterFileViewer](Plugins/BetterFileViewer) | [FileViewer](https://github.com/TheGreenPig/BetterDiscordPlugins/tree/main/FileViewer) | AGreenPig |
 | [BetterMessageUtilities](Plugins/BetterMessageUtilities) | MessageUtilities (inspiration) | mwittrien (DevilBro) |
 | [BetterPinDMs](Plugins/BetterPinDMs) | PinDMs (inspiration) | mwittrien (DevilBro) |

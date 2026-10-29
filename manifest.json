@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-10-15",
+  "lastUpdated": "2026-10-29",
   "plugins": [
     {
       "id": "enhanced-channel-tabs",
@@ -74,6 +74,11 @@
     {
       "id": "Permissions Toolkit",
       "name": "PermissionsToolkit",
+      "enabled": true
+    },
+    {
+      "id": "Better Char Counter",
+      "name": "BetterCharCounter",
       "enabled": true
     }
   ]
