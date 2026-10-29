@@ -237,19 +237,20 @@ class UpdateManager {
 		return { ok: true, version: remoteVersion };
 	}
 }
-const { GuildsBar, Popout, GuildActions, IconUtils, buttonClasses, separatorClasses } = Webpack.getBulkKeyed({
+const { GuildsBar, Popout, GuildActions, IconUtils, buttonClasses, separatorClasses, scrollerClasses } = Webpack.getBulkKeyed({
 	GuildsBar: { filter: Filters.byComponentType(Filters.byStrings("guildsnav")), searchExports: true },
 	Popout: { filter: Filters.byStrings("Unsupported animation config:"), searchExports: true },
 	GuildActions: { filter: Filters.byKeys("transitionToGuildSync") },
 	IconUtils: { filter: Filters.byKeys("getGuildIconURL") },
 	buttonClasses: { filter: Filters.byKeys("circleIconButton", "circleIcon") },
-	separatorClasses: { filter: Filters.byKeys("guildSeparator") }
+	separatorClasses: { filter: Filters.byKeys("guildSeparator") },
+	scrollerClasses: { filter: Filters.byKeys("thin", "fade", "scrollbarGutterStable") }
 });
 const CSS = `
 .ServerSearch-dock { display: flex; flex: none; flex-direction: column; align-items: center; gap: var(--space-xs, 8px); padding-bottom: calc(var(--space-xs, 8px) + 16px); }
 .ServerSearch-button { border: none; border-radius: var(--radius-md); padding: 0; }
 .ServerSearch-popout { display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; width: 320px; height: min(480px, calc(100vh - 32px)); padding: 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--background-surface-higher); box-shadow: var(--shadow-high); color: var(--text-default); }
-.ServerSearch-list { flex: 1; overflow-y: auto; margin: 0 -4px; padding: 0 4px; scrollbar-width: thin; }
+.ServerSearch-list { overflow-y: auto; margin-right: -8px; }
 .ServerSearch-row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: var(--radius-sm); cursor: pointer; }
 .ServerSearch-row.active { background: var(--background-mod-normal); }
 .ServerSearch-icon { display: grid; flex: none; place-items: center; width: 32px; height: 32px; overflow: hidden; border-radius: 10px; background: var(--background-mod-strong); font-size: 12px; font-weight: 600; white-space: nowrap; object-fit: cover; }
@@ -364,7 +365,7 @@ const SearchPopout = ({ closePopout }) => {
 			}
 		}),
 		results.length
-			? React.createElement("div", { ref: listRef, role: "listbox", className: "ServerSearch-list" }, results.map((result, index) => React.createElement(ResultRow, {
+			? React.createElement("div", { ref: listRef, role: "listbox", className: Utils.className(scrollerClasses.thin, scrollerClasses.fade, scrollerClasses.scrollbarGutterStable, "ServerSearch-list") }, results.map((result, index) => React.createElement(ResultRow, {
 				key: result.entry.guild.id,
 				result,
 				active: index === active,
