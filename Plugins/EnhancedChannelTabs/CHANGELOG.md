@@ -1,5 +1,22 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+### 5.1.0
+- Fixed the tabs and favorites of one Discord account being saved over another account's after switching accounts
+- Fixed switching accounts replacing each account's selected tab with the Friends page; each account now reopens its own last tab
+- Fixed a settings file being created before you log in, and the plugin failing to start when Discord logs in late
+- Added dragging server icons, channels, DMs and channel links from messages onto the tab bar, the favorites bar or a folder; dropping on the middle of a tab opens it there
+- Added "Mark as read" to tabs and favorites and "Mark all as read" to folders
+- Added "Copy Link" to tab and favorite menus, plus Copy Server, Channel and User ID when Discord's developer mode is on
+- Added saving bookmarks straight into a folder from Discord's menus and the tab menu, with nested folders as submenus, and "Move To..." for folders
+- Added "New tab to the right" and "New tab to the left"; Duplicate now opens next to the original, and closing a tab you just opened returns to the tab you came from
+- Added Ctrl+Tab and Ctrl+Shift+Tab to switch tabs, and opening DMs in a new tab with the open in new tab shortcut
+- Added scrolling the selected tab into view in single-row mode
+- Added Discord's own icons and names for Friends, Nitro, Shop, Quests and Discover tabs, and the thread's name for threads open in the side panel
+- Added settings to keep favorites on one row with an overflow menu, set a maximum tab width and the bar size, and show Discord's title bar
+- Fixed favorites made by dragging a tab being saved as server favorites (existing ones are repaired)
+- Fixed double-clicking the new tab button opening extra tabs, and new settings being missing from older saved settings
+- Fixed the layout toast showing "??", shortcuts missing from the quick settings help, and closed tabs always showing a default icon
+
 ### 5.0.17
 - Fixed notifications and popouts drawn over the tab and favorites bars not responding to clicks over empty bar space
 - Fixed unread count badges and the closed tabs button losing their background color after a Discord update

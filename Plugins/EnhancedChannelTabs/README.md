@@ -1,7 +1,7 @@
 # EnhancedChannelTabs
 A BetterDiscord plugin that brings browser-style tabs and bookmarks to Discord.
 
-![Version](https://img.shields.io/badge/version-5.0.17-blue.svg)
+![Version](https://img.shields.io/badge/version-5.1.0-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Discord](https://img.shields.io/badge/discord-BetterDiscord-7289DA.svg)
 
@@ -17,8 +17,12 @@ EnhancedChannelTabs transforms your Discord experience with a powerful tab syste
 - **📁 Favorite Groups**: Organize bookmarks into collapsible groups
 - **🔄 Tab History**: Each tab maintains its own navigation history
 - **↩️ Restore Closed Tabs**: Undo tab closures with Ctrl+Shift+T
-- **🎯 Smart Context Menus**: Right-click channels to open in new tab or bookmark
+- **🎯 Smart Context Menus**: Right-click channels to open in new tab or bookmark, straight into any folder
 - **📑 Multi-Row Tabs**: Tabs wrap to multiple rows when space is limited
+- **🧲 Drag Anything In**: Drag server icons, channels, DMs and channel links onto the tab bar, the favorites bar or a folder
+- **✅ Mark as Read**: Mark a tab, a favorite or a whole folder as read
+- **🔗 Copy Links and IDs**: Copy a tab's or favorite's link, plus its server, channel and user IDs in developer mode
+- **👥 Multiple Accounts**: Each Discord account keeps its own tabs and favorites, and switching accounts reopens that account's last tab
 
 ### Visual Enhancements
 - **🎨 Compact Mode**: Smaller tabs for more screen space
@@ -27,6 +31,10 @@ EnhancedChannelTabs transforms your Discord experience with a powerful tab syste
 - **📊 Badge System**: Unread counts, mentions, and typing indicators
 - **🖱️ Drag & Drop**: Reorder tabs and favorites by dragging
 - **🔄 Dynamic Layout**: Toggle between single-row scrolling, multi-row wrapping or stacked (Toolbar Top, Tabs Bottom)
+- **🧭 Page Icons**: Friends, Nitro, Shop, Quests and Discover tabs use Discord's own icons and names
+- **📏 Sizing**: Set the minimum and maximum tab width and scale the whole bar
+- **⭐ One-Row Favorites**: Keep favorites on one row and reach the rest from an overflow menu
+- **🪟 Discord Title Bar**: Optionally keep Discord's own title row above the tabs
 
 ### Navigation
 - **⌨️ Keyboard Shortcuts**: Full keyboard navigation support
@@ -47,10 +55,11 @@ EnhancedChannelTabs transforms your Discord experience with a powerful tab syste
 ## 🚀 Usage
 
 ### Basic Operations
-- **Open in New Tab**: Right-click any channel/DM/server → ChannelTabs → Open in new tab
-- **Add Bookmark**: Right-click → ChannelTabs → Save as bookmark
+- **Open in New Tab**: Right-click any channel/DM/server → EnhancedChannelTabs → Open in new tab, use the Open in New Tab Shortcut (Ctrl+Click or Middle Click), or drag it onto the tab bar
+- **Add Bookmark**: Right-click → EnhancedChannelTabs → Save as bookmark (pick a folder from its submenu), or drag it onto the favorites bar or a folder
+- **Replace a Tab**: Drag a channel, DM or favorite onto the middle of a tab
 - **Close Tab**: Click the × on the tab or press Ctrl+W
-- **Switch Tabs**: Click on any tab or use Ctrl+PgUp/PgDn
+- **Switch Tabs**: Click on any tab or use Ctrl+Tab/Ctrl+Shift+Tab or Ctrl+PgUp/PgDn
 - **Toggle Tab Layout**: Ctrl+Mouse Wheel on tab bar (single-row ↔ multi-row)
 
 ### Keyboard Shortcuts
@@ -59,14 +68,14 @@ EnhancedChannelTabs transforms your Discord experience with a powerful tab syste
 | `Ctrl + T` | Open new tab |
 | `Ctrl + W` | Close current tab |
 | `Ctrl + Shift + T` | Reopen closed tab |
-| `Ctrl + PgUp` | Previous tab |
-| `Ctrl + PgDn` | Next tab |
+| `Ctrl + Tab` / `Ctrl + PgDn` | Next tab |
+| `Ctrl + Shift + Tab` / `Ctrl + PgUp` | Previous tab |
 | `Ctrl + Mouse Wheel` | Toggle tab layout mode |
 
 ### Context Menu Options
-- **Tab Menu**: Right-click tab for duplicate, minimize, move, or close options
-- **Favorite Menu**: Right-click bookmark to rename, move to group, or delete
-- **Group Menu**: Right-click group to open all, rename, or delete
+- **Tab Menu**: Right-click a tab to mark it as read, open a new tab next to it, duplicate, add to favorites, minimize, move, copy its link, or close tabs
+- **Favorite Menu**: Right-click a bookmark to open it in a new tab, mark it as read, rename, move it to a folder, copy its link, or delete it
+- **Group Menu**: Right-click a group to open all, mark all as read, move it into another group, rename, or delete
 
 ## ⚙️ Settings
 
@@ -82,10 +91,15 @@ EnhancedChannelTabs transforms your Discord experience with a powerful tab syste
 - **Privacy Mode**: Obscure text in tabs for streaming
 - **Radial Status**: Use circular status indicators
 - **Minimum Tab Width**: Adjust tab size (50-220px)
+- **Maximum Tab Width**: How wide a tab can grow in flexible mode (100-400px)
+- **Bar Size**: Scale the tab and favorites bars (80-120%)
+- **Favorites That Don't Fit**: Wrap them onto more rows, or keep one row and list the rest in a menu
+- **Show Discord's Title Bar**: Keep Discord's own title row above the tabs
 
 ### Behavior
 - **Always Focus New Tabs**: Auto-switch to newly created tabs
 - **Primary Forward/Back Navigation**: Use standard browser navigation
+- **Open in New Tab Shortcut**: Ctrl+Click, Middle Click or disabled, for servers, channels and DMs
 
 ### Badge Visibility
 Configure which indicators to show:

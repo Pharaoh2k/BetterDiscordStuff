@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 5.0.17
+ * @version 5.1.0
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
@@ -265,9 +265,10 @@ class StyleManager {
 			:root { --enhancedChannelTabs-tabHeight: 2rem; --enhancedChannelTabs-favHeight: 1.75rem; --enhancedChannelTabs-tabNameFontSize: 0.8125rem; --enhancedChannelTabs-openTabSize: 1.5rem; }
 		`;
 	}
-	static getConstantVariables(tabWidthMin) {
+	static getConstantVariables({ tabWidthMin, tabWidthMax, barScale }) {
 		return `
-			:root { --enhancedChannelTabs-tabWidth: 13.75rem; --enhancedChannelTabs-tabWidthMin: ${tabWidthMin / 16}rem; }
+			:root { --enhancedChannelTabs-tabWidth: ${tabWidthMax / 16}rem; --enhancedChannelTabs-tabWidthMin: ${tabWidthMin / 16}rem; }
+			#enhancedChannelTabs-container { zoom: ${barScale / 100}; }
 		`;
 	}
 	static getPrivacyStyle() {
@@ -329,6 +330,14 @@ class StyleManager {
 			.enhancedChannelTabs-tab.enhancedChannelTabs-unread:not(.enhancedChannelTabs-selected):hover,
 			.enhancedChannelTabs-tab.enhancedChannelTabs-mention:not(.enhancedChannelTabs-selected):hover { color: var(--interactive-text-active); }
 			.enhancedChannelTabs-dragging { opacity: 0.5; }
+			.enhancedChannelTabs-tab.enhancedChannelTabs-drop-inside { box-shadow: inset 0 0 0 2px var(--brand-500); }
+			.enhancedChannelTabs-pageIcon { display: block; width: 1.25rem; height: 1.25rem; color: var(--interactive-text-default); }
+			.enhancedChannelTabs-titleRow { display: flex; align-items: center; justify-content: center; gap: var(--space-8); min-height: 1.75rem; -webkit-app-region: drag; }
+			.enhancedChannelTabs-titleRow button, .enhancedChannelTabs-titleRow [role="button"] { -webkit-app-region: no-drag; }
+			.enhancedChannelTabs-favContainer[data-overflow="menu"] { flex-wrap: nowrap; }
+			.enhancedChannelTabs-favContainer[data-overflow="menu"] > [data-entry] { flex-shrink: 0; }
+			.enhancedChannelTabs-favContainer [data-overflowed] { position: absolute; visibility: hidden; pointer-events: none; }
+			.enhancedChannelTabs-favOverflow[hidden] { display: none; }
 			.enhancedChannelTabs-drop-before::before,
 			.enhancedChannelTabs-drop-after::before { content: ""; position: absolute; top: 0; bottom: 0; width: 2px; background-color: var(--brand-500); z-index: 10; }
 			.enhancedChannelTabs-drop-before::before { left: 0; }
@@ -595,6 +604,8 @@ TabStateStore.state = {
 	folderDropStyle: "accentGlow",
 	openTabShortcut: "ctrlClick",
 	showTabTooltips: "truncated",
+	favBarOverflow: "wrap",
+	showDiscordTitle: false,
 };
 TabStateStore.getState = () => TabStateStore.state;
 TabStateStore.setState = (partial) => {
@@ -711,13 +722,24 @@ const STORE_SETTING_KEYS = [
 	"tabPeekScrollBehavior",
 	"openTabShortcut",
 	"showTabTooltips",
+	"favBarOverflow",
+	"showDiscordTitle",
 ];
 const debounce = (fn, wait = 250) => {
-	let timeout;
-	return (...args) => {
+	let timeout, pendingArgs = null;
+	const debounced = (...args) => {
+		pendingArgs = args;
 		clearTimeout(timeout);
-		timeout = setTimeout(() => fn(...args), wait);
+		timeout = setTimeout(debounced.flush, wait);
 	};
+	debounced.flush = () => {
+		clearTimeout(timeout);
+		if (!pendingArgs) return;
+		const args = pendingArgs;
+		pendingArgs = null;
+		fn(...args);
+	};
+	return debounced;
 };
 const DEFAULT_PARENT_ID = -1;
 const ensureGroupParent = (group) => ({
@@ -817,6 +839,7 @@ const moveEntryToParentIndex = (entry, targetParentId, targetIndex, favs, favGro
 const TabActions = (() => {
 	const pluginRef = { current: null };
 	let historyNavigation = false;
+	let lastOpened = null;
 	const createFavRenamer = (favIndex, name) => (fav, index) =>
 		index === favIndex ? { ...fav, name } : fav;
 	const createGroupRenamer = (groupId, name) => (group) =>
@@ -916,8 +939,34 @@ const TabActions = (() => {
 	const switchToTab = (tabIndex) => {
 		const state = TabStateStore.getState();
 		const nextTabs = state.tabs.map(ensureHistory);
+		lastOpened = null;
 		setTabsWithSelection(nextTabs, tabIndex, true);
 		historyNavigation = false;
+	};
+	const insertTabs = (newTabs, index, focus = TabStateStore.getState().alwaysFocusNewTabs) => {
+		const { tabs } = TabStateStore.getState();
+		const at = clampIndex(index ?? tabs.length, tabs.length);
+		const created = newTabs.map((tab) => ({
+			minimized: false,
+			...tab,
+			id: generateTabId(),
+			selected: false,
+			history: tab.history ? [...tab.history] : [tab.url],
+			historyIndex: tab.historyIndex ?? 0,
+		}));
+		const nextTabs = [...tabs.slice(0, at), ...created, ...tabs.slice(at)];
+		if (!focus) return setTabsWithSelection(nextTabs, resolveSelectedIndex(nextTabs));
+		lastOpened = { id: created.at(-1).id, openerId: tabs.find((tab) => tab.selected)?.id };
+		setTabsWithSelection(nextTabs, at + created.length - 1, true);
+	};
+	const openUrlInNewTab = (url, index, focus) => insertTabs([tabFromUrl(url)], index, focus);
+	const navigateTab = (tabIndex, url) => {
+		const { tabs } = TabStateStore.getState();
+		if (tabs[tabIndex]?.selected) return NavigationUtils.transitionTo(url);
+		setTabsWithSelection(
+			tabs.map((tab, index) => (index === tabIndex ? { ...withHistoryEntry(tab, url), ...tabFromUrl(url) } : tab)),
+			resolveSelectedIndex(tabs),
+		);
 	};
 	const closeTab = (tabIndex, mode) => {
 		const state = TabStateStore.getState();
@@ -946,39 +995,21 @@ const TabActions = (() => {
 			targetIndex = clampIndex(tabIndex, nextTabs.length - 1);
 		} else {
 			nextTabs = state.tabs.filter((_, index) => index !== tabIndex);
-			if (targetIndex >= tabIndex) targetIndex -= 1;
+			const openerIndex = targetIndex === tabIndex && lastOpened?.id === state.tabs[tabIndex].id
+				? nextTabs.findIndex((tab) => tab.id === lastOpened.openerId)
+				: -1;
+			if (openerIndex !== -1) targetIndex = openerIndex;
+			else if (targetIndex >= tabIndex) targetIndex -= 1;
 			targetIndex = clampIndex(targetIndex, nextTabs.length - 1);
 		}
 		setTabsWithSelection(nextTabs, targetIndex, true);
 	};
 	const reopenClosedTab = (closedTabId) => {
-		const state = TabStateStore.getState();
-		const closedTab = state.closedTabs?.find((tab) => tab.id === closedTabId);
+		const closedTab = TabStateStore.getState().closedTabs?.find((tab) => tab.id === closedTabId);
 		if (!closedTab) return;
-		const closedTabsNext = state.closedTabs.filter((tab) => tab.id !== closedTabId);
-		const newTab = {
-			id: generateTabId(),
-			url: closedTab.url,
-			name: closedTab.name,
-			iconUrl: closedTab.iconUrl,
-			channelId: closedTab.channelId,
-			selected: false,
-			minimized: false,
-			history: closedTab.history || [closedTab.url],
-			historyIndex: closedTab.historyIndex || 0,
-		};
-		const newTabIndex = state.tabs.length;
-		updateClosedTabs(() => closedTabsNext);
-		updateTabs((tabs) => ({
-			tabs: [...tabs, newTab],
-			selectedTabIndex: state.alwaysFocusNewTabs
-				? newTabIndex
-				: resolveSelectedIndex(tabs, state.selectedTabIndex),
-		}));
-		persistState();
-		if (TabStateStore.getState().alwaysFocusNewTabs) {
-			switchToTab(newTabIndex);
-		}
+		updateClosedTabs((closedTabs) => closedTabs.filter((tab) => tab.id !== closedTabId));
+		const { url, name, channelId, history, historyIndex } = closedTab;
+		insertTabs([{ url, name, channelId, history, historyIndex }]);
 	};
 	const reopenLastClosedTab = () => {
 		const state = TabStateStore.getState();
@@ -1085,30 +1116,22 @@ const TabActions = (() => {
 		updateFavs((favsState) => favsState.filter((_, index) => index !== favIndex));
 		persistState();
 	};
-	const addToFavs = (name, url, channelId, guildId) => {
-		const parentId = DEFAULT_PARENT_ID;
-		const newFullUrl = url + (guildId ? `/${guildId}` : "");
-		const existingFav = TabStateStore.getState().favs.find((fav) => {
-			if (!fav) return false;
-			const favFullUrl = fav.url + (fav.guildId ? `/${fav.guildId}` : "");
-			return favFullUrl === newFullUrl;
-		});
-		if (existingFav) return;
-		TabStateStore.setState((state) => {
-			const favsNext = [...state.favs, { name, url, channelId, guildId, groupId: parentId }];
-			const favGroupsNext = [...state.favGroups];
-			const targetIndex = buildParentEntries(favsNext, favGroupsNext, parentId).length;
-			const { favs, favGroups } = moveEntryToParentIndex(
-				{ type: "fav", favIndex: favsNext.length - 1, url },
-				parentId,
-				targetIndex,
-				favsNext,
-				favGroupsNext
-			);
-			return { favs, favGroups };
-		});
+	const addFav = ({ name, url, channelId, guildId }, parentId = DEFAULT_PARENT_ID, index = Infinity) => {
+		const state = TabStateStore.getState();
+		const key = guildId ?? url;
+		if (state.favs.some((fav) => fav && (fav.guildId ?? fav.url) === key)) {
+			UI.showToast(`${name} is already a favorite`, { type: "info" });
+			return;
+		}
+		const groupId = normalizeParentId(parentId);
+		const favs = [...state.favs, { name, url, channelId, guildId, groupId }];
+		const targetIndex = clampIndex(index, buildParentEntries(favs, state.favGroups, groupId).length);
+		TabStateStore.setState(moveEntryToParentIndex({ type: "fav", favIndex: favs.length - 1, url }, groupId, targetIndex, favs, state.favGroups));
 		persistState();
 	};
+	const favFromItem = ({ name, url, channelId, guildId }) => guildId
+		? { name: GuildStore.getGuild(guildId)?.name ?? name, url: `/channels/${guildId}`, guildId }
+		: { name, url, channelId };
 	const moveFav = (fromIndex, toIndex, targetParentId = null) => {
 		const state = TabStateStore.getState();
 		const fav = state.favs[fromIndex];
@@ -1128,39 +1151,7 @@ const TabActions = (() => {
 		if (!currentEntry) return;
 		moveEntryOrdered(currentEntry, parentId, targetIndex);
 	};
-	const addTabAsFavAt = (tab, toIndex) => {
-		const urlParts = tab.url.split("/");
-		const guildId = urlParts.length > 2 ? urlParts[2] : null;
-		let tabBaseUrl = tab.url;
-		if (guildId && tab.url.endsWith(`/${guildId}`)) {
-			tabBaseUrl = tab.url.slice(0, -(guildId.length + 1));
-		}
-		const existingFav = TabStateStore.getState().favs.find((fav) => fav && fav.url === tabBaseUrl);
-		if (existingFav) {
-			return;
-		}
-		const newFav = {
-			name: tab.name,
-			url: tabBaseUrl,
-			channelId: tab.channelId,
-			guildId: guildId,
-			groupId: normalizeParentId(tab.groupId),
-		};
-		const parentId = normalizeParentId(newFav.groupId);
-		const state = TabStateStore.getState();
-		const favsNext = [...state.favs, newFav];
-		const favGroupsNext = [...state.favGroups];
-		const targetIndex = clampIndex(toIndex, buildParentEntries(favsNext, favGroupsNext, parentId).length);
-		const { favs, favGroups } = moveEntryToParentIndex(
-			{ type: "fav", favIndex: favsNext.length - 1, url: newFav.url },
-			parentId,
-			targetIndex,
-			favsNext,
-			favGroupsNext
-		);
-		TabStateStore.setState({ favs, favGroups });
-		persistState();
-	};
+	const addTabAsFavAt = (tab, toIndex) => addFav(favFromItem(tab), tab.groupId, toIndex);
 	const createFavGroupId = () => {
 		const currentGroups = TabStateStore.getState().favGroups;
 		let generatedId = currentGroups.length;
@@ -1243,28 +1234,7 @@ const TabActions = (() => {
 		if (idx === -1) return;
 		moveToFavGroup(idx, groupId);
 	};
-	const addTabAsFavInGroup = (tab, groupId) => {
-		const parentId = normalizeParentId(groupId);
-		const state = TabStateStore.getState();
-		const favsNext = [...state.favs, {
-			name: tab.name,
-			url: tab.url,
-			channelId: tab.channelId,
-			guildId: tab.guildId,
-			groupId: parentId,
-		}];
-		const favGroupsNext = [...state.favGroups];
-		const targetIndex = buildParentEntries(favsNext, favGroupsNext, parentId).length;
-		const { favs, favGroups } = moveEntryToParentIndex(
-			{ type: "fav", favIndex: favsNext.length - 1, url: tab.url },
-			parentId,
-			targetIndex,
-			favsNext,
-			favGroupsNext
-		);
-		TabStateStore.setState({ favs, favGroups });
-		persistState();
-	};
+	const addTabAsFavInGroup = (tab, groupId) => addFav(favFromItem(tab), groupId);
 	const moveFavGroup = (fromIndex, toIndex, targetParentId = null) => {
 		const state = TabStateStore.getState();
 		const group = state.favGroups[fromIndex];
@@ -1308,124 +1278,11 @@ const TabActions = (() => {
 		});
 		persistState();
 	};
-	const saveChannel = (guildId, channelId, name) => {
-		const newUrl = `/channels/${guildId || "@me"}/${channelId}`;
-		const state = TabStateStore.getState();
-		if (state.alwaysFocusNewTabs) {
-			const newTabIndex = state.tabs.length;
-			const newTabs = [
-				...state.tabs.map((tab) => ({ ...tab, selected: false })),
-				{
-					id: generateTabId(),
-					url: newUrl,
-					name,
-					channelId,
-					minimized: false,
-					groupId: -1,
-					history: [newUrl],
-					historyIndex: 0,
-				},
-			];
-			setTabsWithSelection(newTabs, newTabIndex, true);
-		} else {
-			updateTabs((tabs) => ({
-				tabs: [
-					...tabs,
-					{
-						id: generateTabId(),
-						url: newUrl,
-						name,
-						channelId,
-						minimized: false,
-						groupId: -1,
-						history: [newUrl],
-						historyIndex: 0,
-					},
-				],
-			}));
-			persistState();
-		}
-	};
-	const openNewTab = () => {
-		const state = TabStateStore.getState();
-		const newTabIndex = state.tabs.length;
-		const newTabs = [
-			...state.tabs.map((tab) => ({ ...tab, selected: false })),
-			{
-				id: generateTabId(),
-				url: "/channels/@me",
-				name: "Friends",
-				selected: true,
-				channelId: void 0,
-				history: ["/channels/@me"],
-				historyIndex: 0,
-			},
-		];
-		setTabsWithSelection(newTabs, newTabIndex, true);
-	};
-	const openTabInNewTab = (tab) => {
-		updateTabs((tabs) => ({
-			tabs: [...tabs, {
-				id: generateTabId(),
-				...tab,
-				selected: false,
-				history: tab.history ? [...tab.history] : [tab.url],
-				historyIndex: tab.historyIndex || 0
-			}],
-		}));
-		persistState();
-	};
-	const openFavInNewTab = (fav) => {
-		const favList = Array.isArray(fav) ? fav : [fav];
-		const state = TabStateStore.getState();
-		const newTabIndex = state.tabs.length + favList.length - 1;
-		updateTabs((tabs) => ({
-			tabs: [
-				...tabs,
-				...favList.map((fav2) => {
-					const url = fav2.url + (fav2.guildId ? `/${fav2.guildId}` : "");
-					return {
-						id: generateTabId(),
-						url,
-						selected: false,
-						name: getCurrentName(url),
-						currentStatus: getCurrentUserStatus(url),
-						channelId:
-							fav2.channelId ||
-							SelectedChannelStore.getChannelId(fav2.guildId),
-						history: [url],
-						historyIndex: 0
-					};
-				}),
-			],
-		}));
-		persistState();
-		if (TabStateStore.getState().alwaysFocusNewTabs) switchToTab(newTabIndex);
-	};
+	const openNewTab = (index) => openUrlInNewTab("/channels/@me", index, true);
+	const duplicateTab = (tabIndex) => insertTabs([TabStateStore.getState().tabs[tabIndex]], tabIndex + 1, false);
+	const openFavInNewTab = (fav) => insertTabs([fav].flat().map((entry) => tabFromUrl(getFavUrl(entry))));
 	const openFavGroupInNewTab = (groupId) => {
-		openFavInNewTab(
-			TabStateStore.getState().favs.filter((fav) => fav && fav.groupId === groupId),
-		);
-	};
-	const openFavAsTabAt = (fav, toIndex) => {
-		const url = fav.url + (fav.guildId ? `/${fav.guildId}` : "");
-		const newTab = {
-			id: generateTabId(),
-			url,
-			selected: false,
-			name: getCurrentName(url),
-			currentStatus: getCurrentUserStatus(url),
-			channelId: fav.channelId || SelectedChannelStore.getChannelId(fav.guildId),
-			history: [url],
-			historyIndex: 0
-		};
-		updateTabs((tabs) => {
-			const tabsNext = [...tabs];
-			tabsNext.splice(toIndex, 0, newTab);
-			return { tabs: tabsNext };
-		});
-		persistState();
-		if (TabStateStore.getState().alwaysFocusNewTabs) switchToTab(toIndex);
+		openFavInNewTab(TabStateStore.getState().favs.filter((fav) => fav && fav.groupId === groupId));
 	};
 	const toggleTabLayoutMode = ({ tabBarRef } = {}) => {
 		const currentMode = TabStateStore.getState().tabLayoutMode || "single";
@@ -1434,7 +1291,7 @@ const TabActions = (() => {
 			{ tabLayoutMode: newMode },
 			() => {
 				UI.showToast(
-					`?? ${newMode === "single" ? "Single row mode" : "Multi-row mode"}`,
+					newMode === "single" ? "Single row mode" : "Multi-row mode",
 					{ type: "info", timeout: 2000 }
 				);
 			},
@@ -1489,7 +1346,7 @@ const TabActions = (() => {
 		renameFav,
 		minimizeFav,
 		deleteFav,
-		addToFavs,
+		addFav,
 		moveFav,
 		addTabAsFavAt,
 		addTabAsFavInGroup,
@@ -1501,12 +1358,12 @@ const TabActions = (() => {
 		moveFavGroup,
 		moveToFavGroupByKey,
 		reparentFavGroup,
-		saveChannel,
+		openUrlInNewTab,
+		navigateTab,
 		openNewTab,
-		openTabInNewTab,
+		duplicateTab,
 		openFavInNewTab,
 		openFavGroupInNewTab,
-		openFavAsTabAt,
 		toggleTabLayoutMode,
 	};
 })();
@@ -1610,6 +1467,17 @@ const bulkModules = Webpack.getBulkKeyed({
 	ChannelStreamItemTypes: { filter: byKeys("MESSAGE", "DIVIDER"), searchExports: true },
 	ChatSelectors: { filter: byKeys("messagesWrapper", "scrollerContent") },
 	PopoutSelectors: { filter: byKeys("messagesPopoutWrap") },
+	UserSettingsProtoStore: { filter: byStoreName("UserSettingsProtoStore") },
+	Dispatcher: { filter: byKeys("dispatch", "subscribe", "addInterceptor"), searchExports: true },
+	FriendsIcon: { filter: byStrings("M13 10a4 4 0 1 0 0-8"), searchExports: true },
+	NitroIcon: { filter: byStrings("M16.23 12c0 1.29"), searchExports: true },
+	ShopIcon: { filter: byStrings("M2.63 4.19A3 3 0 0 1 5.5"), searchExports: true },
+	QuestsIcon: { filter: byStrings("M7.5 21.7a8.95"), searchExports: true },
+	CompassIcon: { filter: byKeys("CompassIcon") },
+});
+const ReadStateActions = Webpack.getMangled(Filters.bySource("getActiveJoinedThreadsForGuild", "isForumLikeChannel"), {
+	ackGuilds: byStrings("getActiveJoinedThreadsForGuild"),
+	ackChannels: Filters.combine((exported) => typeof exported === "function", Filters.not(byStrings("getActiveJoinedThreadsForGuild"))),
 });
 const warnModule = (value, name, options = {}) => {
 	if (value) return value;
@@ -1629,6 +1497,54 @@ const NavigationUtils = {
 	transitionTo:
 		bulkModules.transitionTo?.transitionTo ??
 		warnModule(bulkModules.transitionTo, "NavigationUtils.transitionTo"),
+};
+const PAGES = {
+	"/channels/@me": { name: "Friends", icon: bulkModules.FriendsIcon },
+	"/store": { name: "Nitro", icon: bulkModules.NitroIcon },
+	"/shop": { name: "Shop", icon: bulkModules.ShopIcon },
+	"/quest-home": { name: "Quests", icon: bulkModules.QuestsIcon },
+	"/discovery": { name: "Discover", icon: bulkModules.CompassIcon?.CompassIcon },
+};
+const getPage = (url = "") => PAGES[url] ?? PAGES[url.split("/", 2).join("/")];
+const getThreadId = (url) => /\/threads\/(\d+)/.exec(url)?.[1];
+const getUrlChannelId = (url) => getThreadId(url) ?? /^\/channels\/[^/]+\/(\d+)/.exec(url)?.[1];
+const getGuildChannelUrl = (guildId) => ["/channels", guildId, SelectedChannelStore.getChannelId(guildId)].filter(Boolean).join("/");
+const getFavUrl = (fav) => (fav.guildId ? getGuildChannelUrl(fav.guildId) : fav.url);
+const tabFromUrl = (url) => ({ url, name: getCurrentName(url), channelId: getUrlChannelId(url) });
+const withHistoryEntry = (tab, url) => {
+	const history = [...(tab.history ?? [tab.url]).slice(0, (tab.historyIndex ?? 0) + 1), url].slice(-50);
+	return { ...tab, history, historyIndex: history.length - 1 };
+};
+const getChannelTarget = (channel, kind) => {
+	if (!channel) return null;
+	const url = `/channels/${channel.guild_id ?? "@me"}/${channel.id}`;
+	return { kind, url, name: getCurrentName(url), channelId: channel.id };
+};
+const getGuildTarget = (guildId) => {
+	const url = getGuildChannelUrl(guildId);
+	return { url, name: getCurrentName(url), channelId: getUrlChannelId(url), guildId };
+};
+// Resolves a server icon, channel row or Discord channel link to the page it opens. Absolute links (in messages) only when asked.
+const getLinkTarget = (element, allowAbsolute = false) => {
+	if (!element?.closest || element.closest("#enhancedChannelTabs-container")) return null;
+	const listItem = element.closest("[data-list-item-id]") ?? element.querySelector?.('[data-list-item-id^="guildsnav___"]');
+	const [, kind, id] = /^(guildsnav|channels)___(\d+)$/.exec(listItem?.dataset.listItemId ?? "") ?? [];
+	if (kind === "guildsnav") return GuildStore.getGuild(id) ? getGuildTarget(id) : null;
+	if (kind === "channels") return getChannelTarget(ChannelStore.getChannel(id), "channel");
+	const link = element.closest("a[href]");
+	if (!link || (!allowAbsolute && !link.getAttribute("href").startsWith("/channels/"))) return null;
+	const { hostname, pathname } = new URL(link.href);
+	if (!pathname.startsWith("/channels/") || !/(^|\.)discord\.com$/.test(hostname)) return null;
+	return tabFromUrl(pathname);
+};
+const isDeveloperMode = () => !!bulkModules.UserSettingsProtoStore?.settings?.appearance?.developerMode;
+const copyToClipboard = (text) => {
+	DiscordNative.clipboard.copy(text);
+	UI.showToast("Copied to clipboard", { type: "success" });
+};
+const markAsRead = ({ channelIds = [], guildIds = [] }) => {
+	if (channelIds.length) ReadStateActions?.ackChannels?.(channelIds);
+	if (guildIds.length) ReadStateActions?.ackGuilds?.(guildIds);
 };
 const Permissions = warnModule(bulkModules.Permissions, "Permissions");
 const SelectedChannelStore = warnModule(
@@ -1909,8 +1825,10 @@ let lastCacheClean = Date.now();
 const DNDTypes = {
 	TAB: "enhancedChannelTabs-tab",
 	FAVORITE: "enhancedChannelTabs-favorite",
-	GROUP: "enhancedChannelTabs-group"
+	GROUP: "enhancedChannelTabs-group",
+	LINK: "enhancedChannelTabs-link",
 };
+const isTabLike = (type) => type === DNDTypes.TAB || type === DNDTypes.LINK;
 const tabNodeRefs = new Map();
 const favNodeRefs = new Map();
 const groupNodeRefs = new Map();
@@ -2046,557 +1964,144 @@ function DragProvider({ children }) {
 	}), [openPath, toggleGroup, openGroup, closeAll]);
 	return React.createElement(DragContext.Provider, { value }, children);
 }
-function CreateGuildContextMenuChildren(instance, props, channel) {
-	return ContextMenu.buildMenuChildren([
-		{
-			type: "group",
-			items: [
-				{
-					type: "submenu",
-					label: "EnhancedChannelTabs",
-					items: instance.mergeItems(
-						[
-							{
-								label: "Open channel in new tab",
-								action: () =>
-									TabActions.saveChannel(
-										props.guild.id,
-										channel.id,
-										"#" + channel.name,
-									),
-								icon: Icons.WindowLaunch
-							},
-							{
-								label: "Save channel as bookmark",
-								action: () =>
-									TabActions.addToFavs(
-										"#" + channel.name,
-										`/channels/${props.guild.id}/${channel.id}`,
-										channel.id,
-									),
-								icon: () => FavStarIcon
-							},
-						],
-						[
-							{
-								label: "Save guild as bookmark",
-								action: () =>
-									TabActions.addToFavs(
-										props.guild.name,
-										`/channels/${props.guild.id}`,
-										void 0,
-										props.guild.id,
-									),
-								icon: () => FavStarIcon
-							},
-						],
-					),
-				},
-			],
-		},
-	]);
-}
-function CreateTextChannelContextMenuChildren(instance, props) {
-	return ContextMenu.buildMenuChildren([
-		{
-			type: "group",
-			items: [
-				{
-					type: "submenu",
-					label: "EnhancedChannelTabs",
-					items: instance.mergeItems(
-						[
-							{
-								label: "Open in new tab",
-								action: () =>
-									TabActions.saveChannel(
-										props.guild.id,
-										props.channel.id,
-										"#" + props.channel.name,
-									),
-								icon: Icons.WindowLaunch
-							},
-						],
-						[
-							{
-								label: "Save channel as bookmark",
-								action: () =>
-									TabActions.addToFavs(
-										"#" + props.channel.name,
-										`/channels/${props.guild.id}/${props.channel.id}`,
-										props.channel.id,
-									),
-								icon: () => FavStarIcon
-							},
-						],
-					),
-				},
-			],
-		},
-	]);
-}
-function CreateThreadChannelContextMenuChildren(instance, props) {
-	return ContextMenu.buildMenuChildren([
-		{
-			type: "group",
-			items: [
-				{
-					type: "submenu",
-					label: "EnhancedChannelTabs",
-					items: instance.mergeItems(
-						[
-							{
-								label: "Open in new tab",
-								action: () =>
-									TabActions.saveChannel(
-										props.channel.guild_id,
-										props.channel.id,
-										"#" + props.channel.name,
-									),
-								icon: Icons.WindowLaunch
-							},
-						],
-						[
-							{
-								label: "Save thread as bookmark",
-								action: () =>
-									TabActions.addToFavs(
-										"#" + props.channel.name,
-										`/channels/${props.channel.guild_id}/${props.channel.id}`,
-										props.channel.id,
-									),
-								icon: () => FavStarIcon
-							},
-						],
-					),
-				},
-			],
-		},
-	]);
-}
-function CreateDMContextMenuChildren(instance, props) {
-	return ContextMenu.buildMenuChildren([
-		{
-			type: "group",
-			items: [
-				{
-					type: "submenu",
-					label: "EnhancedChannelTabs",
-					items: instance.mergeItems(
-						[
-							{
-								label: "Open in new tab",
-								action: () =>
-									TabActions.saveChannel(
-										props.channel.guild_id,
-										props.channel.id,
-										props.channel.name ||
-										RelationshipStore.getNickname(props.user.id) ||
-										props.user.globalName,
-									),
-								icon: Icons.WindowLaunch
-							},
-						],
-						[
-							{
-								label: "Save DM as bookmark",
-								action: () =>
-									TabActions.addToFavs(
-										props.channel.name ||
-										RelationshipStore.getNickname(props.user.id) ||
-										props.user.globalName,
-										`/channels/@me/${props.channel.id}`,
-										props.channel.id,
-									),
-								icon: () => FavStarIcon
-							},
-						],
-					),
-				},
-			],
-		},
-	]);
-}
-function CreateGroupContextMenuChildren(instance, props) {
-	return ContextMenu.buildMenuChildren([
-		{
-			type: "group",
-			items: [
-				{
-					type: "submenu",
-					label: "EnhancedChannelTabs",
-					items: instance.mergeItems(
-						[
-							{
-								label: "Open in new tab",
-								action: () =>
-									TabActions.saveChannel(
-										props.channel.guild_id,
-										props.channel.id,
-										props.channel.name ||
-										props.channel.rawRecipients
-											.map(
-												(u) =>
-													RelationshipStore.getNickname(u.id) || u.globalName,
-											)
-											.join(", "),
-									),
-								icon: Icons.WindowLaunch
-							},
-						],
-						[
-							{
-								label: "Save bookmark",
-								action: () =>
-									TabActions.addToFavs(
-										props.channel.name ||
-										props.channel.rawRecipients
-											.map(
-												(u) =>
-													RelationshipStore.getNickname(u.id) || u.globalName,
-											)
-											.join(", "),
-										`/channels/@me/${props.channel.id}`,
-										props.channel.id,
-									),
-								icon: () => FavStarIcon
-							},
-						],
-					),
-				},
-			],
-		},
-	]);
+const menuGroups = (...groups) => groups.filter((items) => items?.length).map((items) => ({ type: "group", items }));
+const menuOptions = { position: "right", align: "top" };
+const getGroupMenuItems = (onSelect, parentId = DEFAULT_PARENT_ID, excludeId) => {
+	const { favs, favGroups } = TabStateStore.getState();
+	return buildParentEntries(favs, favGroups, parentId)
+		.filter((entry) => entryIsGroup(entry) && favGroups[entry.groupIndex]?.groupId !== excludeId)
+		.map(({ groupIndex }) => {
+			const { groupId, name } = favGroups[groupIndex];
+			const children = getGroupMenuItems(onSelect, groupId, excludeId);
+			return { id: `group-${groupId}`, label: name, action: () => onSelect(groupId), ...(children.length && { type: "submenu", items: children }) };
+		});
+};
+const getDestinationItems = (onSelect, excludeId) => {
+	const groups = getGroupMenuItems(onSelect, DEFAULT_PARENT_ID, excludeId);
+	return groups.length
+		? [{ id: "favorites-bar", label: "Favorites Bar", action: () => onSelect(DEFAULT_PARENT_ID) }, { type: "separator" }, ...groups]
+		: [];
+};
+const getSaveFavItem = (label, fav) => {
+	const items = getDestinationItems((groupId) => TabActions.addFav(fav, groupId));
+	return { label, icon: () => FavStarIcon, action: () => TabActions.addFav(fav), ...(items.length && { type: "submenu", items }) };
+};
+const getCopyItems = (url, guildId) => {
+	const channel = ChannelStore.getChannel(getUrlChannelId(url));
+	const ids = isDeveloperMode()
+		? [["Server", guildId ?? channel?.guild_id], ["Channel", channel?.id], ["User", channel?.isDM() && channel.getRecipientId()]]
+		: [];
+	return [
+		{ label: "Copy Link", action: () => copyToClipboard(location.origin + url) },
+		...ids.filter(([, id]) => id).map(([kind, id]) => ({ label: `Copy ${kind} ID`, action: () => copyToClipboard(id) })),
+	];
+};
+const collectGroupFavs = (groupId, state = TabStateStore.getState()) => [
+	...state.favs.filter((fav) => fav?.groupId === groupId),
+	...state.favGroups.filter((group) => group.parentId === groupId).flatMap((group) => collectGroupFavs(group.groupId, state)),
+];
+const markFavsAsRead = (favs) => markAsRead({
+	channelIds: favs.filter((fav) => !fav.guildId && fav.channelId).map((fav) => fav.channelId),
+	guildIds: favs.filter((fav) => fav.guildId).map((fav) => fav.guildId),
+});
+function CreateDiscordContextMenuChildren(instance, targets) {
+	return ContextMenu.buildMenuChildren([{
+		type: "group",
+		items: [{
+			type: "submenu",
+			label: "EnhancedChannelTabs",
+			items: instance.mergeItems(
+				targets
+					.filter((target) => target.channelId)
+					.map((target) => ({ label: target.openLabel ?? "Open in new tab", icon: Icons.WindowLaunch, action: () => TabActions.openUrlInNewTab(target.url) })),
+				targets.map((target) => getSaveFavItem(`Save ${target.kind} as bookmark`, target)),
+			),
+		}],
+	}]);
 }
 function CreateTabContextMenu(props, e) {
-	ContextMenu.open(
-		e,
-		ContextMenu.buildMenu([
-			{
-				type: "group",
-				items: mergeLists(
-					{
-						values: [
-							{
-								label: "Duplicate",
-								action: props.openInNewTab,
-								icon: Icons.WindowLaunch
-							},
-							{
-								label: "Add to favourites",
-								action: () =>
-									props.addToFavs(props.name, props.url, props.channelId),
-								icon: FavStarIcon
-							},
-							{
-								label: "Minimize tab",
-								type: "toggle",
-								checked: () => props.minimized,
-								action: () => props.minimizeTab(props.tabIndex),
-							},
-						],
-					},
-					{
-						include: props.tabCount > 1,
-						values: [
-							{
-								type: "separator",
-							},
-							{
-								label: "Move left",
-								action: props.moveLeft,
-								icon: Icons.LeftCaret
-							},
-							{
-								label: "Move right",
-								action: props.moveRight,
-								icon: Icons.RightCaret
-							},
-						],
-					},
-					{
-						include: props.tabCount > 1,
-						values: [
-							{
-								type: "separator",
-							},
-							{
-								type: "submenu",
-								label: "Close...",
-								id: "closeMenu",
-								color: "danger",
-								action: () => props.closeTab(props.tabIndex, "single"),
-								items: mergeLists(
-									{
-										values: [
-											{
-												label: "Close tab",
-												action: () => props.closeTab(props.tabIndex, "single"),
-												color: "danger",
-												icon: Icons.Trash
-											},
-											{
-												label: "Close all other tabs",
-												action: () => props.closeTab(props.tabIndex, "other"),
-												color: "danger",
-												icon: Icons.Trash
-											},
-										],
-									},
-									{
-										include: props.tabIndex != props.tabCount - 1,
-										values: [
-											{
-												label: "Close all tabs to right",
-												action: () => props.closeTab(props.tabIndex, "right"),
-												color: "danger",
-												icon: Icons.RightCaret
-											},
-										],
-									},
-									{
-										include: props.tabIndex != 0,
-										values: [
-											{
-												label: "Close all tabs to left",
-												action: () => props.closeTab(props.tabIndex, "left"),
-												color: "danger",
-												icon: Icons.LeftCaret
-											},
-										],
-									},
-								),
-							},
-						],
-					},
-				),
-			},
-		]),
-		{
-			position: "right",
-			align: "top",
-		},
-	);
+	const { tabIndex, tabCount, channelId } = props;
+	const closeItem = (label, mode, icon) => ({ label, icon, color: "danger", action: () => props.closeTab(tabIndex, mode) });
+	ContextMenu.open(e, ContextMenu.buildMenu(menuGroups(
+		channelId && [{ label: "Mark as read", disabled: !props.hasUnread && !props.mentionCount, action: () => markAsRead({ channelIds: [channelId] }) }],
+		[
+			{ label: "New tab to the right", icon: Icons.PlusAlt, action: () => TabActions.openNewTab(tabIndex + 1) },
+			{ label: "New tab to the left", icon: Icons.PlusAlt, action: () => TabActions.openNewTab(tabIndex) },
+			{ label: "Duplicate", icon: Icons.WindowLaunch, action: () => TabActions.duplicateTab(tabIndex) },
+			getSaveFavItem("Add to favourites", props),
+			{ label: "Minimize tab", type: "toggle", checked: !!props.minimized, action: () => props.minimizeTab(tabIndex) },
+		],
+		tabCount > 1 && [
+			{ label: "Move left", icon: Icons.LeftCaret, action: props.moveLeft },
+			{ label: "Move right", icon: Icons.RightCaret, action: props.moveRight },
+		],
+		getCopyItems(props.url),
+		tabCount > 1 && [{
+			type: "submenu",
+			id: "closeMenu",
+			label: "Close...",
+			color: "danger",
+			action: () => props.closeTab(tabIndex, "single"),
+			items: [
+				closeItem("Close tab", "single", Icons.Trash),
+				closeItem("Close all other tabs", "other", Icons.Trash),
+				tabIndex < tabCount - 1 && closeItem("Close all tabs to right", "right", Icons.RightCaret),
+				tabIndex > 0 && closeItem("Close all tabs to left", "left", Icons.LeftCaret),
+			].filter(Boolean),
+		}],
+	)), menuOptions);
 }
 function CreateFavContextMenu(props, e) {
-	ContextMenu.open(
-		e,
-		ContextMenu.buildMenu([
-			{
-				type: "group",
-				items: mergeLists(
-					{
-						values: [
-							{
-								label: "Open in new tab",
-								action: props.openInNewTab,
-								icon: Icons.WindowLaunch
-							},
-							{
-								label: "Rename",
-								action: props.rename,
-								icon: Icons.Pencil
-							},
-							{
-								label: "Minimize favourite",
-								type: "toggle",
-								checked: () => props.minimized,
-								action: () => props.minimizeFav(props.favIndex),
-							},
-							{
-								type: "separator",
-							},
-						],
-					},
-					{
-						include: props.favCount > 1,
-						values: [
-							{
-								label: "Move left",
-								action: props.moveLeft,
-								icon: Icons.LeftCaret
-							},
-							{
-								label: "Move right",
-								action: props.moveRight,
-								icon: Icons.RightCaret
-							},
-							{
-								type: "separator",
-							},
-						],
-					},
-					{
-						values: [
-							{
-								label: "Move To...",
-								id: "groupMoveTo",
-								type: "submenu",
-								items: mergeLists(
-									{
-										values: [
-											{
-												label: "Favorites Bar",
-												id: "entryNone",
-												color: "danger",
-												action: () => props.moveToFavGroup(props.favIndex, -1),
-											},
-											{
-												type: "separator",
-											},
-										],
-									},
-									{
-										values: FavMoveToGroupList({
-											favIndex: props.favIndex,
-											...props,
-										}),
-									},
-								),
-							},
-							{
-								type: "separator",
-							},
-						],
-					},
-					{
-						values: [
-							{
-								label: "Delete",
-								action: props.delete,
-								color: "danger",
-								icon: Icons.Trash
-							},
-						],
-					},
-				),
-			},
-		]),
-		{
-			position: "right",
-			align: "top",
-		},
-	);
+	const moveItems = getDestinationItems((groupId) => props.moveToFavGroup(props.favIndex, groupId));
+	ContextMenu.open(e, ContextMenu.buildMenu(menuGroups(
+		[
+			{ label: "Open in new tab", icon: Icons.WindowLaunch, action: props.openInNewTab },
+			{ label: "Mark as read", disabled: !props.hasUnread && !props.mentionCount, action: () => markFavsAsRead([props]) },
+		],
+		[
+			{ label: "Rename", icon: Icons.Pencil, action: props.rename },
+			{ label: "Minimize favourite", type: "toggle", checked: !!props.minimized, action: () => props.minimizeFav(props.favIndex) },
+		],
+		[
+			...(props.favCount > 1 ? [
+				{ label: "Move left", icon: Icons.LeftCaret, action: props.moveLeft },
+				{ label: "Move right", icon: Icons.RightCaret, action: props.moveRight },
+			] : []),
+			...(moveItems.length ? [{ label: "Move To...", id: "groupMoveTo", type: "submenu", items: moveItems }] : []),
+		],
+		getCopyItems(props.url, props.guildId),
+		[{ label: "Delete", icon: Icons.Trash, color: "danger", action: props.delete }],
+	)), menuOptions);
 }
 function CreateFavGroupContextMenu(props, e) {
-	ContextMenu.open(
-		e,
-		ContextMenu.buildMenu([
-			{
-				type: "group",
-				items: mergeLists(
-					{
-						values: [
-							{
-								label: "Open all",
-								action: () =>
-									props.openFavGroupInNewTab(props.favGroup.groupId),
-								icon: Icons.WindowLaunch
-							},
-							{
-								type: "separator",
-							},
-						],
-					},
-					{
-						include: props.entryCount > 1,
-						values: [
-							{
-								label: "Move left",
-								action: () =>
-									props.moveFavGroup(
-										props.groupIndex,
-										(props.entryIndex + props.entryCount - 1) %
-										props.entryCount,
-									),
-								icon: Icons.LeftCaret
-							},
-							{
-								label: "Move right",
-								action: () =>
-									props.moveFavGroup(
-										props.groupIndex,
-										(props.entryIndex + 1) % props.entryCount,
-									),
-								icon: Icons.RightCaret
-							},
-							{
-								type: "separator",
-							},
-						],
-					},
-					{
-						values: [
-							{
-								label: "Rename",
-								id: "renameGroup",
-								action: () =>
-									props.renameFavGroup(
-										props.favGroup.name,
-										props.favGroup.groupId,
-									),
-								icon: Icons.Pencil
-							},
-							{
-								type: "separator",
-							},
-							{
-								label: "Delete",
-								id: "deleteGroup",
-								action: () => props.removeFavGroup(props.favGroup.groupId),
-								color: "danger",
-								icon: Icons.Trash
-							},
-						],
-					},
-				),
-			},
-		]),
-		{
-			position: "right",
-			align: "top",
-		},
-	);
+	const { favGroup, entryIndex, entryCount } = props;
+	const moveItems = getDestinationItems((groupId) => props.reparentFavGroup(favGroup.groupId, groupId), favGroup.groupId);
+	ContextMenu.open(e, ContextMenu.buildMenu(menuGroups(
+		[
+			{ label: "Open all", icon: Icons.WindowLaunch, action: () => props.openFavGroupInNewTab(favGroup.groupId) },
+			{ label: "Mark all as read", action: () => markFavsAsRead(collectGroupFavs(favGroup.groupId)) },
+		],
+		[
+			...(entryCount > 1 ? [
+				{ label: "Move left", icon: Icons.LeftCaret, action: () => props.moveFavGroup(props.groupIndex, (entryIndex + entryCount - 1) % entryCount) },
+				{ label: "Move right", icon: Icons.RightCaret, action: () => props.moveFavGroup(props.groupIndex, (entryIndex + 1) % entryCount) },
+			] : []),
+			...(moveItems.length ? [{ label: "Move To...", id: "groupMoveTo", type: "submenu", items: moveItems }] : []),
+		],
+		[
+			{ label: "Rename", id: "renameGroup", icon: Icons.Pencil, action: () => props.renameFavGroup(favGroup.name, favGroup.groupId) },
+			{ label: "Delete", id: "deleteGroup", icon: Icons.Trash, color: "danger", action: () => props.removeFavGroup(favGroup.groupId) },
+		],
+	)), menuOptions);
 }
 function CreateFavBarContextMenu(props, e) {
-	ContextMenu.open(
-		e,
-		ContextMenu.buildMenu([
-			{
-				type: "group",
-				items: [
-					{
-						label: "Add current tab as favourite",
-						action: () =>
-							props.addToFavs(
-								getCurrentName(),
-								location.pathname,
-								SelectedChannelStore.getChannelId(),
-							),
-						icon: () => FavStarIcon
-					},
-					{
-						label: "Create a new group...",
-						action: props.addFavGroup,
-						icon: Icons.PlusAlt
-					},
-					{
-						type: "separator",
-					},
-					{
-						label: "Hide Favorites",
-						action: props.hideFavBar,
-						color: "danger",
-						icon: Icons.Close
-					},
-				],
-			},
-		]),
-		{
-			position: "right",
-			align: "top",
-		},
-	);
+	ContextMenu.open(e, ContextMenu.buildMenu(menuGroups(
+		[
+			getSaveFavItem("Add current tab as favourite", tabFromUrl(location.pathname)),
+			{ label: "Create a new group...", icon: Icons.PlusAlt, action: props.addFavGroup },
+		],
+		[{ label: "Hide Favorites", icon: Icons.Close, color: "danger", action: props.hideFavBar }],
+	)), menuOptions);
 }
 function CreateTabListContextMenu(props, e) {
 	const closeMenu = () => ContextMenu.close();
@@ -2616,10 +2121,7 @@ function CreateTabListContextMenu(props, e) {
 					props.move(index, (index + tabCount - 1) % tabCount),
 				moveRight: () => props.move(index, (index + 1) % tabCount),
 				moveTab: props.move,
-				addToFavs: props.addToFavs,
 				minimizeTab: props.minimizeTab,
-				openInNewTab: () => props.openInNewTab(tab),
-				openFavAsTabAt: props.openFavAsTabAt,
 				showTabUnreadBadges: props.showTabUnreadBadges,
 				showTabMentionBadges: props.showTabMentionBadges,
 				showTabTypingBadge: props.showTabTypingBadge,
@@ -2735,12 +2237,12 @@ function CreateSettingsContextMenu(instance, e) {
 									return /* @__PURE__ */ React.createElement(
 										"div",
 										{ className: "enhancedChannelTabs-shortcutLabelKeys" },
-										`Ctrl + W - Close Current Tab
-Ctrl + PgUp - Navigate to Left Tab
-Ctrl + PgDn - Navigate to Right Tab
+										`Ctrl + T - New Tab
+Ctrl + W - Close Current Tab
 Ctrl + Shift + T - Reopen Last Closed Tab
-CTRL + Mouse Scroll - Switch Tab Layout
-									`,
+Ctrl + Tab / Ctrl + PgDn - Next Tab
+Ctrl + Shift + Tab / Ctrl + PgUp - Previous Tab
+Ctrl + Mouse Scroll - Switch Tab Layout`,
 									);
 								},
 							},
@@ -3316,10 +2818,7 @@ function showClosedTabsModal() {
 							TabActions.reopenClosedTab(tab.id);
 						}
 					},
-						React.createElement("img", {
-							src: tab.iconUrl || DefaultUserIconGrey,
-							className: "enhancedChannelTabs-closedTabIcon"
-						}),
+						React.createElement(RouteIcon, { url: tab.url, className: "enhancedChannelTabs-closedTabIcon" }),
 						React.createElement("div", { className: "enhancedChannelTabs-closedTabInfo" },
 							React.createElement("div", { className: "enhancedChannelTabs-closedTabName" },
 								tab.name || "Unknown tab"),
@@ -3609,9 +3108,9 @@ const getCurrentName = (pathname = location.pathname) => {
 		/^\/channels\/(\d+|@me|@favorites)\/\b(\d+|\w+(-\w+)*)\b/.exec(pathname) ||
 		[];
 	if (cId) {
-		const channel = ChannelStore.getChannel(cId);
+		const channel = ChannelStore.getChannel(getThreadId(pathname) ?? cId);
 		const guild = GuildStore.getGuild(gId);
-		if (channel?.name) return (channel.guildId ? "@" : "#") + channel.name;
+		if (channel?.name) return (channel.guild_id ? "#" : "") + channel.name;
 		else if (guild?.name) return guild.name;
 		else if (channel?.rawRecipients)
 			return (
@@ -3629,7 +3128,8 @@ const getCurrentName = (pathname = location.pathname) => {
 			);
 		else return pathname;
 	} else {
-		if (pathname === "/channels/@me") return "Friends";
+		const page = getPage(pathname);
+		if (page) return page.name;
 		if (/^\/[a-z-]+$/.test(pathname))
 			return pathname
 				.slice(1)
@@ -3681,11 +3181,13 @@ const GetTabStyles = (viewMode, item) => {
 	}
 	return "";
 };
-const TabIcon = (props) =>
-	/* @__PURE__ */ React.createElement("img", {
-	className: "enhancedChannelTabs-tabIcon",
-	src: getCurrentIconUrl(props.url),
-});
+const RouteIcon = ({ url, className }) => {
+	const Icon = getPage(url)?.icon;
+	return Icon
+		? React.createElement(Icon, { className: `${className} enhancedChannelTabs-pageIcon`, size: "custom", width: 20, height: 20, color: "currentColor" })
+		: React.createElement("img", { className, src: getCurrentIconUrl(url) });
+};
+const TabIcon = (props) => React.createElement(RouteIcon, { url: props.url, className: "enhancedChannelTabs-tabIcon" });
 const TabStatus = (props) =>
 	/* @__PURE__ */ React.createElement("rect", {
 	width: 6,
@@ -4228,19 +3730,19 @@ const BaseTab = (props) => {
 		}
 	}, [props.url, props.channelId, props.name, props.tabIndex, props.closeTab]);
 	useDragOverPosition(
-		() => tabNodeRefs.get(props.url),
-		[props.url],
+		() => tabNodeRefs.get(props.id),
+		[props.id],
 		setLocalDropPosition,
 	);
 	const combinedRef = React.useCallback((node) => {
 		dragRef(node);
 		dropRef(node);
 		if (node) {
-			tabNodeRefs.set(props.url, node);
+			tabNodeRefs.set(props.id, node);
 		} else {
-			tabNodeRefs.delete(props.url);
+			tabNodeRefs.delete(props.id);
 		}
-	}, [dragRef, dropRef, props.url]);
+	}, [dragRef, dropRef, props.id]);
 	const fullRef = React.useCallback((node) => {
 		combinedRef(node);
 		tabElementRef.current = node;
@@ -4277,7 +3779,8 @@ const BaseTab = (props) => {
 				(props.mentionCount > 0 ? " enhancedChannelTabs-mention" : "") +
 				(isDragging ? " enhancedChannelTabs-dragging" : "") +
 				(isOver && canDrop && !draggedIsMe && localDropPosition === 'before' ? " enhancedChannelTabs-drop-before" : "") +
-				(isOver && canDrop && !draggedIsMe && localDropPosition === 'after' ? " enhancedChannelTabs-drop-after" : ""),
+				(isOver && canDrop && !draggedIsMe && localDropPosition === 'after' ? " enhancedChannelTabs-drop-after" : "") +
+				(isOver && canDrop && localDropPosition === 'inside' && dnd.type !== DNDTypes.TAB ? " enhancedChannelTabs-drop-inside" : ""),
 			"data-mention-count": props.mentionCount,
 			"data-unread-count": props.unreadCount,
 			"data-unread-estimated": props.unreadEstimated,
@@ -4316,49 +3819,29 @@ const BaseTab = (props) => {
 		}),
 	);
 };
+const getDropRatio = (node, offset) => {
+	const rect = node?.getBoundingClientRect();
+	return rect && offset ? (offset.x - rect.left) / rect.width : 1;
+};
 const DroppableTab = makeDroppable(
-	[DNDTypes.TAB, DNDTypes.FAVORITE],
+	[DNDTypes.TAB, DNDTypes.FAVORITE, DNDTypes.LINK],
 	(props, monitor) => {
 		const dropped = monitor.getItem();
 		const itemType = monitor.getItemType();
-		if (props.url === dropped.url) {
-			return;
-		}
-		const hoverBoundingRect = monitor.getClientOffset();
-		const targetNode = tabNodeRefs.get(props.url);
-		const componentRect = targetNode ? targetNode.getBoundingClientRect() : null;
-		let insertBefore = false;
-		if (hoverBoundingRect && componentRect) {
-			const hoverMiddleX = (componentRect.right - componentRect.left) / 2;
-			const hoverClientX = hoverBoundingRect.x - componentRect.left;
-			insertBefore = hoverClientX < hoverMiddleX;
-		}
-		let toIndex = insertBefore ? props.tabIndex : props.tabIndex + 1;
+		if (dropped.id === props.id) return;
+		const ratio = getDropRatio(tabNodeRefs.get(props.id), monitor.getClientOffset());
+		let toIndex = ratio < 0.5 ? props.tabIndex : props.tabIndex + 1;
 		if (itemType === DNDTypes.TAB) {
-			if (!hoverBoundingRect || !componentRect) {
-				toIndex = props.tabIndex + 1;
-				if (dropped.tabIndex < toIndex) toIndex -= 1;
-				props.moveTab(dropped.tabIndex, toIndex);
-				return;
-			}
-			if (dropped.tabIndex < toIndex) {
-				toIndex -= 1;
-			}
-			props.moveTab(dropped.tabIndex, toIndex);
-		} else if (itemType === DNDTypes.FAVORITE) {
-			props.openFavAsTabAt(dropped, toIndex);
+			if (dropped.tabIndex < toIndex) toIndex -= 1;
+			return props.moveTab(dropped.tabIndex, toIndex);
 		}
+		const url = itemType === DNDTypes.FAVORITE ? getFavUrl(dropped) : dropped.url;
+		if (ratio > 0.25 && ratio < 0.75) TabActions.navigateTab(props.tabIndex, url);
+		else TabActions.openUrlInNewTab(url, toIndex);
 	},
-	() => { }
 )(BaseTab);
 const DraggableDroppableTab = makeDraggable(DNDTypes.TAB)(DroppableTab);
-const Tab = (props) =>
-	/* @__PURE__ */ React.createElement(DraggableDroppableTab, {
-	...props,
-	id: props.url,
-	url: props.url,
-	tabIndex: props.tabIndex
-});
+const Tab = (props) => React.createElement(DraggableDroppableTab, { ...props, id: props.tabId ?? props.url });
 const TabItem = React.memo((props) => {
 	const { tab, tabIndex, tabCount, registerRef, isMultiRow, focusTab, ...rest } =
 		props;
@@ -4372,6 +3855,7 @@ const TabItem = React.memo((props) => {
 		},
 		React.createElement(Tab, {
 			...rest,
+			tabId: tab.id,
 			focusTab,
 			tabCount,
 			tabIndex,
@@ -4384,30 +3868,7 @@ const TabItem = React.memo((props) => {
 		}),
 	);
 });
-const FavMoveToGroupList = (props) => {
-	const groups = props.favGroups.map((group, index) => {
-		const entry = {
-			label: group.name,
-			id: "entry" + index,
-			action: () => props.moveToFavGroup(props.favIndex, group.groupId),
-		};
-		return entry;
-	});
-	if (groups.length === 0) {
-		return [
-			{
-				label: "No groups",
-				disabled: true,
-			},
-		];
-	}
-	return groups;
-};
-const FavIcon = (props) =>
-	/* @__PURE__ */ React.createElement("img", {
-	className: "enhancedChannelTabs-favIcon",
-	src: getCurrentIconUrl(props.url),
-});
+const FavIcon = (props) => React.createElement(RouteIcon, { url: props.url, className: "enhancedChannelTabs-favIcon" });
 const FavStatus = (props) =>
 	/* @__PURE__ */ React.createElement("rect", {
 	width: 6,
@@ -4521,6 +3982,7 @@ const BaseFav = (props) => {
 		"div",
 		{
 			ref: combinedRef,
+			"data-entry": `fav-${props.favIndex}`,
 			role: "button",
 			"aria-label": props.name,
 			tabIndex: 0,
@@ -4600,7 +4062,7 @@ const BaseFav = (props) => {
 	);
 };
 const DroppableFav = makeDroppable(
-	[DNDTypes.FAVORITE, DNDTypes.TAB, DNDTypes.GROUP],
+	[DNDTypes.FAVORITE, DNDTypes.TAB, DNDTypes.GROUP, DNDTypes.LINK],
 	(props, monitor) => {
 		const dropped = monitor.getItem();
 		const itemType = monitor.getItemType();
@@ -4638,7 +4100,7 @@ const DroppableFav = makeDroppable(
 			props.moveFav(dropped.favIndex, insertIndex, parentId);
 		} else if (itemType === DNDTypes.GROUP) {
 			props.moveFavGroup(dropped.groupIndex, insertIndex, parentId);
-		} else if (itemType === DNDTypes.TAB) {
+		} else if (isTabLike(itemType)) {
 			props.addTabAsFavAt({ ...dropped, groupId: parentId }, insertIndex);
 		}
 		return { handledBy: "fav" };
@@ -4685,7 +4147,7 @@ const FavFolderWithStores = React.memo((props) => {
 const BaseFavRootDrop = (props) =>
 	React.createElement("div", { ref: props.dropRef, className: "enhancedChannelTabs-favRootDrop" }, props.children);
 const FavRootDrop = makeDroppable(
-	[DNDTypes.FAVORITE, DNDTypes.GROUP, DNDTypes.TAB],
+	[DNDTypes.FAVORITE, DNDTypes.GROUP, DNDTypes.TAB, DNDTypes.LINK],
 	(props, monitor) => {
 		const dropped = monitor.getItem();
 		if (monitor.didDrop()) {
@@ -4699,7 +4161,7 @@ const FavRootDrop = makeDroppable(
 			props.moveToFavGroupByKey(favKey, -1);
 		} else if (monitor.getItemType() === DNDTypes.GROUP && dropped.groupId != null) {
 			props.reparentFavGroup(dropped.groupId, -1);
-		} else if (monitor.getItemType() === DNDTypes.TAB) {
+		} else if (isTabLike(monitor.getItemType())) {
 			const parentEntries = buildParentEntries(
 				TabStateStore.getState().favs,
 				TabStateStore.getState().favGroups,
@@ -4743,7 +4205,6 @@ const NewTab = (props) =>
 		onDoubleClick: (e) => {
 			e.preventDefault();
 			e.stopPropagation();
-			props.openNewTab();
 		}
 	},
 		/* @__PURE__ */ React.createElement(PlusAlt, null),
@@ -4785,10 +4246,7 @@ const TabListMenuItem = (props) => {
 				moveLeft: props.moveLeft,
 				moveRight: props.moveRight,
 				moveTab: props.moveTab,
-				openInNewTab: props.openInNewTab,
-				addToFavs: props.addToFavs,
 				minimizeTab: props.minimizeTab,
-				openFavAsTabAt: props.openFavAsTabAt,
 				closeTab: (index, mode) => props.closeTab(index, mode),
 			},
 			e,
@@ -4822,10 +4280,7 @@ const TabListMenuItem = (props) => {
 			onContextMenu: handleContextMenu,
 			tabIndex: props.selected ? 0 : -1,
 		},
-		React.createElement("img", {
-			className: "enhancedChannelTabs-tabListMenuIcon",
-			src: getCurrentIconUrl(props.url)
-		}),
+		React.createElement(RouteIcon, { url: props.url, className: "enhancedChannelTabs-tabListMenuIcon" }),
 		React.createElement("div", {
 			className: "enhancedChannelTabs-tabListMenuName",
 			style: StyleManager.getTabListMenuNameStyle(props.selected)
@@ -4894,6 +4349,7 @@ function BaseFavFolder(props) {
 		"div",
 		{
 			ref: combinedRef,
+			"data-entry": `group-${props.groupId}`,
 			className: "enhancedChannelTabs-favGroup" +
 				" enhancedChannelTabs-dropStyle-" + (props.folderDropStyle || "accentGlow") +
 				(isDragging ? " enhancedChannelTabs-dragging" : "") +
@@ -4969,7 +4425,7 @@ function BaseFavFolder(props) {
 	);
 };
 const DroppableGroup = makeDroppable(
-	[DNDTypes.GROUP, DNDTypes.FAVORITE, DNDTypes.TAB],
+	[DNDTypes.GROUP, DNDTypes.FAVORITE, DNDTypes.TAB, DNDTypes.LINK],
 	(props, monitor) => {
 		if (monitor.didDrop()) {
 			const result = monitor.getDropResult?.();
@@ -5017,7 +4473,7 @@ const DroppableGroup = makeDroppable(
 			if (itemType === DNDTypes.FAVORITE) {
 				const favKey = dropped.url || dropped.id;
 				props.moveToFavGroupByKey(favKey ?? dropped.favIndex, props.groupId);
-			} else if (itemType === DNDTypes.TAB) {
+			} else if (isTabLike(itemType)) {
 				props.addTabAsFavInGroup({ ...dropped, groupId: props.groupId }, props.groupId);
 			} else if (itemType === DNDTypes.GROUP) {
 				props.reparentFavGroup(dropped.groupId, props.groupId);
@@ -5039,7 +4495,7 @@ const DroppableGroup = makeDroppable(
 			const filteredEntries = dropEntry ? entries.filter((entry) => !entriesMatch(entry, dropEntry)) : entries;
 			const targetIndex = clampIndex(insertIndex, filteredEntries.length);
 			props.moveFavGroup(dropped.groupIndex, targetIndex, parentId);
-		} else if (itemType === DNDTypes.TAB) {
+		} else if (isTabLike(itemType)) {
 			props.addTabAsFavAt({ ...dropped, groupId: parentId }, insertIndex);
 		}
 		return { handledBy: "group" };
@@ -5092,7 +4548,7 @@ const FavFolders = (props) => {
 					key: `${fav.url}-${entry.favIndex}`,
 					fav,
 					favIndex: entry.favIndex,
-					favCount: favs.length,
+					favCount: entries.length,
 					favGroups,
 					rename: () => props.rename(fav.name, entry.favIndex),
 					delete: () => props.delete(entry.favIndex),
@@ -5151,9 +4607,17 @@ function HorizontalScroll(props) {
 		children,
 		className,
 		style,
+		dropRef,
+		isOver,
+		canDrop,
+		draggedIsMe,
 		...domProps
 	} = props;
 	const container = React.useRef(null);
+	const containerRef = React.useCallback((node) => {
+		container.current = node;
+		dropRef?.(node);
+	}, [dropRef]);
 	const lastToggleRef = React.useRef(0);
 	const TOGGLE_COOLDOWN = 350;
 	const TOGGLE_THRESHOLD = 30;
@@ -5235,7 +4699,7 @@ function HorizontalScroll(props) {
 	return /* @__PURE__ */ React.createElement(
 		"div",
 		{
-			ref: container,
+			ref: containerRef,
 			className,
 			style,
 			...domProps
@@ -5243,6 +4707,11 @@ function HorizontalScroll(props) {
 		children
 	);
 }
+const TabWrap = makeDroppable([DNDTypes.FAVORITE, DNDTypes.LINK], (props, monitor) => {
+	if (monitor.didDrop()) return;
+	const item = monitor.getItem();
+	TabActions.openUrlInNewTab(monitor.getItemType() === DNDTypes.FAVORITE ? getFavUrl(item) : item.url);
+})(HorizontalScroll);
 const TabBar = React.forwardRef((props, ref) => {
 	const scrollRef = React.useRef(null);
 	const tabRefs = React.useRef(new Map());
@@ -5267,6 +4736,8 @@ const TabBar = React.forwardRef((props, ref) => {
 		scrollToTab,
 		focusTab
 	}), [scrollToTab, focusTab]);
+	const selectedIndex = props.tabs.findIndex((tab) => tab.selected);
+	React.useEffect(() => scrollToTab(selectedIndex), [selectedIndex, props.tabs.length, isMultiRow]);
 	const renderTabs = () => props.tabs.map((tab, tabIndex) => {
 		const stableKey = tab.id ?? tab.channelId ?? tab.url ?? `tab-${tabIndex}`;
 		return React.createElement(TabItem, {
@@ -5285,7 +4756,6 @@ const TabBar = React.forwardRef((props, ref) => {
 			switchToTab: props.switchToTab,
 			focusTab: focusTab,
 			closeTab: props.closeTab,
-			addToFavs: props.addToFavs,
 			minimizeTab: props.minimizeTab,
 			moveLeft: () =>
 				props.move(
@@ -5294,9 +4764,7 @@ const TabBar = React.forwardRef((props, ref) => {
 				),
 			moveRight: () =>
 				props.move(tabIndex, (tabIndex + 1) % props.tabs.length),
-			openInNewTab: () => props.openInNewTab(tab),
 			moveTab: props.move,
-			openFavAsTabAt: props.openFavAsTabAt,
 			showTabUnreadBadges: props.showTabUnreadBadges,
 			showTabMentionBadges: props.showTabMentionBadges,
 			showTabTypingBadge: props.showTabTypingBadge,
@@ -5414,7 +4882,7 @@ const TabBar = React.forwardRef((props, ref) => {
 			),
 		),
 		/* @__PURE__ */ React.createElement(
-			HorizontalScroll,
+			TabWrap,
 			{
 				innerRef: scrollRef,
 				className: "enhancedChannelTabs-tabWrap",
@@ -5433,49 +4901,91 @@ const TabBar = React.forwardRef((props, ref) => {
 });
 /* Set display name for debugging */
 TabBar.displayName = 'TabBar';
-const FavBar = (props) =>
-	/* @__PURE__ */ React.createElement(
-	FavRootDrop,
-	{ ...props },
-	(() => {
-		const hasEntries = (props.favs?.filter(Boolean).length ?? 0) + (props.favGroups?.length ?? 0) > 0;
-		return React.createElement(
+const getFavMenuItems = (parentId = DEFAULT_PARENT_ID) => {
+	const { favs, favGroups } = TabStateStore.getState();
+	return buildParentEntries(favs, favGroups, parentId).map((entry) => {
+		if (entryIsGroup(entry)) {
+			const { groupId, name } = favGroups[entry.groupIndex];
+			const items = getFavMenuItems(groupId);
+			return { id: `group-${groupId}`, label: name, type: "submenu", items: items.length ? items : [{ label: "Empty", disabled: true }] };
+		}
+		const fav = favs[entry.favIndex];
+		return { id: `fav-${entry.favIndex}`, label: fav.name, action: () => NavigationUtils.transitionTo(getFavUrl(fav)) };
+	});
+};
+// Keeps the favorites on one row: entries past the edge are hidden and listed in the overflow menu instead
+const fitFavBar = (container, overflow) => {
+	const entries = [...container.querySelectorAll(":scope > [data-entry]")];
+	const chevron = container.querySelector(":scope > .enhancedChannelTabs-favOverflow");
+	for (const entry of entries) delete entry.dataset.overflowed;
+	if (!overflow || !chevron) return;
+	chevron.hidden = true;
+	const children = [...container.children];
+	const tail = children.slice(children.indexOf(entries.at(-1)) + 1).reduce((width, child) => width + child.getBoundingClientRect().width, 0);
+	const edge = container.getBoundingClientRect().right - tail;
+	const firstHidden = (reserve) => entries.findIndex((entry) => entry.getBoundingClientRect().right > edge - reserve);
+	if (firstHidden(0) === -1) return;
+	chevron.hidden = false;
+	for (const entry of entries.slice(firstHidden(chevron.getBoundingClientRect().width))) entry.dataset.overflowed = "";
+};
+const showFavOverflowMenu = (e, container) => {
+	const hidden = new Set([...container.querySelectorAll(":scope > [data-overflowed]")].map((entry) => entry.dataset.entry));
+	ContextMenu.open(e, ContextMenu.buildMenu([{ type: "group", items: getFavMenuItems().filter((item) => hidden.has(item.id)) }]), { position: "bottom", align: "right" });
+};
+const stopDoubleClick = (e) => {
+	e.preventDefault();
+	e.stopPropagation();
+};
+const FavBar = (props) => {
+	const containerRef = React.useRef(null);
+	const overflow = props.favBarOverflow === "menu";
+	React.useLayoutEffect(() => {
+		const container = containerRef.current;
+		const fit = () => fitFavBar(container, overflow);
+		fit();
+		if (!overflow) return;
+		const observer = new ResizeObserver(fit);
+		for (const node of [container, ...container.children]) observer.observe(node);
+		return () => observer.disconnect();
+	});
+	const hasEntries = (props.favs?.filter(Boolean).length ?? 0) + (props.favGroups?.length ?? 0) > 0;
+	return React.createElement(
+		FavRootDrop,
+		props,
+		React.createElement(
 			"div",
 			{
-				className:
-					"enhancedChannelTabs-favContainer" +
-					(hasEntries ? "" : " enhancedChannelTabs-noFavs"),
+				ref: containerRef,
+				className: "enhancedChannelTabs-favContainer" + (hasEntries ? "" : " enhancedChannelTabs-noFavs"),
 				"data-fav-count": props.favs.length,
-				onContextMenu: (e) => {
-					CreateFavBarContextMenu(props, e);
-				},
-				onDoubleClick: (e) => {
-					e.preventDefault();
-					e.stopPropagation();
-				},
+				"data-overflow": props.favBarOverflow,
+				onContextMenu: (e) => CreateFavBarContextMenu(props, e),
+				onDoubleClick: stopDoubleClick,
 			},
-				/* @__PURE__ */ React.createElement("div", { className: "enhancedChannelTabs-favStar" }, FavStarIcon),
+			React.createElement("div", { className: "enhancedChannelTabs-favStar" }, FavStarIcon),
 			props.leading,
-				/* @__PURE__ */ React.createElement(FavFolders, { ...props }),
-			hasEntries
-				? null
-				: /* @__PURE__ */ React.createElement(NoFavItemsPlaceholder, null),
-				/* @__PURE__ */ React.createElement(
-					"div",
-					{
-						className: "enhancedChannelTabs-newTab",
-						onClick: () => props.addFavGroup(),
-						onDoubleClick: (e) => {
-							e.preventDefault();
-							e.stopPropagation();
-						},
-					},
-					/* @__PURE__ */ React.createElement(PlusAlt, null),
-				),
+			React.createElement(FavFolders, props),
+			hasEntries ? null : React.createElement(NoFavItemsPlaceholder, null),
+			overflow && React.createElement(
+				"div",
+				{
+					className: "enhancedChannelTabs-newTab enhancedChannelTabs-favOverflow",
+					title: "More favorites",
+					hidden: true,
+					onClick: (e) => showFavOverflowMenu(e, containerRef.current),
+					onDoubleClick: stopDoubleClick,
+				},
+				React.createElement(Icons.ChevronDown, null),
+			),
+			React.createElement(
+				"div",
+				{ className: "enhancedChannelTabs-newTab", title: "New folder", onClick: () => props.addFavGroup(), onDoubleClick: stopDoubleClick },
+				React.createElement(PlusAlt, null),
+			),
 			props.trailing,
-		);
-	})(),
-);
+		),
+	);
+};
 const TopBar = (props) => {
 	const tabBarRef = React.useRef();
 	const containerRef = React.useRef();
@@ -5512,6 +5022,8 @@ const TopBar = (props) => {
 		tabWidthMin = props.tabWidthMin,
 		showQuickSettings = props.showQuickSettings,
 		useStandardNav = props.useStandardNav,
+		favBarOverflow,
+		showDiscordTitle,
 	} = storeState;
 	const toggleTabLayoutMode = React.useCallback(() => {
 		TabActions.toggleTabLayoutMode({ tabBarRef: tabBarRef.current });
@@ -5541,7 +5053,7 @@ const TopBar = (props) => {
 		const update = () => {
 			document.body.style.setProperty(
 				"--custom-app-top-bar-height",
-				`${container.clientHeight}px`,
+				`${container.getBoundingClientRect().height}px`,
 			);
 		};
 		const observer = new ResizeObserver(update);
@@ -5560,6 +5072,7 @@ const TopBar = (props) => {
 		"div",
 		{ id: "enhancedChannelTabs-container", ref: containerRef, onDragEnter: stopOwnDrag, onDragOver: stopOwnDrag, onDrop: stopOwnDrag },
 		React.createElement(TabPeekPortal, null),
+		showDiscordTitle && React.createElement("div", { className: "enhancedChannelTabs-titleRow" }, props.discordTitle),
 		showTabBar
 			? /* @__PURE__ */ React.createElement(TabBar, {
 				leading: props.leading,
@@ -5586,11 +5099,8 @@ const TopBar = (props) => {
 				closeTab: (index, mode) => TabActions.closeTab(index, mode),
 				switchToTab: safeSwitchToTab,
 				openNewTab: () => TabActions.openNewTab(),
-				openInNewTab: TabActions.openTabInNewTab,
-				addToFavs: TabActions.addToFavs,
 				minimizeTab: (index) => TabActions.minimizeTab(index),
 				move: (from, to) => TabActions.moveTab(from, to),
-				openFavAsTabAt: (fav, toIndex) => TabActions.openFavAsTabAt(fav, toIndex),
 				useStandardNav,
 				canGoBack: TabActions.canGoBack,
 				canGoForward: TabActions.canGoForward,
@@ -5604,6 +5114,7 @@ const TopBar = (props) => {
 				trailing: showTabBar ? null : trailing,
 				favs,
 				favGroups,
+				favBarOverflow,
 				folderDropStyle,
 				showFavUnreadBadges,
 				showFavMentionBadges,
@@ -5617,7 +5128,6 @@ const TopBar = (props) => {
 				showEmptyFavGroupBadges,
 				rename: (name, index) => TabActions.renameFav(name, index),
 				delete: (index) => TabActions.deleteFav(index),
-				addToFavs: TabActions.addToFavs,
 				minimizeFav: (index) => TabActions.minimizeFav(index),
 				openInNewTab: TabActions.openFavInNewTab,
 				move: (...args) => TabActions.moveFav(...args),
@@ -5656,50 +5166,30 @@ module.exports = class EnhancedChannelTabs {
 				Logger.error("Error saving settings:", error);
 			}
 		}, 250);
+		this.saveSettings = this.saveSettings.bind(this);
+		this.handleUserChange = this.handleUserChange.bind(this);
+		const openTabShortcutHandler = this.openTabShortcutHandler.bind(this);
+		this.listeners = [
+			["keydown", this.keybindHandler.bind(this)],
+			["click", this.clickHandler],
+			["click", openTabShortcutHandler, true],
+			["mouseup", openTabShortcutHandler, true],
+			["mousedown", this.mouseDownHandler.bind(this), true],
+			["dragstart", this.dragStartHandler, true],
+		];
 	}
-	start(isRetry = false) {
-		if (isRetry && !Plugins.isEnabled(config.info.name)) return;
-		this.loadSettings();
-		this.updateManager.start(this.settings.autoUpdate !== false);
-		try {
-			if (!UserStore.getCurrentUser())
-				return setTimeout(() => this.start(true), 1e3);
-			patches = [];
-			TabActions.setPlugin(this);
-			this.applyStyle();
-			this.ifNoTabsExist();
-			this.promises = {
-				state: { cancelled: false },
-				cancel() {
-					this.state.cancelled = true;
-				},
-			};
-			this.saveSettings = this.saveSettings.bind(this);
-			this.keybindHandler = this.keybindHandler.bind(this);
-			this.openTabShortcutHandler = this.openTabShortcutHandler.bind(this);
-			this.mouseDownHandler = this.mouseDownHandler.bind(this);
-			this.ifReopenLastChannelDefault();
-			this.onSwitch();
-			this.patchTitleBar(this.promises.state);
-			this.patchContextMenus();
-			this.patchNsfwMedia();
-			document.addEventListener("keydown", this.keybindHandler);
-			document.addEventListener("click", this.clickHandler);
-			document.addEventListener("click", this.openTabShortcutHandler, true);
-			document.addEventListener("mouseup", this.openTabShortcutHandler, true);
-			document.addEventListener("mousedown", this.mouseDownHandler, true);
-		} catch (e) {
-			Logger.error("Plugin initialization failed:", e);
-			UI.showToast("EnhancedChannelTabs failed to start. Update checking is still active.", { type: "warning" });
-		}
+	start() {
+		TabActions.setPlugin(this);
+		UserStore.addChangeListener(this.handleUserChange);
+		this.handleUserChange();
 	}
 	stop() {
+		UserStore.removeChangeListener(this.handleUserChange);
+		this.persistSettings.flush();
+		if (this.userId == null) return;
+		this.userId = null;
 		this.removeStyle();
-		document.removeEventListener("keydown", this.keybindHandler);
-		document.removeEventListener("click", this.clickHandler);
-		document.removeEventListener("click", this.openTabShortcutHandler, true);
-		document.removeEventListener("mouseup", this.openTabShortcutHandler, true);
-		document.removeEventListener("mousedown", this.mouseDownHandler, true);
+		for (const [type, listener, capture] of this.listeners) document.removeEventListener(type, listener, capture);
 		this.cleanupNsfwMedia();
 		Patcher.unpatchAll();
 		this.promises.cancel();
@@ -5709,6 +5199,46 @@ module.exports = class EnhancedChannelTabs {
 		}
 		this.updateManager.stop();
 		guildChannelCache.clear();
+	}
+	// Each account keeps its own tabs and favorites, so they are saved to and loaded from that account's file only
+	handleUserChange() {
+		const userId = UserStore.getCurrentUser()?.id;
+		if (!userId || userId === this.userId) return;
+		const firstLoad = this.userId == null;
+		this.persistSettings.flush();
+		this.userId = userId;
+		this.accountSwitching = false;
+		this.loadSettings();
+		this.removeStyle();
+		this.applyStyle();
+		if (!firstLoad && !this.settings.tabs.length) NavigationUtils.transitionTo("/channels/@me");
+		this.ifNoTabsExist();
+		if (!firstLoad) return this.openSelectedTab();
+		this.ifReopenLastChannelDefault();
+		this.onSwitch();
+		try {
+			patches = [];
+			this.promises = {
+				state: { cancelled: false },
+				cancel() {
+					this.state.cancelled = true;
+				},
+			};
+			this.updateManager.start(this.settings.autoUpdate !== false);
+			// Discord leaves for Friends while switching accounts, which would replace the selected tab of both accounts
+			if (bulkModules.Dispatcher) Patcher.before(bulkModules.Dispatcher, "dispatch", (_, [action]) => {
+				if (action?.type !== "LOGOUT") return;
+				action.goHomeAfterSwitching = false;
+				this.accountSwitching = true;
+			});
+			this.patchTitleBar(this.promises.state);
+			this.patchContextMenus();
+			this.patchNsfwMedia();
+			for (const [type, listener, capture] of this.listeners) document.addEventListener(type, listener, capture);
+		} catch (e) {
+			Logger.error("Plugin initialization failed:", e);
+			UI.showToast("EnhancedChannelTabs failed to start. Update checking is still active.", { type: "warning" });
+		}
 	}
 	//#endregion
 	applyStyle(styleId = null) {
@@ -5733,7 +5263,7 @@ module.exports = class EnhancedChannelTabs {
 				DOM.addStyle("enhancedChannelTabs-style-tabnav", StyleManager.getTabNavStyle());
 		}
 		if (!styleId || styleId === "enhancedChannelTabs-style-constants") {
-			DOM.addStyle("enhancedChannelTabs-style-constants", StyleManager.getConstantVariables(this.settings.tabWidthMin));
+			DOM.addStyle("enhancedChannelTabs-style-constants", StyleManager.getConstantVariables(this.settings));
 		}
 		if (!styleId || styleId === "enhancedChannelTabs-style") {
 			DOM.addStyle("enhancedChannelTabs-style", StyleManager.getBaseStyle(noDragClasses, systemBarClasses));
@@ -5794,16 +5324,12 @@ module.exports = class EnhancedChannelTabs {
 		});
 	}
 	ifReopenLastChannelDefault() {
-		if (this.settings.reopenLastChannel) {
-			switching = true;
-			NavigationUtils.transitionTo(
-				(
-					this.settings.tabs.find((tab) => tab.selected) ||
-					this.settings.tabs[0]
-				).url,
-			);
-			switching = false;
-		}
+		if (this.settings.reopenLastChannel) this.openSelectedTab();
+	}
+	openSelectedTab() {
+		switching = true;
+		NavigationUtils.transitionTo((this.settings.tabs.find((tab) => tab.selected) ?? this.settings.tabs[0]).url);
+		switching = false;
 	}
 	//#endregion
 	//#region Patches
@@ -5823,6 +5349,7 @@ module.exports = class EnhancedChannelTabs {
 				React.createElement(HookedTopBar, {
 					leading: null,
 					trailing: trailing,
+					discordTitle: React.createElement(React.Fragment, null, props.leading, props.title),
 					reopenLastChannel: this.settings.reopenLastChannel,
 					showTabBar: this.settings.showTabBar,
 					showFavBar: this.settings.showFavBar,
@@ -5906,53 +5433,25 @@ module.exports = class EnhancedChannelTabs {
 		});
 	}
 	patchContextMenus() {
-		patches.push(
-			ContextMenu.patch("channel-context", (returnValue, props) => {
-				if (!this.settings.showTabBar && !this.settings.showFavBar) return;
-				returnValue.props.children.push(
-					CreateTextChannelContextMenuChildren(this, props),
-				);
-			}),
-			ContextMenu.patch("thread-context", (returnValue, props) => {
-				if (!this.settings.showTabBar && !this.settings.showFavBar) return;
-				returnValue.props.children.push(
-					CreateThreadChannelContextMenuChildren(this, props),
-				);
-			}),
-			ContextMenu.patch("user-context", (returnValue, props) => {
-				if (!this.settings.showTabBar && !this.settings.showFavBar) return;
-				if (!returnValue) return;
-				if (
-					!props.channel ||
-					props.channel.recipients?.length !== 1 ||
-					props.channel.recipients[0] !== props.user.id
-				)
-					return;
-				returnValue.props.children.push(
-					CreateDMContextMenuChildren(this, props),
-				);
-			}),
-			ContextMenu.patch("gdm-context", (returnValue, props) => {
-				if (!this.settings.showTabBar && !this.settings.showFavBar) return;
-				if (!returnValue) return;
-				returnValue.props.children.push(
-					CreateGroupContextMenuChildren(this, props),
-				);
-			}),
-			ContextMenu.patch("guild-context", (returnValue, props) => {
-				if (
-					(!this.settings.showTabBar && !this.settings.showFavBar) ||
-					!props.guild
-				)
-					return;
-				const channel = ChannelStore.getChannel(
-					SelectedChannelStore.getChannelId(props.guild.id),
-				);
-				returnValue.props.children.push(
-					CreateGuildContextMenuChildren(this, props, channel),
-				);
-			}),
-		);
+		const patchMenu = (navId, getTargets) => patches.push(ContextMenu.patch(navId, (returnValue, props) => {
+			if (!returnValue || (!this.settings.showTabBar && !this.settings.showFavBar)) return;
+			const targets = (getTargets(props) || []).filter(Boolean);
+			if (targets.length) returnValue.props.children.push(CreateDiscordContextMenuChildren(this, targets));
+		}));
+		patchMenu("channel-context", ({ channel }) => [getChannelTarget(channel, "channel")]);
+		patchMenu("channel-mention-context", ({ channel }) => [getChannelTarget(channel, "channel")]);
+		patchMenu("thread-context", ({ channel }) => [getChannelTarget(channel, "thread")]);
+		patchMenu("gdm-context", ({ channel }) => [getChannelTarget(channel, "group")]);
+		patchMenu("user-context", ({ channel, user }) =>
+			channel?.recipients?.length === 1 && channel.recipients[0] === user?.id && [getChannelTarget(channel, "DM")]);
+		patchMenu("guild-context", ({ guild }) => {
+			if (!guild) return;
+			const channel = ChannelStore.getChannel(SelectedChannelStore.getChannelId(guild.id));
+			return [
+				channel && { ...getChannelTarget(channel, "channel"), openLabel: "Open channel in new tab" },
+				{ kind: "server", name: guild.name, url: `/channels/${guild.id}`, guildId: guild.id },
+			];
+		});
 	}
 	patchNsfwMedia() {
 		const OBSCURE_REASON = 'explicit_content';
@@ -5983,14 +5482,7 @@ module.exports = class EnhancedChannelTabs {
 	//#endregion
 	//#region Handlers
 	mouseDownHandler(e) {
-		if (this.settings.openTabShortcut !== "middleClick" || e.button !== 1) {
-			return;
-		}
-		const guildItem = e.target.closest('[data-list-item-id^="guildsnav___"]');
-		const channelItem = e.target.closest('[data-list-item-id^="channels___"]');
-		if (guildItem || channelItem) {
-			e.preventDefault();
-		}
+		if (this.settings.openTabShortcut === "middleClick" && e.button === 1 && getLinkTarget(e.target)) e.preventDefault();
 	}
 	clickHandler(e) {
 		if (!e.target.matches(".enhancedChannelTabs-favGroupBtn")) {
@@ -5998,140 +5490,61 @@ module.exports = class EnhancedChannelTabs {
 		}
 	}
 	openTabShortcutHandler(e) {
-		if (!this.settings.showTabBar) return;
 		const shortcut = this.settings.openTabShortcut || "ctrlClick";
-		if (shortcut === "disabled") return;
-		const isCtrlClick = shortcut === "ctrlClick" && e.type === "click" && e.ctrlKey && e.button === 0;
-		const isMiddleClick = shortcut === "middleClick" && e.type === "mouseup" && e.button === 1;
-		if (!isCtrlClick && !isMiddleClick) return;
-		const guildItem = e.target.closest('[data-list-item-id^="guildsnav___"]');
-		const channelItem = e.target.closest('[data-list-item-id^="channels___"]');
-		if (isMiddleClick && (guildItem || channelItem)) {
-			e.preventDefault();
-			e.stopPropagation();
-		}
-		if (guildItem) {
-			const guildId = guildItem.dataset.listItemId?.replace("guildsnav___", "");
-			if (guildId && guildId !== "null") {
-				e.preventDefault();
-				e.stopPropagation();
-				const channelId = SelectedChannelStore.getChannelId(guildId);
-				const channel = channelId ? ChannelStore.getChannel(channelId) : null;
-				if (channel) {
-					TabActions.saveChannel(guildId, channel.id, "#" + channel.name);
-				}
-				return;
-			}
-		}
-		if (channelItem) {
-			const channelId = channelItem.dataset.listItemId?.replace("channels___", "");
-			if (channelId && channelId !== "null") {
-				e.preventDefault();
-				e.stopPropagation();
-				const channel = ChannelStore.getChannel(channelId);
-				if (channel) {
-					const guildId = channel.guild_id || "@me";
-					TabActions.saveChannel(guildId, channel.id, "#" + channel.name);
-				}
-				return;
-			}
-		}
+		const isShortcut = shortcut === "ctrlClick"
+			? e.type === "click" && e.button === 0 && (e.ctrlKey || e.metaKey)
+			: shortcut === "middleClick" && e.type === "mouseup" && e.button === 1;
+		if (!isShortcut || !this.settings.showTabBar) return;
+		const target = getLinkTarget(e.target);
+		if (!target) return;
+		e.preventDefault();
+		e.stopPropagation();
+		TabActions.openUrlInNewTab(target.url);
+	}
+	// Lets server icons, channels, DMs and channel links be dropped onto the tab and favorites bars
+	dragStartHandler(e) {
+		const target = getLinkTarget(e.target, true);
+		if (!target) return;
+		const reset = () => setDnd({ item: null, type: null, over: null });
+		setDnd({ item: { id: target.url, ...target }, type: DNDTypes.LINK, over: null });
+		window.addEventListener("dragend", reset, { capture: true, once: true });
 	}
 	keybindHandler(e) {
-		const keybinds = [
-			{
-				ctrlKey: true,
-				keyCode: 87,
-				action: this.closeCurrentTab,
-			},
-			{
-				ctrlKey: true,
-				keyCode: 33,
-				action: this.previousTab,
-			},
-			{
-				ctrlKey: true,
-				keyCode: 34,
-				action: this.nextTab,
-			},
-			{
-				ctrlKey: true,
-				keyCode: 84,
-				action: this.openNewTab,
-			},
-			{
-				ctrlKey: true,
-				shiftKey: true,
-				keyCode: 84,
-				action: () => {
-					TabActions.reopenLastClosedTab();
-				}
-			},
-		];
-		for (const keybind of keybinds) {
-			if (
-				e.altKey === (keybind.altKey ?? false) &&
-				e.ctrlKey === (keybind.ctrlKey ?? false) &&
-				e.shiftKey === (keybind.shiftKey ?? false) &&
-				e.keyCode === keybind.keyCode
-			) {
-				e.stopPropagation();
-				keybind.action();
-			}
-		}
+		if (!e.ctrlKey || e.altKey || e.metaKey) return;
+		const action = {
+			KeyW: !e.shiftKey && this.closeCurrentTab,
+			KeyT: e.shiftKey ? TabActions.reopenLastClosedTab : this.openNewTab,
+			PageUp: !e.shiftKey && previousTab,
+			PageDown: !e.shiftKey && nextTab,
+			Tab: e.shiftKey ? previousTab : nextTab,
+		}[e.code];
+		if (!action) return;
+		e.preventDefault();
+		e.stopPropagation();
+		action();
 	}
 	//#endregion
 	//#region General Functions
 	onSwitch() {
-		if (switching) return;
+		if (switching || this.accountSwitching) return;
 		const state = TabStateStore.getState();
 		if (state.tabs.length > 0) {
 			const currentSelectedIndex = resolveSelectedIndex(state.tabs, state.selectedTabIndex);
-			const currentTab = state.tabs[currentSelectedIndex];
-			const currentUrl = location.pathname;
-			if (currentTab && !TabActions.isHistoryNavigation && currentTab.url === currentUrl) {
-				return;
-			}
-			const newUrl = location.pathname;
-			const channelId = SelectedChannelStore.getChannelId();
+			const url = location.pathname;
+			const historyNavigation = TabActions.isHistoryNavigation;
+			if (!historyNavigation && state.tabs[currentSelectedIndex]?.url === url) return;
+			TabActions.setHistoryNavigation(false);
+			const details = {
+				name: getCurrentName(url),
+				channelId: getThreadId(url) ?? SelectedChannelStore.getChannelId(),
+				currentStatus: getCurrentUserStatus(url),
+			};
 			const updatedTabs = state.tabs.map((tab, index) => {
 				if (index === currentSelectedIndex) {
-					let newHistory = tab.history ? [...tab.history] : [tab.url];
-					let newHistoryIndex = tab.historyIndex || 0;
-					if (!TabActions.isHistoryNavigation && tab.url !== newUrl) {
-						newHistory = newHistory.slice(0, newHistoryIndex + 1);
-						newHistory.push(newUrl);
-						newHistoryIndex++;
-						if (newHistory.length > 50) {
-							newHistory.shift();
-							newHistoryIndex--;
-						}
-					}
-					TabActions.setHistoryNavigation(false);
-					const minimizedTab = state.tabs.find((tab2) => tab2.selected)?.minimized;
-					return {
-						...tab,
-						name: getCurrentName(),
-						url: newUrl,
-						selected: true,
-						currentStatus: getCurrentUserStatus(newUrl),
-						channelId,
-						minimized: minimizedTab,
-						history: newHistory,
-						historyIndex: newHistoryIndex
-					};
+					const next = historyNavigation || tab.url === url ? tab : withHistoryEntry(tab, url);
+					return { ...next, ...details, url, selected: true };
 				}
-				else if (tab.url === currentUrl) {
-					return {
-						...tab,
-						name: getCurrentName(),
-						channelId,
-						currentStatus: getCurrentUserStatus(newUrl),
-					};
-				}
-				else {
-					return tab;
-				}
+				return tab.url === url ? { ...tab, ...details } : tab;
 			});
 			const nextSelected = resolveSelectedIndex(updatedTabs, currentSelectedIndex);
 			updateTabs(() => ({
@@ -6228,15 +5641,15 @@ module.exports = class EnhancedChannelTabs {
 			tabPeekScrollBehavior: "default",
 			openTabShortcut: "ctrlClick",
 			showTabTooltips: "truncated",
+			folderDropStyle: "accentGlow",
+			tabWidthMax: 220,
+			barScale: 100,
+			favBarOverflow: "wrap",
+			showDiscordTitle: false,
 		};
 	}
 	getSettingsPath(useOldLocation) {
-		if (useOldLocation === true) {
-			return this.meta.name;
-		} else {
-			const user_id = UserStore.getCurrentUser()?.id;
-			return this.meta.name + "_new" + (user_id === null ? "" : "_" + user_id);
-		}
+		return useOldLocation ? this.meta.name : `${this.meta.name}_new_${this.userId}`;
 	}
 	syncStoreFromSettings() {
 		const storePatch = Object.fromEntries(
@@ -6284,41 +5697,26 @@ module.exports = class EnhancedChannelTabs {
 		afterSave?.();
 	}
 	loadSettings() {
-		if (
-			Object.keys(BdApi.Data.load(this.getSettingsPath(), "settings") ?? {})
-				.length === 0
-		) {
-			this.settings =
-				BdApi.Data.load(this.getSettingsPath(true), "settings") ??
-				this.defaultVariables;
-		} else {
-			this.settings =
-				BdApi.Data.load(this.getSettingsPath(), "settings") ?? this.defaultVariables;
-		}
-		this.settings.favs = this.settings.favs.map((fav) => {
-			if (fav.channelId === void 0) {
-				const match = fav.url.match(/^\/channels\/[^/]+\/(\d+)$/);
-				if (match) return Object.assign(fav, { channelId: match[1] });
-			}
-			if (fav.groupId === void 0) {
-				return Object.assign(fav, { groupId: DEFAULT_PARENT_ID });
-			}
-			return fav;
+		const saved = BdApi.Data.load(this.getSettingsPath(), "settings");
+		const settings = {
+			...this.defaultVariables,
+			...(Object.keys(saved ?? {}).length ? saved : BdApi.Data.load(this.getSettingsPath(true), "settings")),
+		};
+		// Favorites dragged from a tab used to get the tab's server id as well, which turned them into server favorites
+		const favs = settings.favs.map((fav) => {
+			const channelId = fav.channelId ?? /^\/channels\/[^/]+\/(\d+)$/.exec(fav.url)?.[1];
+			return { ...fav, channelId, guildId: channelId ? undefined : fav.guildId, groupId: fav.groupId ?? DEFAULT_PARENT_ID };
 		});
-		const normalized = normalizeEntryOrders(
-			this.settings.favs,
-			(this.settings.favGroups || []).map(ensureGroupParent)
-		);
-		this.settings.favs = normalized.favs;
-		this.settings.favGroups = normalized.favGroups;
-		this.settings.folderDropStyle = this.settings.folderDropStyle || "accentGlow";
-		this.settings.tabs = this.settings.tabs.map((tab) => {
-			if (tab.history && Array.isArray(tab.history)) {
-				return ensureTabId({ ...tab, history: [...tab.history] });
-			} else {
-				return ensureTabId({ ...tab, history: [tab.url], historyIndex: 0 });
-			}
-		});
+		const normalized = normalizeEntryOrders(favs, (settings.favGroups ?? []).map(ensureGroupParent));
+		this.settings = {
+			...settings,
+			...normalized,
+			tabs: settings.tabs.map((tab) => ensureTabId({
+				...tab,
+				history: Array.isArray(tab.history) ? [...tab.history] : [tab.url],
+				historyIndex: Array.isArray(tab.history) ? tab.historyIndex : 0,
+			})),
+		};
 		this.syncStoreFromSettings();
 		this.persistSettings();
 	}
@@ -6327,6 +5725,7 @@ module.exports = class EnhancedChannelTabs {
 		this.persistSettings();
 	}
 	getSettingsPanel() {
+		const applyConstants = () => this.applyStyle("enhancedChannelTabs-style-constants");
 		return UI.buildSettingsPanel({
 			settings: [
 				//#region Startup Settings
@@ -6406,7 +5805,7 @@ module.exports = class EnhancedChannelTabs {
 							id: "showNavButtons",
 							type: "switch",
 							name: "Show Navigation Buttons",
-							note: "Click to go the left or right tab, this behavior can be changed in Behavior settings",
+							note: "Back and forward buttons for the current tab's history, and a close button",
 							value: this.settings.showNavButtons,
 							onChange: (checked) => {
 								this.updateSettings({ showNavButtons: checked }, () => {
@@ -6489,18 +5888,57 @@ module.exports = class EnhancedChannelTabs {
 							min: 58,
 							max: 220,
 							value: this.settings.tabWidthMin,
-							onChange: (value) => {
-								const tabWidthMin = Math.round(value);
-								this.updateSettings({ tabWidthMin }, () =>
-									document.documentElement.style.setProperty(
-										"--enhancedChannelTabs-tabWidthMin",
-										tabWidthMin + "px",
-									),
-								);
-							},
+							onChange: (value) => this.updateSettings({ tabWidthMin: Math.round(value) }, applyConstants),
 							defaultValue: 100,
 							markers: [60, 85, 100, 125, 150, 175, 200, 220],
 							units: "px",
+						},
+						{
+							id: "tabWidthMax",
+							type: "slider",
+							name: "Maximum Tab Width",
+							note: "How wide a tab can grow when there is room, in flexible mode",
+							min: 100,
+							max: 400,
+							value: this.settings.tabWidthMax,
+							onChange: (value) => this.updateSettings({ tabWidthMax: Math.round(value) }, applyConstants),
+							defaultValue: 220,
+							markers: [100, 150, 220, 300, 400],
+							units: "px",
+						},
+						{
+							id: "barScale",
+							type: "slider",
+							name: "Bar Size",
+							note: "Scales the tab and favorites bars",
+							min: 80,
+							max: 120,
+							value: this.settings.barScale,
+							onChange: (value) => this.updateSettings({ barScale: Math.round(value) }, applyConstants),
+							defaultValue: 100,
+							markers: [80, 90, 100, 110, 120],
+							stickToMarkers: true,
+							units: "%",
+						},
+						{
+							id: "favBarOverflow",
+							type: "radio",
+							name: "Favorites That Don't Fit",
+							note: "Wrap them onto more rows, or keep the favorites bar on one row and list the rest in a menu",
+							value: this.settings.favBarOverflow,
+							options: [
+								{ label: "Wrap onto more rows", name: "Wrap onto more rows", value: "wrap" },
+								{ label: "Show in a menu", name: "Show in a menu", value: "menu" },
+							],
+							onChange: (value) => this.updateSettings({ favBarOverflow: value }),
+						},
+						{
+							id: "showDiscordTitle",
+							type: "switch",
+							name: "Show Discord's Title Bar",
+							note: "Keeps Discord's own title row above the tabs",
+							value: this.settings.showDiscordTitle,
+							onChange: (checked) => this.updateSettings({ showDiscordTitle: checked }),
 						},
 						{
 							id: "folderDropStyle",
