@@ -2,8 +2,8 @@
  * @name BigFileTransfers
  * @author Pharaoh2k
  * @authorId 874825550408089610
- * @description Enables uploading and downloading very large files (up to ~2GB) by splitting them into chunks and reassembling them automatically. Both sender and receiver need the plugin. Includes automatic chunk sending, low‑memory mode, and other conveniences. Like BetterSplitLargeMessages, it doesn’t bypass Discord’s limits or Nitro, it simply works within them to make large transfers possible.
- * @version 1.0.7
+ * @description Enables uploading and downloading very large files (~4GB without Nitro, ~20GB with Nitro) by splitting them into chunks and reassembling them automatically. Both sender and receiver need the plugin. Includes automatic chunk sending, low‑memory mode, and other conveniences. Like BetterSplitLargeMessages, it doesn’t bypass Discord’s limits or Nitro, it simply works within them to make large transfers possible.
+ * @version 1.0.8
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BigFileTransfers/BigFileTransfers.plugin.js
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BigFileTransfers/BigFileTransfers.plugin.js
@@ -20,7 +20,8 @@
 
 const { DOM, UI, Patcher, Data, Hooks, Webpack, ContextMenu, Logger, React, Net, Plugins, Utils } = new BdApi("BigFileTransfers");
 const { Filters } = Webpack;
-const DEFAULT_UPLOAD_LIMIT = 10 * 1024 * 1024; /* Default Discord upload limit (10MB) for non-Nitro users */
+const DEFAULT_UPLOAD_LIMIT = 10 * 1024 * 1024; /* Fallback when Discord's upload limits can't be read */
+const DEFAULT_MAX_ATTACHMENTS = 10; /* Fallback attachments per message */
 const UPLOAD_OVERHEAD = 4096; /* Reserved bytes for Discord's upload metadata/headers */
 const STORE_NAMES = ["UserStore", "MessageStore", "ChannelStore", "SelectedChannelStore"];
 const GITHUB_REPO = "Pharaoh2k/BetterDiscordStuff";
@@ -261,7 +262,6 @@ module.exports = class BigFileTransfers {
     HEADER_SIZE = 4;
     MAGIC0 = 0xdf;
     MAGIC1 = 0x00;
-    BATCH_SIZE = 10;
     MAX_CHUNKS = 200;
     DOWNLOAD_CONCURRENCY = 6;
     MAX_RAM_ASSEMBLY_SIZE = 2000 * 1024 * 1024;
@@ -272,7 +272,6 @@ module.exports = class BigFileTransfers {
     _dispatcherSubs = [];
     _unpatches = [];
     _discordModules = {};
-    _realUploadLimit = DEFAULT_UPLOAD_LIMIT;
     _netApi = null;
     _DownloadIcon = (props) => React.createElement("svg", {
         "aria-hidden": true, role: "img", xmlns: "http://www.w3.org/2000/svg",
@@ -322,8 +321,7 @@ module.exports = class BigFileTransfers {
             this._netApi = Net;
             DOM.addStyle(this._css());
             this._initModules();
-            this._realUploadLimit = this._getMaxFileSize() || DEFAULT_UPLOAD_LIMIT;
-            this._patchTotalMessageSizeLimit();
+            this._patchUploadSizeCheck();
             this._patchUploadPipeline();
             this._patchContextMenus();
             this._patchFileAttachment();
@@ -369,7 +367,7 @@ module.exports = class BigFileTransfers {
     }
     /*---  SETTINGS ---*/
     _SettingsPanel = () => {
-        const settings = Hooks.useData("settings") || this._getDefaultSettings();
+        const settings = { ...this._getDefaultSettings(), ...Hooks.useData("settings") };
         const canStream = this._canUseFsStreaming();
         return UI.buildSettingsPanel({
             settings: [
@@ -389,6 +387,11 @@ module.exports = class BigFileTransfers {
                     note: "Delay before sending remaining chunks.",
                     min: 2, max: 20, step: 1, value: settings.autoSendDelaySeconds,
                     markers: [2, 5, 10, 15, 20], units: "s", disabled: !settings.autoSendChunks
+                },
+                {
+                    type: "switch", id: "sendReceiverNote", name: "Send Receiver Note",
+                    note: "After a split upload, send a message telling receivers without the plugin how to get the file.",
+                    value: settings.sendReceiverNote
                 },
                 {
                     type: "switch", id: "useStreamingMode", name: "Low Memory Mode",
@@ -430,12 +433,13 @@ module.exports = class BigFileTransfers {
             autoSendChunks: true,
             deletionDelaySeconds: 2,
             autoSendDelaySeconds: 5,
+            sendReceiverNote: true,
             useStreamingMode: this._canUseFsStreaming(),
             autoUpdate: true
         };
     }
     _loadSettings() {
-        return Data.load("settings") || this._getDefaultSettings();
+        return { ...this._getDefaultSettings(), ...Data.load("settings") };
     }
     _saveSettings(data) {
         Data.save("settings", data);
@@ -472,12 +476,7 @@ module.exports = class BigFileTransfers {
             ["removeFiles", "setFile"]
         );
         this._discordModules.UploadAttachmentStore = Webpack.getStore("UploadAttachmentStore");
-        this._discordModules.PremiumPerks = this._getModuleWithFallbacks(
-            Webpack.getByKeys,
-            ["getUserMaxFileSize", "isPremiumAtLeast"],
-            ["isPremium", "getPrice"],
-            ["getPremiumType", "getInterval"]
-        );
+        this._discordModules.UploadTarget = Webpack.getMangled("MessageAttachmentUploadTarget", { getUploadTarget: m => typeof m === "function" }).getUploadTarget?.();
         this._discordModules.PermissionsBits = this._getModuleWithFallbacks(
             Webpack.getByKeys,
             ["MANAGE_MESSAGES", "SEND_MESSAGES"],
@@ -524,8 +523,6 @@ module.exports = class BigFileTransfers {
             || Webpack.getMangled("bg-flash-", { MemoizedMessage: m => m?.$$typeof && typeof m.type === 'function' })
             || Webpack.getMangled(Filters.bySource("hasThread", "isSystemMessage"), { MemoizedMessage: m => m?.$$typeof && typeof m.type === 'function' });
         this._discordModules.MemoizedMessage = messageComponentExports?.MemoizedMessage;
-        const uploadExports = Webpack.getMangled('shouldUploadFailureSendNot', { uploadWithProgress: Filters.byStrings('UPLOAD_START') });
-        this._discordModules.uploadWithProgress = uploadExports?.uploadWithProgress;
         const cloudExports = Webpack.getMangled('uploadFileToCloud', { CloudUpload: Filters.byPrototypeKeys('uploadFileToCloud') });
         this._discordModules.CloudUpload = cloudExports?.CloudUpload;
         const failed = Object.keys(this._discordModules).filter(k => !this._discordModules[k]);
@@ -559,13 +556,13 @@ module.exports = class BigFileTransfers {
             const files = args?.files ?? [];
             const channelId = args?.channelId;
             if (!Array.isArray(files) || !channelId) return original.call(thisObj, args);
-            const maxSize = this._realUploadLimit;
+            const limits = this._getUploadLimits(channelId);
             const regular = [];
             const oversized = [];
             for (const container of files) {
                 const f = container.file ?? container;
                 if (!f.size) { regular.push(container); continue; }
-                if (f.size <= maxSize - UPLOAD_OVERHEAD) regular.push(container);
+                if (f.size <= limits.perFile - UPLOAD_OVERHEAD) regular.push(container);
                 else oversized.push(container);
             }
             if (oversized.length === 0) return original.call(thisObj, args);
@@ -574,25 +571,23 @@ module.exports = class BigFileTransfers {
                 for (const c of regular) queue.push({ kind: "container", container: c });
                 for (const container of oversized) {
                     const f = container.file ?? container;
-                    const split = this._splitFileIntoChunks(f, maxSize);
+                    const split = this._splitFileIntoChunks(f, limits);
                     if (split) queue.push({ kind: "split", split, template: container });
                 }
                 this._queuedUploads.set(channelId, queue);
-                let totalChunks = 0;
-                for (const item of queue) {
-                    if (item.kind === "split") totalChunks += item.split.totalChunks;
-                }
+                const splits = queue.filter(item => item.kind === "split").map(item => item.split);
+                const totalChunks = splits.reduce((sum, split) => sum + split.totalChunks, 0);
                 if (totalChunks > 0) {
-                    this._uploadProgress.set(channelId, { total: totalChunks, sent: 0 });
+                    this._uploadProgress.set(channelId, { total: totalChunks, sent: 0, splits });
                     UI.showToast(`Splitting file into ${totalChunks} chunks...`, { type: "info" });
                 }
-                const batch = await this._materializeNextBatch(channelId, this.BATCH_SIZE);
+                const batch = await this._materializeNextBatch(channelId);
                 if (batch.length === 0) return;
                 const progress = this._uploadProgress.get(channelId);
                 if (progress) {
                     progress.sent += batch.filter(item => this._isChunkFile((item.file ?? item).name)).length;
                 }
-                return original.call(thisObj, { ...args, files: batch, showLargeMessageDialog: false });
+                return original.call(thisObj, { ...args, files: batch });
             } catch (e) {
                 this._logError("Split failed", e);
                 UI.showToast("Split failed: " + (e.message || String(e)), { type: "error" });
@@ -609,21 +604,20 @@ module.exports = class BigFileTransfers {
         }
         return id;
     }
-    _splitFileIntoChunks(file, maxSize) {
+    _splitFileIntoChunks(file, { perFile, perMessage, maxFiles }) {
         const HEADER_SIZE = this.HEADER_SIZE;
         const MAGIC0 = this.MAGIC0;
         const MAGIC1 = this.MAGIC1;
         const EXT = this.EXT;
-        const MAX_CHUNK_PAYLOAD = 49 * 1024 * 1024; /* 49MB max chunk to stay under 500MB server batch limit */
-        const maxPayload = Math.min(maxSize - HEADER_SIZE - UPLOAD_OVERHEAD, MAX_CHUNK_PAYLOAD);
-        const effectiveMaxChunks = Math.min(this.MAX_CHUNKS, Math.ceil(this.MAX_RAM_ASSEMBLY_SIZE / maxPayload));
+        /* Chunks that exactly fill a message need no more messages than bigger ones, and download in parallel */
+        const chunkSize = Math.min(perFile, Math.floor(perMessage / maxFiles));
+        const maxPayload = chunkSize - HEADER_SIZE - UPLOAD_OVERHEAD;
         const totalChunks = Math.ceil(file.size / maxPayload);
         if (totalChunks <= 1) return null;
-        if (totalChunks > effectiveMaxChunks) {
-            const maxSupportedBytes = maxPayload * effectiveMaxChunks;
+        if (totalChunks > this.MAX_CHUNKS) {
             UI.showToast(
-                `File "${file.name}" too large: would need ${totalChunks} chunks (max ${effectiveMaxChunks}). ` +
-                `Max supported at your current limit is ~${this._formatBytes(maxSupportedBytes)}.`,
+                `File "${file.name}" too large: would need ${totalChunks} chunks (max ${this.MAX_CHUNKS}). ` +
+                `Max supported at your current limit is ~${this._formatBytes(maxPayload * this.MAX_CHUNKS)}.`,
                 { type: "error" }
             );
             return null;
@@ -633,6 +627,7 @@ module.exports = class BigFileTransfers {
         return {
             uploadId,
             originalName: file.name,
+            originalSize: file.size,
             totalChunks,
             maxPayload,
             _nextIdx: 0,
@@ -651,6 +646,9 @@ module.exports = class BigFileTransfers {
                 const chunkName = `${uploadId}_${i}-${totalMinusOne}_${file.name}${EXT}`;
                 return new File([header, bodyBlob], chunkName, { type: "application/octet-stream" });
             },
+            nextChunkSize() {
+                return HEADER_SIZE + Math.min(maxPayload, file.size - this._nextIdx * maxPayload);
+            },
             async getNextChunk() {
                 if (this._nextIdx >= totalChunks) return null;
                 const f = await this.getChunk(this._nextIdx);
@@ -662,28 +660,33 @@ module.exports = class BigFileTransfers {
             }
         };
     }
-    async _materializeNextBatch(channelId, limit = this.BATCH_SIZE) {
+    async _materializeNextBatch(channelId) {
         const queue = this._queuedUploads.get(channelId);
         if (!queue || queue.length === 0) return [];
+        const { perMessage, maxFiles } = this._getUploadLimits(channelId);
         const out = [];
-        while (out.length < limit && queue.length > 0) {
+        let bytes = 0;
+        const fits = (size) => out.length < maxFiles && (out.length === 0 || bytes + size <= perMessage);
+        while (queue.length > 0) {
             const item = queue[0];
             if (item.kind === "container") {
+                const size = (item.container.file ?? item.container).size ?? 0;
+                if (!fits(size)) break;
                 out.push(item.container);
+                bytes += size;
                 queue.shift();
                 continue;
             }
             if (item.kind === "split") {
                 const split = item.split;
                 const template = item.template || {};
-                while (out.length < limit && !split.isDone()) {
+                while (!split.isDone() && fits(split.nextChunkSize())) {
                     const chunkFile = await split.getNextChunk();
-                    if (!chunkFile) break;
                     out.push({ ...template, file: chunkFile });
+                    bytes += chunkFile.size;
                 }
-                if (split.isDone()) {
-                    queue.shift();
-                }
+                if (!split.isDone()) break;
+                queue.shift();
                 continue;
             }
             queue.shift();
@@ -691,14 +694,16 @@ module.exports = class BigFileTransfers {
         if (queue.length === 0) this._queuedUploads.delete(channelId);
         return out;
     }
-    _getMaxFileSize() {
-        const user = this._discordModules.UserStore?.getCurrentUser();
-        return this._discordModules.PremiumPerks?.getUserMaxFileSize(user) || DEFAULT_UPLOAD_LIMIT;
+    _getUploadLimits(channelId) {
+        const target = this._discordModules.UploadTarget;
+        const perFile = target?.getMaxFileSize(channelId) ?? DEFAULT_UPLOAD_LIMIT;
+        const maxFiles = target?.getMaxAttachmentsCount() ?? DEFAULT_MAX_ATTACHMENTS;
+        return { perFile, maxFiles, perMessage: target?.getMaxTotalAttachmentSize() ?? perFile * maxFiles };
     }
     /*---  DOWNLOAD LOGIC ---*/
     _downloadAndReassemble = async (download, opts = {}) => {
         if (!download) return;
-        if (!opts.forceRam && this._canUseFsStreaming() && (this._settings.useStreamingMode ?? true)) {
+        if (this._shouldStream(download.totalSize, opts)) {
             return this._streamDownloadToDisk(download);
         }
         const channelId = this._getCurrentChannelId();
@@ -722,7 +727,7 @@ module.exports = class BigFileTransfers {
                         UI.showToast("Still missing chunks. Try scrolling up manually.", { type: "warning" });
                         return;
                     }
-                    if (!opts.forceRam && this._canUseFsStreaming() && (this._settings.useStreamingMode ?? true)) {
+                    if (this._shouldStream(collected.totalBytes, opts)) {
                         return this._executeStreamDownload(download, collected, channelId);
                     }
                     return this._executeDownload(download, collected, channelId, opts);
@@ -776,7 +781,7 @@ module.exports = class BigFileTransfers {
             }
             if (totalOut > this.MAX_RAM_ASSEMBLY_SIZE) {
                 throw new Error(
-                    `File too large to reassemble in memory (${this._formatBytes(totalOut)}). Max: ~1.9 GB.`
+                    `File too large to reassemble in memory (${this._formatBytes(totalOut)}). Max: ~${this._formatBytes(this.MAX_RAM_ASSEMBLY_SIZE)}.`
                 );
             }
             let combined;
@@ -1710,24 +1715,27 @@ module.exports = class BigFileTransfers {
             this._dispatcherSubs.push({ dispatcher, event, fn });
         };
         const pump = async (channelId) => {
-            if (!this._queuedUploads.has(channelId)) return;
+            if (!this._queuedUploads.has(channelId) && !this._uploadProgress.has(channelId)) return;
             if (this._uploadPumpInFlight.has(channelId)) return;
             this._uploadPumpInFlight.add(channelId);
             try {
-                const batch = await this._materializeNextBatch(channelId, this.BATCH_SIZE);
+                const batch = await this._materializeNextBatch(channelId);
                 if (!batch.length) {
                     this._uploadPumpInFlight.delete(channelId);
-                    const hadProgress = this._uploadProgress.has(channelId);
+                    const finished = this._uploadProgress.get(channelId);
                     this._uploadProgress.delete(channelId);
-                    if (hadProgress) {
+                    if (finished) {
                         UI.showToast("Upload complete!", { type: "success" });
+                        if (this._settings.sendReceiverNote) {
+                            this._sendReceiverNote(channelId, finished.splits).catch(e => Logger.warn("Could not send the receiver note", e));
+                        }
                     }
                     return;
                 }
                 const progress = this._uploadProgress.get(channelId);
                 const autoSendEnabled = this._settings.autoSendChunks;
                 const autoSendDelay = Number(this._settings.autoSendDelaySeconds);
-                const canUseNewUpload = !!(this._discordModules.uploadWithProgress && this._discordModules.CloudUpload);
+                const canUseNewUpload = !!this._discordModules.CloudUpload;
                 if (progress) {
                     progress.sent += batch.filter(item => this._isChunkFile((item.file ?? item).name)).length;
                 }
@@ -1743,7 +1751,6 @@ module.exports = class BigFileTransfers {
                     type: "UPLOAD_ATTACHMENT_ADD_FILES",
                     channelId,
                     files: batch,
-                    showLargeMessageDialog: false,
                     draftType: 0
                 });
                 if (!autoSendEnabled && progress) {
@@ -1776,7 +1783,7 @@ module.exports = class BigFileTransfers {
         sub("MESSAGE_CREATE", (payload) => {
             const msg = payload?.message;
             const currentUser = this._discordModules.UserStore?.getCurrentUser();
-            if (msg?.author?.id === currentUser?.id && msg.channel_id && this._queuedUploads.has(msg.channel_id)) {
+            if (msg?.author?.id === currentUser?.id && msg.channel_id) {
                 pump(msg.channel_id).catch(() => { });
             }
             this._lastRefreshFingerprint = null;
@@ -1797,32 +1804,15 @@ module.exports = class BigFileTransfers {
             this._scheduleRefresh(500);
         });
     }
-    /*---  TOTAL MESSAGE SIZE LIMIT BYPASS ---*/
-    _patchTotalMessageSizeLimit() {
-        const sizeModule =
-            Webpack.getBySource("getUserMaxFileSize", "premiumTier") ||
-            Webpack.getBySource("isStaff", "524288") ||
-            Webpack.getBySource(".filesize(e)");
-        if (!sizeModule) {
-            Logger.warn("Could not find size validation module");
-            return false;
-        }
-        let patched = 0;
-        for (const [key, val] of Object.entries(sizeModule)) {
-            if (typeof val !== "function") continue;
-            try {
-                if (val([]) !== false) continue;
-                if (val([{ size: 600000000 }]) !== true) continue;
-                Patcher.instead(sizeModule, key, () => false);
-                patched++;
-            } catch { }
-        }
-        if (patched === 0) {
-            Logger.warn("Could not find total size check functions");
-            return false;
-        }
-        Logger.info(`Patched ${patched} size validators`);
-        return true;
+    /*---  UPLOAD SIZE CHECK ---*/
+    _patchUploadSizeCheck() {
+        const [module, key] = Webpack.getWithKey(Filters.byStrings("canDeferSizeChecks"));
+        if (!module) return Logger.warn("Could not find the upload size check");
+        /* Files over the per-file limit get split in addFiles, so let them through instead of showing Discord's size error */
+        Patcher.instead(module, key, (_that, [options], original) => {
+            const hasOversizedFile = Array.from(options.files).some(file => original({ ...options, files: [file] }));
+            return !hasOversizedFile && original(options);
+        });
     }
     /*---  UTILITIES ---*/
     _canUseFsStreaming() {
@@ -1833,7 +1823,11 @@ module.exports = class BigFileTransfers {
             return false;
         }
     }
-    _isChunkFile = (filename) => filename?.endsWith(this.EXT);
+    _shouldStream(totalBytes, opts = {}) {
+        if (opts.forceRam || !this._canUseFsStreaming()) return false;
+        return (this._settings.useStreamingMode ?? true) || totalBytes > this.MAX_RAM_ASSEMBLY_SIZE;
+    }
+    _isChunkFile =(filename) => filename?.endsWith(this.EXT);
     _validateChunkHeader(buf, expectedChunkIdx, expectedTotalMinusOne) {
         if (buf.length < this.HEADER_SIZE) throw new Error(`Chunk ${expectedChunkIdx} too small`);
         if (buf[0] !== this.MAGIC0 || buf[1] !== this.MAGIC1) throw new Error(`Invalid magic bytes in chunk ${expectedChunkIdx}`);
@@ -1894,34 +1888,26 @@ module.exports = class BigFileTransfers {
         }
     }
     async _uploadAndSend(channelId, batch) {
-        if (!this._discordModules.uploadWithProgress || !this._discordModules.CloudUpload) {
-            this._discordModules.Dispatcher.dispatch({
-                type: "UPLOAD_ATTACHMENT_ADD_FILES",
-                channelId, files: batch, showLargeMessageDialog: false, draftType: 0
-            });
-            await this._sleep(500);
-            return this._sendStagedUploads(channelId);
-        }
-        try {
-            const items = batch.map((item, i) => new this._discordModules.CloudUpload({ file: item.file ?? item }, channelId, i));
-            const result = await this._discordModules.uploadWithProgress({
-                channelId,
-                message: { content: "", tts: false, invalidEmojis: [], validNonShortcutEmojis: [] },
-                items,
-                shouldUploadFailureSendNotification: true
-            });
-            if (!result?.attachments?.length) return false;
-            const sendMessage = this._discordModules.MessageActions?.sendMessage;
-            if (typeof sendMessage !== "function") return false;
-            await sendMessage(channelId, { content: "" }, undefined, { attachmentsToUpload: result.attachments });
-            if (result.uploader?._file) {
-                this._discordModules.Dispatcher.dispatch({ type: "UPLOAD_COMPLETE", channelId, file: result.uploader._file, aborted: false });
+        const { CloudUpload, MessageActions } = this._discordModules;
+        await MessageActions.sendMessage(channelId, { content: "", tts: false, invalidEmojis: [], validNonShortcutEmojis: [] }, undefined, {
+            attachmentsToUpload: batch.map(item => new CloudUpload(item, channelId)),
+            eagerDispatch: false,
+            onAttachmentUploadError: () => {
+                this._queuedUploads.delete(channelId);
+                this._uploadProgress.delete(channelId);
+                UI.showToast("Upload failed. Send the file again to retry.", { type: "error" });
             }
-            return true;
-        } catch (e) {
-            UI.showToast(`Upload failed: ${e.message || e}`, { type: "error" });
-            return false;
-        }
+        });
+    }
+    async _sendReceiverNote(channelId, splits) {
+        const many = splits.length > 1;
+        const describe = (split) => `\`${split.originalName.replaceAll("`", "'")}\` (${this._formatBytes(split.originalSize)}${many ? `, ${split.totalChunks} parts` : ""})`;
+        const sent = many ? `${splits.map(describe).join(", ")} were sent in parts` : `${describe(splits[0])} was sent in ${splits[0].totalChunks} parts`;
+        const plugin = `[${this.meta.name}](<${this.meta.website}?plugin=${this.meta.name}>)`;
+        const merger = `[BFTR Merger](<${new URL("Merger/", this.meta.website)}>)`;
+        const content = `📦 ${sent} with ${this.meta.name}.\n` +
+            `Install ${plugin} for BetterDiscord to get ${many ? "them as single files" : "it as a single file"}, or join the \`${this.EXT}\` parts in your browser with the ${merger}.`;
+        await this._discordModules.MessageActions.sendMessage(channelId, { content, tts: false, invalidEmojis: [], validNonShortcutEmojis: [] }, undefined, {});
     }
     _sleep(ms) {
         return new Promise(r => setTimeout(r, ms));

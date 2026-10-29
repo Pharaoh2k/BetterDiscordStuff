@@ -2,15 +2,15 @@
 
 ![BigFileTransfers](https://github.com/user-attachments/assets/bc07fef3-ea41-4e98-9bc9-e7b39eaf933d)
 
-A BetterDiscord plugin that allows you to upload and download very large files (up to ~2GB) by seamlessly splitting them into smaller chunks and merging them back together.
+A BetterDiscord plugin that allows you to upload and download very large files (~4GB without Nitro, ~20GB with Nitro) by seamlessly splitting them into smaller chunks and merging them back together.
 
-![Version](https://img.shields.io/badge/version-1.0.7-blue.svg)
+![Version](https://img.shields.io/badge/version-1.0.8-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Discord](https://img.shields.io/badge/discord-BetterDiscord-7289DA.svg)
 
 ## 📖 Description
 
-BigFileTransfers enhances your Discord experience by enabling the transfer of very large files that exceed Discord's normal upload limits. The plugin intelligently splits large files into smaller chunks that fit within your upload limit, then automatically reassembles them on download. This allows you to transfer files up to approximately 2GB in size, regardless of your Discord plan.
+BigFileTransfers enhances your Discord experience by enabling the transfer of very large files that exceed Discord's normal upload limits. The plugin intelligently splits large files into smaller chunks that fit within your upload limit, then automatically reassembles them on download. A file can span up to 200 chunks, so about 4GB without Nitro and 20GB with Nitro.
 
 **⚠️ IMPORTANT:** The plugin works best when both the sender and receiver use it.
 If you are unable to install BetterDiscord or this BigFileTransfers plugin and you want to merge a set of `.bftr` chunk files someone sent you, you can easily do that here:
@@ -18,8 +18,9 @@ https://pharaoh2k.github.io/BetterDiscordStuff/Merger/
 
 ## ✨ Features
 
-- **📦 Large File Support**: Upload files up to ~2GB by automatically splitting them into chunks
+- **📦 Large File Support**: Upload files far beyond your upload limit (~4GB without Nitro, ~20GB with Nitro) by automatically splitting them into chunks
 - **🤖 Auto-Send Chunks**: Automatically sends remaining chunks after the first batch
+- **💬 Receiver Note**: Ends each split upload with a short message telling receivers without the plugin how to get the file
 - **⚡ Smart Assembly**: Seamlessly reassembles chunks on download
 - **💾 Low Memory Mode**: Stream downloads directly to disk to save RAM
 - **📊 Progress Tracking**: Real-time progress indicators for uploads and downloads
@@ -47,6 +48,7 @@ https://pharaoh2k.github.io/BetterDiscordStuff/Merger/
 3. The first batch of chunks is queued for upload
 4. With Auto-Send enabled, remaining chunks are sent automatically after a delay, even in the background
 5. Without Auto-Send, press Enter after each batch to send the next set of chunks
+6. Once every chunk is sent, a short note tells the receiver to install BigFileTransfers or use the online [BFTR Merger](https://pharaoh2k.github.io/BetterDiscordStuff/Merger/) to get the file
 
 ### Downloading Large Files
 
@@ -72,6 +74,7 @@ Access settings through Discord Settings → Plugins → BigFileTransfers ⚙️
 - **Auto-Send Chunks**: Automatically send remaining chunks after the first batch (Recommended: Enabled)
 - **Chunk Deletion Delay**: Delay in seconds before auto-deleting each chunk message (Default: 2s)
 - **Auto-Send Delay**: Delay in seconds before sending remaining chunks (Default: 5s)
+- **Send Receiver Note**: After a split upload, send a message telling receivers without the plugin how to get the file (Enabled by default)
 - **Low Memory Mode**: Save files directly to disk instead of assembling in RAM (Recommended for large files)
 - **Automatic Updates**: Check for updates every 24 hours (Enabled by default)
 - **Check for Updates**: Manually check for plugin updates
@@ -81,7 +84,7 @@ Access settings through Discord Settings → Plugins → BigFileTransfers ⚙️
 
 ### How It Works
 
-1. **Splitting**: Large files are split into chunks that fit within your Discord upload limit (minus overhead)
+1. **Splitting**: Large files are split into chunks sized from the upload limits Discord reports for your account and channel, so every chunk fits the per-file limit and a full message of chunks fits the per-message limit
 2. **Naming**: Each chunk is named with a special format: `{uploadId}_{chunkIndex}-{totalChunks}_{originalFilename}.bftr`
 3. **Headers**: Each chunk has a 4-byte header containing magic bytes and chunk metadata
 4. **Assembly**: On download, chunks are fetched, validated, and reassembled in the correct order
@@ -89,13 +92,11 @@ Access settings through Discord Settings → Plugins → BigFileTransfers ⚙️
 ### Limitations
 
 - Maximum 200 chunks per file
-- Maximum file size: ~2GB (regardless of upload limit)
-  - Larger upload limits mean fewer chunks needed
-  - Non-Nitro (10MB): ~200 chunks required for 2GB
-  - Nitro Basic (50MB): ~40 chunks required for 2GB
-  - Nitro (500MB): ~4 chunks required for 2GB
+- Maximum file size: 200 chunks, so it grows with your upload limit
+  - Larger upload limits mean bigger chunks, so fewer chunks and messages
+  - At the time of writing: 20MB chunks without Nitro (up to ~4GB), 50MB with Nitro Basic (~10GB), ~100MB with Nitro (~20GB)
 - Both sender and receiver must have the plugin installed
-- Low Memory Mode allows larger files by streaming to disk instead of RAM assembly
+- Files over ~2GB are too big to reassemble in RAM, so they always download straight to disk, as in Low Memory Mode
 
 ### File Extensions
 
@@ -106,7 +107,7 @@ Access settings through Discord Settings → Plugins → BigFileTransfers ⚙️
 - **Both users need the plugin**: The sender and receiver must both have BigFileTransfers installed
 - **Message deletion**: Deleting chunk messages will make the file unrecoverable
 - **Rate limits**: Very large files with many chunks may take time to upload due to Discord's rate limits
-- **Maximum file size**: Limited to ~2GB total (can use Low Memory Mode for better handling)
+- **Maximum file size**: 200 chunks, about 4GB without Nitro and 20GB with Nitro
 
 ## 🔧 Troubleshooting
 

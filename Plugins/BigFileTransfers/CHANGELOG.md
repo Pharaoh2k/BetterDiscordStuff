@@ -1,5 +1,14 @@
 # [BigFileTransfers](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BigFileTransfers "BigFileTransfers") Changelog
 
+### 1.0.8
+- Fixed large files being blocked by Discord's "file exceeds the size limit" error on accounts without Nitro
+- Chunk sizes and chunks per message now follow the upload limits Discord reports for your account, so Nitro accounts send much bigger chunks in fewer messages
+- Files within your upload limit are sent normally instead of being split
+- Removed the ~2GB file size cap: a file can now span 200 chunks (~4GB without Nitro, ~20GB with Nitro), and files over ~2GB always download straight to disk
+- Added a note at the end of each split upload that tells receivers without the plugin to install it or use the online BFTR Merger (can be turned off in settings)
+- Remaining chunks are uploaded directly again instead of going through the message box
+- Fixed the "Upload complete!" message never showing
+
 ### 1.0.7
 - Fixed file uploads breaking on BetterDiscord 1.14
 
