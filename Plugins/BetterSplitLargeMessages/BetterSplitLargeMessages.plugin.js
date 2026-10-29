@@ -1,7 +1,7 @@
 /**
  * @name BetterSplitLargeMessages
  * @author Pharaoh2k
- * @version 1.0.3
+ * @version 1.0.4
  * @description Splits large messages to smaller ones (~2000/4000 chars). No Nitro spoofing. Honors server limits & slowmode, optional chunk cap, hides upsell banners/modals.
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
@@ -474,26 +474,14 @@ module.exports = class BetterSplitLargeMessages {
         }
     }
     _initLengthConstants() {
-        this.LengthConstants = Webpack.getModule(m => {
-            if (!m || typeof m !== "object") return false;
-            const values = Object.values(m);
-            return values.includes(2000) && values.includes(4000);
-        }) || Webpack.getModule(m => {
-            if (!m || typeof m !== "object") return false;
-            const values = Object.values(m);
-            return values.includes(2000) && values.includes(4000) && values.includes(8000);
-        }) || Webpack.getModule(m => {
-            if (!m || typeof m !== "object") return false;
-            const values = Object.values(m);
-            const hasLimit = values.includes(2000);
-            const hasSpoilerRegex = values.some(v => v instanceof RegExp && v.source.includes(String.raw`\|\|`));
-            return hasLimit && hasSpoilerRegex;
-        });
-        if (this.LengthConstants) {
-            this.lengthConstantKeys = Object.entries(this.LengthConstants)
-                .filter(([_, v]) => v === 2000 || v === 4000)
-                .map(([k]) => k);
-        }
+        // Discord picks the limit as canUseIncreasedMessageLength(user) ? <4000 key> : <2000 key> from its constants module.
+        // Other modules also export 2000/4000, so read the exact keys from that picker instead of matching values.
+        const picker = /canUseIncreasedMessageLength\(\w+\.getCurrentUser\(\)\)\?\w+\.(\w+):\w+\.(\w+)/;
+        const pickerModule = Webpack.getModule(Webpack.Filters.bySource(picker), { raw: true });
+        const [, premiumKey, normalKey] = picker.exec(String(Webpack.modules[pickerModule?.id])) ?? [];
+        if (!premiumKey) return;
+        this.LengthConstants = Webpack.getModule(m => m?.[premiumKey] === 4000 && m[normalKey] === 2000);
+        if (this.LengthConstants) this.lengthConstantKeys = [premiumKey, normalKey];
     }
     _initChatInputTypes() {
         const findTypeModule = (m) => {

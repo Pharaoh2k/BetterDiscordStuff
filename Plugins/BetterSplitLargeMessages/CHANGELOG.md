@@ -1,5 +1,8 @@
 # [BetterSplitLargeMessages](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterSplitLargeMessages "BetterSplitLargeMessages") Changelog
 
+### 1.0.4
+- Fixed Discord rejecting long messages with "Your message is too long" instead of the plugin splitting them
+
 ### 1.0.3
 - Fixed split messages going over the character limit when a code block or spoiler carried across chunks
 - Fixed the language tag being dropped when a message split right after a code block opened
