@@ -6,7 +6,7 @@
 
 ### Polished, self-updating plugins for BetterDiscord
 
-**16 plugins** that make Discord faster to use, easier to organize and more informative.<br>
+**17 plugins** that make Discord faster to use, easier to organize and more informative.<br>
 Built on BetterDiscord's own API, with **zero library dependencies**.
 
 [![Website](https://img.shields.io/badge/Website-pharaoh2k.github.io-5865F2?style=for-the-badge&logo=githubpages&logoColor=white)](https://pharaoh2k.github.io/BetterDiscordStuff/)
@@ -78,6 +78,7 @@ Every plugin has its own settings panel, so you decide exactly what it shows and
 | [**EnhancedChannelTabs**](Plugins/EnhancedChannelTabs) | Browser-style tabs and bookmarks for channels, with favorite groups, per-tab history, multi-row layouts and <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> to reopen closed tabs. | ![EnhancedChannelTabs version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FPharaoh2k%2FBetterDiscordStuff%2Fmain%2FPlugins%2FEnhancedChannelTabs%2Fplugin.json&query=%24.version&prefix=v&label=&color=5865F2&style=flat-square) | [![Download EnhancedChannelTabs](https://img.shields.io/badge/Download-2EA043?style=flat-square)](https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js) |
 | [**BetterPinDMs**](Plugins/BetterPinDMs) | Pin DMs into their own section above Direct Messages, with custom colored categories, drag and drop, unread counts and import from similar plugins. | ![BetterPinDMs version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FPharaoh2k%2FBetterDiscordStuff%2Fmain%2FPlugins%2FBetterPinDMs%2Fplugin.json&query=%24.version&prefix=v&label=&color=5865F2&style=flat-square) | [![Download BetterPinDMs](https://img.shields.io/badge/Download-2EA043?style=flat-square)](https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BetterPinDMs/BetterPinDMs.plugin.js) |
 | [**ShowAllChannelsAuto**](Plugins/ShowAllChannelsAuto) | Turns on "Show All Channels" automatically in every server, with per-server exclusions. | ![ShowAllChannelsAuto version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FPharaoh2k%2FBetterDiscordStuff%2Fmain%2FPlugins%2FShowAllChannelsAuto%2Fplugin.json&query=%24.version&prefix=v&label=&color=5865F2&style=flat-square) | [![Download ShowAllChannelsAuto](https://img.shields.io/badge/Download-2EA043?style=flat-square)](https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/ShowAllChannelsAuto/ShowAllChannelsAuto.plugin.js) |
+| [**ServerSearch**](Plugins/ServerSearch) | A search button below the server list that finds servers as you type, by name, initials or folder, and jumps straight to them. | ![ServerSearch version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FPharaoh2k%2FBetterDiscordStuff%2Fmain%2FPlugins%2FServerSearch%2Fplugin.json&query=%24.version&prefix=v&label=&color=5865F2&style=flat-square) | [![Download ServerSearch](https://img.shields.io/badge/Download-2EA043?style=flat-square)](https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/ServerSearch/ServerSearch.plugin.js) |
 
 ### 📁 Files & Media
 

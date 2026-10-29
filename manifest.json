@@ -80,6 +80,11 @@
       "id": "Better Char Counter",
       "name": "BetterCharCounter",
       "enabled": true
+    },
+    {
+      "id": "Server Search",
+      "name": "ServerSearch",
+      "enabled": true
     }
   ]
 }

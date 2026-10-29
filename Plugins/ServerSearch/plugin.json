@@ -1,0 +1,24 @@
+{
+  "name": "ServerSearch",
+  "description": "Adds a search button to the server list that finds your servers as you type and jumps straight to them.",
+  "author": "Pharaoh2k",
+  "version": "1.0.0",
+  "status": "Active",
+  "workingStatus": "Working",
+  "lastUpdated": "2026-10-29",
+  "releaseDate": "2026-10-29",
+  "features": [
+    "Search button pinned below the server list",
+    "Filters your servers as you type, best matches first",
+    "Ignores case, accents and styled letters",
+    "Finds servers by the initials shown on servers without an icon",
+    "Shows each server's folder and finds servers by folder name",
+    "Shows mention counts and unread dots",
+    "Keyboard controls: arrow keys, Enter and Esc",
+    "Automatic update checking with changelog display",
+    "Modern BdApi based (no BDFDB dependency)"
+  ],
+  "sourceUrl": "https://github.com/Pharaoh2k/BetterDiscordStuff/tree/main/Plugins/ServerSearch",
+  "changelogUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/ServerSearch/CHANGELOG.md",
+  "downloadUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/ServerSearch/ServerSearch.plugin.js"
+}
