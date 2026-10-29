@@ -2,7 +2,7 @@
 
 A BetterDiscord plugin that enhances DM pinning with category organization, drag & drop, unread tracking, keyboard shortcuts, and import/export functionality.
 
-![Version](https://img.shields.io/badge/version-3.0.2-blue.svg)
+![Version](https://img.shields.io/badge/version-3.0.3-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Discord](https://img.shields.io/badge/discord-BetterDiscord-7289DA.svg)
 

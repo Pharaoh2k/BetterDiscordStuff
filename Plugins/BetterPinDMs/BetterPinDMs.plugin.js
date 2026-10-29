@@ -2,7 +2,7 @@
  * @name BetterPinDMs
  * @author Pharaoh2k
  * @description Enhanced DM pinning with category headers, drag & drop, unread tracking, hotkeys, import/export (from similar plugins too), and smart categories. Pinned DMs are shown in a separate PINNED DMs section above "Direct Messages".
- * @version 3.0.2
+ * @version 3.0.3
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterPinDMs/BetterPinDMs.plugin.js
@@ -1397,22 +1397,22 @@ module.exports = class BetterPinDMs {
     const ColorInput = Components.ColorInput;
     const colorElement = ColorInput
       ? ce(ColorInput, {
-          value: hexToInt(data.color),
+          defaultValue: hexToInt(data.color),
           disabled: false,
           onChange: handleColorChange
         })
       : ce("input", {
           type: "color",
-          value: data.color || DEFAULT_COLOR,
+          defaultValue: data.color || DEFAULT_COLOR,
           onChange: (e) => { newData.color = e.target.value; },
           style: { width: 48, height: 32, cursor: "pointer", border: "none", borderRadius: 4 }
         });
     const SettingItem = Components.SettingItem || "div";
     const TextInput = Components.TextInput;
     const nameElement = TextInput
-      ? ce(TextInput, { value: data.name, placeholder: data.name, onChange: v => { newData.name = v; } })
+      ? ce(TextInput, { defaultValue: data.name, placeholder: data.name, onChange: v => { newData.name = v; } })
       : ce("input", {
-          type: "text", value: data.name, placeholder: data.name,
+          type: "text", defaultValue: data.name, placeholder: data.name,
           onChange: (e) => { newData.name = e.target.value; },
           style: { width: "100%", padding: "8px", fontSize: 14, borderRadius: 4, border: "1px solid var(--input-background-default)", background: "var(--input-background-default)", color: "var(--text-default)" }
         });

@@ -1,5 +1,8 @@
 # [BetterPinDMs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterPinDMs "BetterPinDMs") Changelog
 
+### 3.0.3
+- Fixed the category settings modal ignoring changes to the name and color
+
 ### 3.0.2
 - Fixed an error when the DM list refreshes on BetterDiscord 1.14
 - Fixed "View Changelog" in the settings showing nothing; it now shows the full changelog
