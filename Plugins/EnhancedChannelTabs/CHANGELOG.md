@@ -1,5 +1,9 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+### 5.1.1
+- Fixed the tab preview showing plain unformatted text that spilled outside the preview after a Discord update; it now shows messages exactly as Discord does, without marking the channel as read
+- Fixed the tab preview's "Obscure media" option for NSFW channels no longer hiding image and video attachments after a Discord update
+
 ### 5.1.0
 - Fixed the tabs and favorites of one Discord account being saved over another account's after switching accounts
 - Fixed switching accounts replacing each account's selected tab with the Friends page; each account now reopens its own last tab

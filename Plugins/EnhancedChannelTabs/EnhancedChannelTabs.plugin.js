@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 5.1.0
+ * @version 5.1.1
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
@@ -493,6 +493,9 @@ class StyleManager {
 		.enhancedChannelTabs-peekScroller { display: flex; flex-direction: column-reverse; overflow-anchor: auto; }
 		.enhancedChannelTabs-peekContainer { padding-bottom: 1.5625rem; }
 		.enhancedChannelTabs-peekContainer > * { list-style: none; }
+		.enhancedChannelTabs-peekPopoutList { display: flex; flex-direction: column; }
+		.enhancedChannelTabs-peekList { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; position: relative; }
+		.enhancedChannelTabs-peekTyping { flex: 0 0 auto; position: relative; min-height: 1.5rem; }
 		.enhancedChannelTabs-peekHeader { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-subtle); font-weight: 600; color: var(--text-strong); display: flex; align-items: center; gap: 0.5rem; }
 		.enhancedChannelTabs-peekHeaderIcon { width: 1.25rem; height: 1.25rem; border-radius: 50%; }
 		.enhancedChannelTabs-peekDividerCut { margin-top: 2.5rem !important; border-style: dashed; }
@@ -1635,7 +1638,40 @@ const generateChannelStream = Webpack.getByStrings('oldestUnreadMessageId', 'THR
 const MessageDivider = Webpack.getModule(m => Filters.byStrings('"separator"', 'isBeforeGroup')(m?.type?.render))
 const AppearanceSettingsStore = bulkModules.AppearanceSettingsStore;
 const EmptyMessage = Webpack.getModule(Filters.byStrings('"manage"', 'IS_JOIN_REQUEST_INTERVIEW_CHANNEL'))
-const [AttachmentModule, AttachmentKey] = Webpack.getWithKey(Filters.byStrings('getObscureReason', 'mosaicItemContent')) || [null, null];
+// Newer Discord builds keep the single-message pieces above private to the chat list module and load it
+// after startup, so the preview renders that whole list instead and looks it up when a preview opens
+let ChannelMessageList = null;
+const getChannelMessageList = () => ChannelMessageList ??= Webpack.getModule(m =>
+	m?.$$typeof && typeof m.type === "function" && Filters.byStrings("showingQuarantineBanner", "forceCompact")(m.type),
+	{ searchExports: true }
+);
+const getPopoutWrapClass = () => {
+	if (!PopoutSelectors.messagesPopoutWrap) Object.assign(PopoutSelectors, Webpack.getModule(Filters.byKeys("messagesPopoutWrap")));
+	return PopoutSelectors.messagesPopoutWrap || "";
+};
+// Discord's message list acks its channel and records its scroll position and visible messages, which a
+// preview must not do, so those actions are dropped while a list preview is open or unmounting
+const PREVIEW_BLOCKED_ACTIONS = new Set(["ENABLE_AUTOMATIC_ACK", "DISABLE_AUTOMATIC_ACK", "UPDATE_CHANNEL_DIMENSIONS", "UPDATE_VISIBLE_MESSAGES"]);
+let activePreviewGuard = null;
+const previewListInterceptor = (action) => {
+	if (!activePreviewGuard || !PREVIEW_BLOCKED_ACTIONS.has(action?.type)) return false;
+	return action.channelId == null || action.channelId === activePreviewGuard.channelId;
+};
+const removePreviewListInterceptor = () => {
+	const interceptors = bulkModules.Dispatcher?._interceptors;
+	const index = interceptors?.indexOf(previewListInterceptor) ?? -1;
+	if (index !== -1) interceptors.splice(index, 1);
+};
+const findScrollContainer = (node) => {
+	for (let el = node; el && el !== document.body; el = el.parentElement) {
+		const { overflowY } = getComputedStyle(el);
+		if (overflowY === "auto" || overflowY === "scroll") return el;
+	}
+	return null;
+};
+// Discord moved the attachment class names into a stylesheet module and can load this component after
+// startup, so patchNsfwMedia waits for it instead of looking it up here
+const ObscurableAttachmentFilter = Filters.byStrings('getObscureReason', 'isSingleMosaicItem', 'displayGridItem');
 const Embed = Webpack.getByPrototypeKeys('renderAuthor', 'renderMedia');
 const Spinner = warnModule(bulkModules.Spinner, "Spinner", {
 	feature: "Typing Indicators",
@@ -3447,10 +3483,26 @@ const TabPeekPopout = ({ tabUrl, channelId, tabName, position }) => {
 		? (AppearanceSettingsStore.messageGroupSpacing ?? 16)
 		: customGroupSpacing;
 	const channel = ChannelStore.getChannel(channelId);
+	const MessageList = channel && !(generateChannelStream && ChannelStreamItemTypes && MessageComponent) ? getChannelMessageList() : null;
+	const listRef = React.useRef(null);
+	const previewGuard = React.useMemo(() => ({ channelId }), [channelId]);
+	// Set during render so the guard is in place before the list's first dispatches
+	if (MessageList) activePreviewGuard = previewGuard;
+	React.useEffect(() => () => {
+		// The list still dispatches while it unmounts, so the guard is released afterwards
+		setTimeout(() => {
+			if (activePreviewGuard === previewGuard) activePreviewGuard = null;
+		});
+	}, [previewGuard]);
 	React.useEffect(() => {
+		if (MessageList) {
+			scrollerRef.current = {
+				getScrollerNode: () => findScrollContainer(listRef.current?.querySelector("li[id^='chat-messages']")),
+			};
+		}
 		TabPreviewStore.setScrollerRef(scrollerRef);
 		return () => TabPreviewStore.setScrollerRef(null);
-	}, []);
+	}, [MessageList]);
 	React.useEffect(() => {
 		if (!channelId || !MessageStore) {
 			setLoading(false);
@@ -3630,11 +3682,22 @@ const TabPeekPopout = ({ tabUrl, channelId, tabName, position }) => {
 			)
 		);
 	};
+	const renderList = () => React.createElement("div", { ref: listRef, className: "enhancedChannelTabs-peekList" },
+		React.createElement(MessageList, {
+			channel,
+			hideSummaries: true,
+			forceCompact: displayMode === "compact",
+			forceCozy: displayMode !== "compact",
+		}),
+		showTyping && FluxTypingUsers && React.createElement("div", { className: "enhancedChannelTabs-peekTyping" },
+			React.createElement(FluxTypingUsers, { channel })
+		)
+	);
 	return React.createElement(TabPeekContext.Provider, {
 		value: { channel }
 	},
 		React.createElement("div", {
-			className: `enhancedChannelTabs-peekPopout group-spacing-${messageGroupSpacing} ${PopoutSelectors.messagesPopoutWrap || ''}`,
+			className: `enhancedChannelTabs-peekPopout${MessageList ? " enhancedChannelTabs-peekPopoutList" : ""} group-spacing-${messageGroupSpacing} ${getPopoutWrapClass()}`,
 			style
 		},
 			React.createElement("div", { className: "enhancedChannelTabs-peekHeader" },
@@ -3644,7 +3707,7 @@ const TabPeekPopout = ({ tabUrl, channelId, tabName, position }) => {
 				}),
 				React.createElement("span", null, tabName)
 			),
-			renderScroller()
+			MessageList ? renderList() : renderScroller()
 		)
 	);
 };
@@ -5191,6 +5254,8 @@ module.exports = class EnhancedChannelTabs {
 		this.removeStyle();
 		for (const [type, listener, capture] of this.listeners) document.removeEventListener(type, listener, capture);
 		this.cleanupNsfwMedia();
+		removePreviewListInterceptor();
+		activePreviewGuard = null;
 		Patcher.unpatchAll();
 		this.promises.cancel();
 		TabActions.clearPlugin(this);
@@ -5231,6 +5296,8 @@ module.exports = class EnhancedChannelTabs {
 				action.goHomeAfterSwitching = false;
 				this.accountSwitching = true;
 			});
+			removePreviewListInterceptor();
+			bulkModules.Dispatcher?.addInterceptor?.(previewListInterceptor);
 			this.patchTitleBar(this.promises.state);
 			this.patchContextMenus();
 			this.patchNsfwMedia();
@@ -5455,14 +5522,18 @@ module.exports = class EnhancedChannelTabs {
 	}
 	patchNsfwMedia() {
 		const OBSCURE_REASON = 'explicit_content';
-		if (AttachmentModule && AttachmentKey) {
+		const abort = this.nsfwMediaAbort = new AbortController();
+		Webpack.waitForModule(ObscurableAttachmentFilter, { searchExports: true, signal: abort.signal }).then((component) => {
+			if (!component || abort.signal.aborted) return;
+			const [AttachmentModule, AttachmentKey] = Webpack.getWithKey(ObscurableAttachmentFilter) || [];
+			if (!AttachmentModule) return;
 			Patcher.before(AttachmentModule, AttachmentKey, (self, [props]) => {
 				const context = React.useContext(TabPeekContext);
 				if (this.settings.tabPeekNsfw === 'obscure' && context.channel?.nsfw) {
 					props.getObscureReason = () => OBSCURE_REASON;
 				}
 			});
-		}
+		});
 		if (Embed) {
 			Embed.contextType = TabPeekContext;
 			Patcher.before(Embed.prototype, 'render', function () {
@@ -5475,6 +5546,7 @@ module.exports = class EnhancedChannelTabs {
 		}
 	}
 	cleanupNsfwMedia() {
+		this.nsfwMediaAbort?.abort();
 		if (Embed) {
 			delete Embed.contextType;
 		}
