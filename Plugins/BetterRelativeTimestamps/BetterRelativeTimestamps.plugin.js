@@ -1,6 +1,6 @@
 /**
  * @name BetterRelativeTimestamps
- * @version 1.1.7
+ * @version 1.1.8
  * @description Relative timestamps with live tooltip, seamless toggle of "relative-only".
  * @author Pharaoh2k
  * @authorId 874825550408089610
@@ -23,6 +23,9 @@ const BURST_CAP = 150;
 const MIN_UPDATE_INTERVAL = 500;
 const SAFETY_INTERVAL = 1000;
 const DEBOUNCE_DELAY = 50;
+// The label lives on the <time> itself (data-brt-text + ::after), never as a sibling node,
+// so React moving or replacing its own nodes cannot leave the label behind.
+const UNHANDLED_TIME = 'time[datetime]:not([data-brt-text])';
 const TIME_UNITS = Object.freeze([
 	{ name: 'year', seconds: 31_536_000, short: 'y' },
 	{ name: 'month', seconds: 2_592_000, short: 'mo' },
@@ -278,7 +281,6 @@ class UpdateManager {
 		return { ok: true, version: remoteVersion };
 	}
 }
-const hostTimeMap = new WeakMap();
 module.exports = class BetterRelativeTimestamps {
 	constructor(meta) {
 		this.meta = meta;
@@ -292,7 +294,7 @@ module.exports = class BetterRelativeTimestamps {
 		);
 		const savedSettings = Data.load('settings') || {};
 		this.settings = { ...this.defaultSettings, ...savedSettings };
-		this.visibleSpans = new Set();
+		this.visibleTimes = new Set();
 		this.processedElements = new WeakSet();
 		this.timerHandle = null;
 		this.mObserver = null;
@@ -336,6 +338,11 @@ module.exports = class BetterRelativeTimestamps {
 		const chat = document.querySelector('[aria-label="Messages"]') || document.body;
 		this.mObserver = new MutationObserver(mutations => {
 			for (const m of mutations) {
+				if (m.type === 'attributes') {
+					// React reused a <time> for a newer timestamp (e.g. a second edit)
+					if (m.target.dataset.brtText != null) this.refreshOne(m.target);
+					continue;
+				}
 				for (const node of m.addedNodes) {
 					if (node.nodeType === 1) pendingRoots.add(node);
 				}
@@ -344,18 +351,19 @@ module.exports = class BetterRelativeTimestamps {
 		});
 		this.mObserver.observe(chat, {
 			childList: true,
-			subtree: true
+			subtree: true,
+			attributes: true,
+			attributeFilter: ['datetime']
 		});
 	}
 	onIntersect = (entries) => {
 		for (const entry of entries) {
 			if (entry.isIntersecting) {
-				this.visibleSpans.add(entry.target);
+				if (entry.target.dataset.brtText != null) this.visibleTimes.add(entry.target);
 			} else {
-				this.visibleSpans.delete(entry.target);
+				this.visibleTimes.delete(entry.target);
 				if (!entry.target.isConnected) {
 					this.iObserver.unobserve(entry.target);
-					hostTimeMap.delete(entry.target);
 				}
 			}
 		}
@@ -370,7 +378,9 @@ module.exports = class BetterRelativeTimestamps {
 		}
 	}
 	enqueueScan(root) {
-		const nodes = root.querySelectorAll('time[datetime]:not(.brt-handled)');
+		const nodes = [...root.querySelectorAll(UNHANDLED_TIME)];
+		// React often inserts a replacement <time> as the added node itself
+		if (root.matches?.(UNHANDLED_TIME)) nodes.push(root);
 		nodes.forEach(node => {
 			if (!this.processedElements.has(node)) {
 				this.processedElements.add(node);
@@ -440,28 +450,23 @@ module.exports = class BetterRelativeTimestamps {
 	}
 	attachRelative(timeEl) {
 		if (!this.settings.showInTimestamp && !this.settings.relativeOnly) return;
-		const timestamp = new Date(timeEl.getAttribute('datetime'));
-		if (Number.isNaN(timestamp.getTime())) {
+		if (Number.isNaN(Date.parse(timeEl.getAttribute('datetime')))) {
 			this.logWarn('Invalid datetime attribute', timeEl);
 			return;
 		}
-		timeEl.classList.add('brt-handled');
-		if (timeEl.dataset.brtOriginal == null) {
-			timeEl.dataset.brtOriginal = timeEl.textContent;
-		}
 		if (this.settings.relativeOnly) {
+			// Only text we cleared gets restored, so React's own nodes are otherwise left alone
+			if (timeEl.dataset.brtOriginal == null) {
+				timeEl.dataset.brtOriginal = timeEl.textContent;
+			}
 			timeEl.textContent = '';
 		}
-		const span = document.createElement('span');
-		span.className = 'brt-span';
-		span.dataset.tsValue = timestamp.getTime();
-		hostTimeMap.set(span, timeEl);
-		this.refreshOne(span);
-		timeEl.after(span);
-		this.iObserver.observe(span);
+		this.refreshOne(timeEl);
+		this.iObserver.observe(timeEl);
 	}
-	refreshOne(span, now = Date.now()) {
-		const ts = Number(span.dataset.tsValue);
+	refreshOne(timeEl, now = Date.now()) {
+		// Read live: React may reuse the same <time> with a newer datetime
+		const ts = Date.parse(timeEl.getAttribute('datetime'));
 		if (Number.isNaN(ts)) return SAFETY_INTERVAL;
 		const elapsedMs = now - ts;
 		const isPast = elapsedMs >= 0;
@@ -470,22 +475,22 @@ module.exports = class BetterRelativeTimestamps {
 		const prefix = this.settings.relativeOnly ? '' : ' - ';
 		const suffix = isPast ? `${visual} ago` : `in ${visual}`;
 		const text = visual === 'Just now' ? visual : suffix;
-		span.dataset.brtText = prefix + text;
-		span.setAttribute('aria-label', aria);
-		hostTimeMap.get(span).title = aria;
+		const label = prefix + text;
+		if (timeEl.dataset.brtText !== label) timeEl.dataset.brtText = label;
+		if (timeEl.title !== aria) timeEl.title = aria;
 		return next;
 	}
 	scheduleTick() {
 		const now = Date.now();
 		let soonest = SAFETY_INTERVAL;
 		let hasVisible = false;
-		this.visibleSpans.forEach(span => {
-			if (!span.isConnected) {
-				this.visibleSpans.delete(span);
+		this.visibleTimes.forEach(timeEl => {
+			if (!timeEl.isConnected || timeEl.dataset.brtText == null) {
+				this.visibleTimes.delete(timeEl);
 				return;
 			}
 			hasVisible = true;
-			const next = this.refreshOne(span, now);
+			const next = this.refreshOne(timeEl, now);
 			soonest = Math.min(soonest, next);
 		});
 		if (!hasVisible) {
@@ -505,7 +510,8 @@ module.exports = class BetterRelativeTimestamps {
 	}
 	injectStyle() {
 		DOM.addStyle(`
-			.brt-span {
+			time[data-brt-text]::after {
+				content: attr(data-brt-text);
 				display: inline;
 				margin-left: 4px;
 				color: var(--text-muted);
@@ -514,21 +520,19 @@ module.exports = class BetterRelativeTimestamps {
 				-webkit-user-select: none;
 				user-select: none;
 			}
-			.brt-span::after {
-				content: attr(data-brt-text);
-			}
 		`);
 	}
 	removeAllRelatives() {
-		document.querySelectorAll('.brt-span').forEach(el => el.remove());
-		document.querySelectorAll('.brt-handled').forEach(el => {
-			el.classList.remove('brt-handled');
+		document.querySelectorAll('time[data-brt-text]').forEach(el => {
+			delete el.dataset.brtText;
+			el.removeAttribute('title');
 			if (el.dataset.brtOriginal != null) {
 				el.textContent = el.dataset.brtOriginal;
 				delete el.dataset.brtOriginal;
 			}
 		});
-		this.visibleSpans.clear();
+		this.iObserver?.disconnect();
+		this.visibleTimes.clear();
 		this.processedElements = new WeakSet();
 	}
 	saveSettings(newSettings) {

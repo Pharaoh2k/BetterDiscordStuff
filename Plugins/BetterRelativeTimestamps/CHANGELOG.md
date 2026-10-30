@@ -1,5 +1,10 @@
 # [BetterRelativeTimestamps](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterRelativeTimestamps "BetterRelativeTimestamps") Changelog
 
+### 1.1.8
+- Fixed the relative time showing up in the wrong place (or next to the wrong timestamp) after Discord or another plugin re-renders a message, for example MessageLoggerV2 edit history
+- Fixed the relative time not updating to the newest edit time when a message is edited again
+- Fixed turning a setting on or off rewriting every timestamp on screen
+
 ### 1.1.7
 - Fixed the plugin failing to start on BetterDiscord 1.14
 - Added a "View Changelog" button to the settings
