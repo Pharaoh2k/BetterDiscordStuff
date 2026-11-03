@@ -1,5 +1,8 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+### 5.1.2
+- Fixed a slowdown across Discord, where the rule that keeps popouts and menus clickable over the taller title bar made Discord restyle large parts of the app whenever any element's class changed
+
 ### 5.1.1
 - Fixed the tab preview showing plain unformatted text that spilled outside the preview after a Discord update; it now shows messages exactly as Discord does, without marking the channel as read
 - Fixed the tab preview's "Obscure media" option for NSFW channels no longer hiding image and video attachments after a Discord update

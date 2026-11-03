@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 5.1.1
+ * @version 5.1.2
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
@@ -304,7 +304,7 @@ class StyleManager {
 			.enhancedChannelTabs-tabNav>div { display: flex; align-items: center; justify-content: center; height: var(--enhancedChannelTabs-tabHeight); width: 2rem; border-radius: var(--radius-xs); color: var(--interactive-text-default); }
 		`;
 	}
-	static getBaseStyle(noDragClasses, systemBarClasses) {
+	static getBaseStyle(noDragClasses, noDragParentClasses, systemBarClasses) {
 		return `		
 			.enhancedChannelTabs-input .bd-text-input { border: 1px solid var(--input-border-hover); width: 100%; }
 			.enhancedChannelTabs-tabNav { display:none; }
@@ -316,7 +316,7 @@ class StyleManager {
 			.enhancedChannelTabs-trailing { display: flex; align-items: center; gap: var(--space-12); margin-left: auto; }
 			.enhancedChannelTabs-tabContainer > *, .enhancedChannelTabs-favContainer > * { -webkit-app-region: no-drag; }
 			/* Overlays drawn over the taller title bar must opt out of window dragging, or clicks on them hit the drag region */
-			#bd-notifications-container > *, #bd-modal-container > *, [class*="layerContainer_"] > * { -webkit-app-region: no-drag; }
+			#bd-notifications-container > *, #bd-modal-container > *${noDragParentClasses.map((x) => `, .${x} > *`).join("")} { -webkit-app-region: no-drag; }
 			#enhancedChannelTabs-container>:not(#enhancedChannelTabs-settingsMenu)+div { padding-top: var(--space-4); border-top: 1px solid var(--border-subtle); }
 			/* Tabs */
 			.enhancedChannelTabs-tab { position: relative; display: flex; align-items: center; height: var(--enhancedChannelTabs-tabHeight); background: none; border-radius: var(--radius-xs); max-width: var(--enhancedChannelTabs-tabWidth); min-width: var(--enhancedChannelTabs-tabWidthMin); flex: 1 1 var(--enhancedChannelTabs-tabWidthMin); margin-bottom: 3px; }
@@ -1463,6 +1463,7 @@ const bulkModules = Webpack.getBulkKeyed({
 	IconUtilities: { filter: byKeys("getChannelIconURL") },
 	systemBarClasses: { filter: byKeys("systemBar") },
 	scrimClasses: { filter: byKeys("scrim") },
+	layerClasses: { filter: byKeys("layerContainer", "layer") },
 	PlusIcon: { filter: (m) => m.toString?.().includes("M13 6a1 1") },
 	ChevronDownIcon: { filter: (m) => m.toString?.().includes("M5.3 9.3a1") },
 	ReadStateStore: { filter: byStoreName("ReadStateStore") },
@@ -1703,6 +1704,11 @@ const IconUtilities = warnModule(
 const scrimClasses = warnModule(bulkModules.scrimClasses, "scrimClasses");
 const noDragClasses = [
 	scrimClasses?.scrim,
+].filter(Boolean);
+const layerClasses = warnModule(bulkModules.layerClasses, "layerClasses");
+// Exact class names, since a [class*=] parent selector makes every class change in Discord restyle everything under that element
+const noDragParentClasses = [
+	layerClasses?.layerContainer,
 ].filter(Boolean);
 const systemBarClasses = warnModule(
 	bulkModules.systemBarClasses,
@@ -5333,7 +5339,7 @@ module.exports = class EnhancedChannelTabs {
 			DOM.addStyle("enhancedChannelTabs-style-constants", StyleManager.getConstantVariables(this.settings));
 		}
 		if (!styleId || styleId === "enhancedChannelTabs-style") {
-			DOM.addStyle("enhancedChannelTabs-style", StyleManager.getBaseStyle(noDragClasses, systemBarClasses));
+			DOM.addStyle("enhancedChannelTabs-style", StyleManager.getBaseStyle(noDragClasses, noDragParentClasses, systemBarClasses));
 		}
 		if (!styleId || styleId === "enhancedChannelTabs-style-multirow") {
 			DOM.addStyle("enhancedChannelTabs-style-multirow", StyleManager.getMultiRowStyles());
