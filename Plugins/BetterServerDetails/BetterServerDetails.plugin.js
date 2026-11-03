@@ -2,7 +2,7 @@
  * @name BetterServerDetails
  * @author Pharaoh2k
  * @description Shows Server Details (owner, creation/join date, members, etc.) in a custom tooltip on the server list.
- * @version 1.0.4
+ * @version 1.0.5
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterServerDetails/BetterServerDetails.plugin.js
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
@@ -530,7 +530,6 @@ class ServerTooltipManager {
 		this.hoveredGuildId = null;
 		this.showTimeout = null;
 		this.shiftPressed = false;
-		document.body.classList.remove("bsd-hide-native-tooltip");
 		this._running = false;
 		this._boundMouseOver = this._handleMouseOver.bind(this);
 		this._boundMouseOut = this._handleMouseOut.bind(this);
@@ -736,14 +735,14 @@ class ServerTooltipManager {
 		this.tooltipElement.classList.add("visible");
 		this.tooltipElement.setAttribute("aria-hidden", "false");
 		if (this.currentGuildElement) this._setAnchorAria(this.currentGuildElement, true);
-		if (this.plugin.settings.hideNativeTooltip) document.body.classList.add("bsd-hide-native-tooltip");
+		document.body.toggleAttribute("data-bsd-hide-native-tooltip", !!this.plugin.settings.hideNativeTooltip);
 	}
 	_hideTooltip() {
 		if (!this.tooltipElement) return;
 		this.tooltipElement.classList.remove("visible");
 		this.tooltipElement.setAttribute("aria-hidden", "true");
 		if (this.currentGuildElement) this._setAnchorAria(this.currentGuildElement, false);
-		document.body.classList.remove("bsd-hide-native-tooltip");
+		document.body.removeAttribute("data-bsd-hide-native-tooltip");
 	}
 	_positionTooltip(anchorElement) {
 		if (!this.tooltipElement || !anchorElement) return;
@@ -1120,7 +1119,8 @@ module.exports = class BetterServerDetails {
 			.serverdetails-row[data-type="boosts"] .serverdetails-row-label::before { content: '⚡'; }
 			.serverdetails-row[data-type="language"] .serverdetails-row-label::before { content: '🌐'; }
 			.serverdetails-row-value { text-align: right; font-weight: 500; color: #fff; }
-			.bsd-hide-native-tooltip [role="tooltip"][class*="listItemTooltip"] { opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; }
+			/* A data attribute rather than a class on body, and no :has() on class names, since either can restyle the whole app on every hover */
+			body[data-bsd-hide-native-tooltip] [data-mana-component="tooltip"] { opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; }
 		`);
 	}
 	//#endregion Styles

@@ -1,5 +1,9 @@
 # [BetterServerDetails](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterServerDetails "BetterServerDetails") Changelog
 
+### 1.0.5
+- Fixed "Hide native tooltip" no longer hiding Discord's server tooltip after a Discord update
+- The server details tooltip appears faster, since showing it no longer makes Discord restyle the whole app
+
 ### 1.0.4
 - Fixed the auto-updater installing updates to the wrong location
 
