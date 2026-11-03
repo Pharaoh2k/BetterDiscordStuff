@@ -1,5 +1,8 @@
 # [ServerSearch](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=ServerSearch "ServerSearch") Changelog
 
+### 1.0.2
+- Fixed a slowdown across Discord introduced in 1.0.1, where the rule that moves the "NEW" indicator made Discord restyle the whole app whenever anything was added to the page
+
 ### 1.0.1
 - Fixed Discord crashing when hovering a server in the search list or moving through it with the arrow keys after a Discord update
 - Fixed Discord's "NEW" unread servers indicator covering the search button; it now sits just above it

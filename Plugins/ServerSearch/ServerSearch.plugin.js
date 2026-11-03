@@ -1,6 +1,6 @@
 /**
  * @name ServerSearch
- * @version 1.0.1
+ * @version 1.0.2
  * @description Adds a search button to the server list that finds your servers by name and jumps straight to them.
  * @author Pharaoh2k
  * @authorId 874825550408089610
@@ -248,8 +248,9 @@ const { GuildsBar, Popout, GuildActions, IconUtils, buttonClasses, separatorClas
 });
 const CSS = `
 .ServerSearch-dock { display: flex; flex: none; flex-direction: column; align-items: center; gap: var(--space-xs, 8px); padding-bottom: calc(var(--space-xs, 8px) + 16px); anchor-name: --ServerSearch-dock; }
-/* Discord pins its "new" unread pill to the bottom of the server list, so it is lifted to sit on the dock instead of covering it */
-nav:has(.ServerSearch-dock) > [class*="unreadMentionsIndicatorBottom_"] { bottom: anchor(--ServerSearch-dock top, 0px); }
+/* Discord pins its "new" unread pill to the bottom of the server list, so it is lifted to sit on the dock instead of covering it.
+   No :has() here: a class-matching selector after :has() makes Chrome restyle the whole app on every DOM insertion */
+nav > [class*="unreadMentionsIndicatorBottom_"] { bottom: anchor(--ServerSearch-dock top, 0px); }
 .ServerSearch-button { border: none; border-radius: var(--radius-md); padding: 0; }
 .ServerSearch-popout { display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; width: 320px; height: min(480px, calc(100vh - 32px)); padding: 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--background-surface-higher); box-shadow: var(--shadow-high); color: var(--text-default); }
 .ServerSearch-list { overflow-y: auto; margin-right: -8px; }
