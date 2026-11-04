@@ -1,5 +1,8 @@
 # [BigFileTransfers](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BigFileTransfers "BigFileTransfers") Changelog
 
+### 1.0.9
+- Fixed the update notification staying stuck on screen after clicking Update, Dismiss or its close button, working around a BetterDiscord bug
+
 ### 1.0.8
 - Fixed large files being blocked by Discord's "file exceeds the size limit" error on accounts without Nitro
 - Chunk sizes and chunks per message now follow the upload limits Discord reports for your account, so Nitro accounts send much bigger chunks in fewer messages

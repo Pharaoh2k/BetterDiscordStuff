@@ -1,5 +1,8 @@
 # [BetterTypingIndicator](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterTypingIndicator "BetterTypingIndicator") Changelog
 
+### 2.9.10
+- Fixed the update notification staying stuck on screen after clicking Update, Dismiss or its close button, working around a BetterDiscord bug
+
 ### 2.9.9
 - Added a "View Changelog" button to the settings
 

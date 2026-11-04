@@ -1,5 +1,8 @@
 # [ShowHiddenThings](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=ShowHiddenThings "ShowHiddenThings") Changelog
 
+### 1.0.4
+- Fixed the update notification staying stuck on screen after clicking Update, Dismiss or its close button, working around a BetterDiscord bug
+
 ### 1.0.3
 - Fixed "Open in Mod View" missing from the user context menu after Discord starts
 

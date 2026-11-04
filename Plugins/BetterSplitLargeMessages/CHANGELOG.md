@@ -1,5 +1,8 @@
 # [BetterSplitLargeMessages](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterSplitLargeMessages "BetterSplitLargeMessages") Changelog
 
+### 1.0.5
+- Fixed the update notification staying stuck on screen after clicking Update, Dismiss or its close button, working around a BetterDiscord bug
+
 ### 1.0.4
 - Fixed Discord rejecting long messages with "Your message is too long" instead of the plugin splitting them
 

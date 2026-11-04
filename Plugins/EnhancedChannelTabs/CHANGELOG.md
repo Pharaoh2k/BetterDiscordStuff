@@ -1,5 +1,8 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+### 5.1.3
+- Fixed the update notification staying stuck on screen after clicking Update, Dismiss or its close button, working around a BetterDiscord bug
+
 ### 5.1.2
 - Fixed a slowdown across Discord, where the rule that keeps popouts and menus clickable over the taller title bar made Discord restyle large parts of the app whenever any element's class changed
 

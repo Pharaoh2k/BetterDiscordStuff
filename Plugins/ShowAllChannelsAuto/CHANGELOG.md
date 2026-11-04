@@ -1,5 +1,8 @@
 # [ShowAllChannelsAuto](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=ShowAllChannelsAuto "ShowAllChannelsAuto") Changelog
 
+### 1.0.6
+- Fixed the update notification staying stuck on screen after clicking Update, Dismiss or its close button, working around a BetterDiscord bug
+
 ### 1.0.5
 - Added a "View Changelog" button to the settings
 

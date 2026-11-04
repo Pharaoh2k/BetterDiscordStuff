@@ -4,7 +4,7 @@
 
 A BetterDiscord plugin that allows you to upload and download very large files (~4GB without Nitro, ~20GB with Nitro) by seamlessly splitting them into smaller chunks and merging them back together.
 
-![Version](https://img.shields.io/badge/version-1.0.8-blue.svg)
+![Version](https://img.shields.io/badge/version-1.0.9-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Discord](https://img.shields.io/badge/discord-BetterDiscord-7289DA.svg)
 

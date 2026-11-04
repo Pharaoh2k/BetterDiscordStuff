@@ -1,5 +1,8 @@
 # [ServerSearch](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=ServerSearch "ServerSearch") Changelog
 
+### 1.0.3
+- Fixed the update notification staying stuck on screen after clicking Update, Dismiss or its close button, working around a BetterDiscord bug
+
 ### 1.0.2
 - Fixed a slowdown across Discord introduced in 1.0.1, where the rule that moves the "NEW" indicator made Discord restyle the whole app whenever anything was added to the page
 

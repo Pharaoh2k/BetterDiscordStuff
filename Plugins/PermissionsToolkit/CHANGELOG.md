@@ -1,5 +1,8 @@
 # [PermissionsToolkit](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=PermissionsToolkit "PermissionsToolkit") Changelog
 
+### 1.0.2
+- Fixed the update notification staying stuck on screen after clicking Update, Dismiss or its close button, working around a BetterDiscord bug
+
 ### 1.0.1
 - Fixed the permission list in profile popouts showing large, dark, hard to read names after a Discord update; it matches Discord's role pills again, including the spacing between them
 

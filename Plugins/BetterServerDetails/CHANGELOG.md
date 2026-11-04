@@ -1,5 +1,8 @@
 # [BetterServerDetails](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterServerDetails "BetterServerDetails") Changelog
 
+### 1.0.6
+- Fixed the update notification staying stuck on screen after clicking Update, Dismiss or its close button, working around a BetterDiscord bug
+
 ### 1.0.5
 - Fixed "Hide native tooltip" no longer hiding Discord's server tooltip after a Discord update
 - The server details tooltip appears faster, since showing it no longer makes Discord restyle the whole app

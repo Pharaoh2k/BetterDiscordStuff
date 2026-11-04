@@ -2,7 +2,7 @@
 
 A BetterDiscord plugin to inspect user and role permissions, compare roles or users side by side, look up who has specific permissions, and scan for dangerous configurations.
 
-![Version](https://img.shields.io/badge/version-1.0.1-blue.svg)
+![Version](https://img.shields.io/badge/version-1.0.2-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Discord](https://img.shields.io/badge/discord-BetterDiscord-7289DA.svg)
 

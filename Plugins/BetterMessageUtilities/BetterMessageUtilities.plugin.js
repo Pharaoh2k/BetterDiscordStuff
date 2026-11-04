@@ -1,6 +1,6 @@
 /**
  * @name BetterMessageUtilities
- * @version 1.2.0
+ * @version 1.2.1
  * @description Adds customizable hotkeys for message actions (delete, edit, pin, reply, etc.)
  * @author Pharaoh2k
  * @authorId 874825550408089610
@@ -30,6 +30,7 @@ class UpdateManager {
         };
         this.timer = null;
         this.notification = null;
+        this._noticeContent = "";
         this._initialTimeout = null;
     }
     start(autoUpdate = true) {
@@ -48,10 +49,19 @@ class UpdateManager {
         this._closeNotification();
     }
     _closeNotification() {
-        if (!this.notification) return;
-        if (typeof this.notification === "function") this.notification();
-        else this.notification?.close?.();
+        const handle = this.notification;
         this.notification = null;
+        if (!handle) return;
+        if (typeof handle === "function") return handle();
+        if (handle.isVisible?.() === false) return;
+        // BetterDiscord's handle.close() takes the notice out of its list without re-rendering, which leaves it on
+        // screen with its buttons and X dead. Clicking its own X closes it through BetterDiscord's working path.
+        const notice = [...document.querySelectorAll(".bd-notification")].find(el =>
+            el.querySelector(".bd-notification-title")?.textContent === this.name &&
+            el.querySelector(".bd-notification-content-text")?.textContent.includes(this._noticeContent));
+        const closeButton = notice?.querySelector(".bd-notification-close");
+        if (closeButton) closeButton.click();
+        else handle.close?.();
     }
     async check(silent = false) {
         try {
@@ -73,23 +83,21 @@ class UpdateManager {
     }
     showUpdateNotice(version, text) {
         this._closeNotification();
+        this._noticeContent = `v${version} is available`;
         const handle = UI.showNotification({
             id: `bd-plugin-update:${this.name}`,
             title: this.name,
-            content: `v${version} is available`,
+            content: this._noticeContent,
             type: "info",
             duration: 6000000,
+            // BetterDiscord closes the notice itself after an action runs, so the actions must not close it too
             actions: [
                 {
                     label: "Update",
-                    onClick: () => {
-                        this._closeNotification();
-                        this.applyUpdate(text);
-                    },
+                    onClick: () => this.applyUpdate(text),
                 },
                 {
                     label: "Dismiss",
-                    onClick: () => this._closeNotification(),
                 },
             ],
             onClose: () => {

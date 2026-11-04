@@ -1,5 +1,8 @@
 # [AudioToolbox](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=AudioToolbox "AudioToolbox") Changelog
 
+### 2.0.4
+- Fixed the update notification staying stuck on screen after clicking Update, Dismiss or its close button, working around a BetterDiscord bug
+
 ### 2.0.3
 - Fixed the audio controls not showing after Discord starts until the plugin was restarted
 

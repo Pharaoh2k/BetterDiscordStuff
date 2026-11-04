@@ -1,5 +1,8 @@
 # [BetterCharCounter](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterCharCounter "BetterCharCounter") Changelog
 
+### 1.0.1
+- Fixed the update notification staying stuck on screen after clicking Update, Dismiss or its close button, working around a BetterDiscord bug
+
 ### 1.0.0
 - Initial public release
 - Live character counter on the message box, with your limit (2,000 characters, or 4,000 with Nitro)

@@ -1,5 +1,8 @@
 # [BetterFileViewer](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterFileViewer "BetterFileViewer") Changelog
 
+### 3.0.6
+- Fixed the update notification staying stuck on screen after clicking Update, Dismiss or its close button, working around a BetterDiscord bug
+
 ### 3.0.5
 - Restored the "View Changelog" button in the settings
 

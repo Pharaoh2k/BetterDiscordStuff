@@ -1,5 +1,8 @@
 # [BetterFriendsSince](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterFriendsSince "BetterFriendsSince") Changelog
 
+### 1.3.10
+- Fixed the update notification staying stuck on screen after clicking Update, Dismiss or its close button, working around a BetterDiscord bug
+
 ### 1.3.9
 - Fixed "View Changelog" in the settings showing nothing; it now shows the full changelog
 

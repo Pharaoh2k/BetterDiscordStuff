@@ -1,5 +1,8 @@
 # [BetterMessageUtilities](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterMessageUtilities "BetterMessageUtilities") Changelog
 
+### 1.2.1
+- Fixed the update notification staying stuck on screen after clicking Update, Dismiss or its close button, working around a BetterDiscord bug
+
 ### 1.2.0
 - Added "Always Show All Message Buttons" setting: always shows the full message toolbar (Copy Message ID, Copy Link, Mark Unread, Pin, Delete and more) that you normally only see while holding Shift ([#30](https://github.com/Pharaoh2k/BetterDiscordStuff/issues/30))
 

@@ -1,5 +1,8 @@
 # [BetterPinDMs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterPinDMs "BetterPinDMs") Changelog
 
+### 3.0.4
+- Fixed the update notification staying stuck on screen after clicking Update, Dismiss or its close button, working around a BetterDiscord bug
+
 ### 3.0.3
 - Fixed the category settings modal ignoring changes to the name and color
 

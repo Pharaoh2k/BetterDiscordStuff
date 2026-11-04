@@ -1,5 +1,8 @@
 # [BetterRelativeTimestamps](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterRelativeTimestamps "BetterRelativeTimestamps") Changelog
 
+### 1.1.9
+- Fixed the update notification staying stuck on screen after clicking Update, Dismiss or its close button, working around a BetterDiscord bug
+
 ### 1.1.8
 - Fixed the relative time showing up in the wrong place (or next to the wrong timestamp) after Discord or another plugin re-renders a message, for example MessageLoggerV2 edit history
 - Fixed the relative time not updating to the newest edit time when a message is edited again

@@ -1,5 +1,8 @@
 # [QuickMessages-Reborn](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=QuickMessages-Reborn "QuickMessages-Reborn") Changelog
 
+### 1.0.4
+- Fixed the update notification staying stuck on screen after clicking Update, Dismiss or its close button, working around a BetterDiscord bug
+
 ### 1.0.3
 - Added a "View Changelog" button to the settings
 
