@@ -2,7 +2,7 @@
  * @name PermissionsToolkit
  * @author Pharaoh2k
  * @description Allows you to Inspect user and role permissions, compare roles or users side-by-side, look up who has specific permissions, and scan for dangerous configurations.
- * @version 1.0.0
+ * @version 1.0.1
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/PermissionsToolkit/PermissionsToolkit.plugin.js
@@ -786,8 +786,13 @@ module.exports = (() => {
   --pt-shadow: rgba(0,0,0,0.4);
 }
 .member-perms-header { color: var(--text-default, #efeff1); display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; line-height: 1.3333333333333333; }
-.member-perms { display: flex; flex-wrap: wrap; margin-top: 2px; max-height: 160px; overflow-y: auto; overflow-x: hidden; }
+.member-perms { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; max-height: 160px; overflow-y: auto; overflow-x: hidden; }
+/* Discord's role pill classes are added when they are found; this copy keeps the pill shape when they are not.
+   Its specificity (0,0,2) beats Discord's element reset but loses to the role class, so Discord's own pill wins */
+div:where(.member-perms) > div:where(.member-perm) { display: flex; align-items: center; box-sizing: border-box; min-height: 24px; padding-inline: 2px 8px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm, 8px); }
 .member-perms .member-perm .perm-circle { border-radius: 50%; height: 12px; margin: 0 8px 0 5px; width: 12px; }
+/* Set here rather than with Discord's text classes, which Discord renames (text-xs/normal became body-xs/normal, and defaultColor went away) */
+.member-perms .perm-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-primary); font-size: 12px; font-weight: 400; line-height: 1.33333; color: var(--text-default, #efeff1); }
 .perm-details-button { cursor: pointer; height: 12px; width: 12px; background: none; border: none; padding: 0; display: flex; align-items: center; justify-content: center; }
 .perm-details-button svg { fill: var(--text-muted, #96979e); height: 12px; width: 12px; }
 .member-perms::-webkit-scrollbar-thumb, .member-perms::-webkit-scrollbar-track { background-clip: padding-box; border-radius: 7.5px; border-style: solid; border-width: 3px; visibility: hidden; }
@@ -2197,7 +2202,6 @@ module.exports = (() => {
       this.SelectedChannelStore = null;
       this.GuildChannelStore = null;
       this.UserContextMenu = null;
-      this.TextClasses = null;
       this.ElectronModule = null;
       this.intlModule = null;
       this.LocaleManager = null;
@@ -2329,12 +2333,9 @@ module.exports = (() => {
       }
       this._resolveClasses();
     }
-    // Discord's role pill and text classes live in lazy-loaded chunks, so they are usually missing when
-    // the plugin starts together with Discord. Look up whatever is still missing again on every call.
+    // Discord's role pill classes live in lazy-loaded chunks, so they are usually missing when the plugin
+    // starts together with Discord. Look up whatever is still missing again on every call.
     _resolveClasses() {
-      if (!this.TextClasses?.["text-xs/normal"] || !this.TextClasses?.defaultColor) {
-        this.TextClasses = Webpack.getByKeys("defaultColor", "text-xs/normal", { searchExports: true }) ?? {};
-      }
       const rc = this.RoleClasses;
       if (!rc?.role || !rc?.roleCircle || !rc?.roleName) {
         const popoutRoleClasses = Webpack.getByKeys("roleCircle", "dot", { searchExports: true });
@@ -2345,7 +2346,7 @@ module.exports = (() => {
           roleName: roleClasses?.roleName,
         };
       }
-      return { textClasses: this.TextClasses, roleClasses: this.RoleClasses };
+      return this.RoleClasses;
     }
     get strings() {
       const locale = this.LocaleManager?.locale?.split("-")[0] ?? "en";
@@ -2637,7 +2638,7 @@ module.exports = (() => {
       const defaultSettings = this.defaultSettings;
       return ({ user, guildId }) => {
         // Resolved once per popout: by the time a popout renders, Discord has loaded its role pill classes.
-        const { textClasses, roleClasses } = React.useMemo(() => this._resolveClasses(), []);
+        const roleClasses = React.useMemo(() => this._resolveClasses(), []);
         const rawSettings = Hooks.useData("settings");
         const settings = React.useMemo(() => Utils.extend({}, defaultSettings, rawSettings ?? {}), [rawSettings]);
         const { guild, member, name } = Hooks.useStateFromStores(
@@ -2688,7 +2689,7 @@ module.exports = (() => {
                   style: { backgroundColor: color }
                 }),
                 RcE("div", {
-                  className: `${textClasses["text-xs/normal"] || ""} ${roleClasses.roleName || ""} ${textClasses.defaultColor || ""}`.trim()
+                  className: `perm-name ${roleClasses.roleName || ""}`.trim()
                 }, this.getPermString(permKey))
               );
             })
