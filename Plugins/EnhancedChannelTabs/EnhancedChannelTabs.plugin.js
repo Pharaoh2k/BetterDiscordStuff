@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 5.1.3
+ * @version 5.1.4
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
@@ -318,7 +318,7 @@ class StyleManager {
 			.enhancedChannelTabs-tabNav { display:none; }
 			.ect-app-grid { grid-template-rows: [top] auto [titleBarEnd] min-content [noticeEnd] 1fr [end]; }
 			${noDragClasses.map((x) => `.${x}`).join(", ")} { -webkit-app-region: no-drag; }
-			.${systemBarClasses.systemBar}, .enhancedChannelTabs-trailing { --custom-app-top-bar-height: 2rem; }
+			.${systemBarClasses?.systemBar}, .enhancedChannelTabs-trailing { --custom-app-top-bar-height: 2rem; }
 			#enhancedChannelTabs-container { z-index: 1000; background: none; flex: 1; max-width: 100vw; }
 			.enhancedChannelTabs-tabContainer { display: flex; align-items: center; }
 			.enhancedChannelTabs-trailing { display: flex; align-items: center; gap: var(--space-12); margin-left: auto; }
@@ -1434,6 +1434,18 @@ for (const [key, value] of Object.entries(Webpack.Filters)) {
 	};
 }
 const { byKeys, byStrings, byStoreName } = Filters;
+// Discord's CSS modules export mangled keys now ({ oZ: "systemBar_3zSH5d" }), so they are found and read by class name
+const classOf = (module, name) => Object.values(module).find((value) => typeof value === "string" && value.startsWith(`${name}_`));
+const byClasses = (...names) => (module) => module !== null && typeof module === "object" && names.every((name) => classOf(module, name));
+const classMap = (module, ...names) => module ? Object.fromEntries(names.map((name) => [name, classOf(module, name)])) : undefined;
+// getWithKey returns an iterator, which is always truthy, so each filter is judged by what it finds
+const getFirstWithKey = (...filters) => {
+	for (const filter of filters) {
+		const [module, key] = Webpack.getWithKey(filter);
+		if (module) return [module, key];
+	}
+	return [null, null];
+};
 const bulkModules = Webpack.getBulkKeyed({
 	transitionToGuild: { filter: byKeys("transitionToGuildSync") },
 	MessageStore: { filter: byStoreName("MessageStore") },
@@ -1469,16 +1481,16 @@ const bulkModules = Webpack.getBulkKeyed({
 	},
 	NavShortcuts: { filter: byKeys("NAVIGATE_BACK", "NAVIGATE_FORWARD") },
 	IconUtilities: { filter: byKeys("getChannelIconURL") },
-	systemBarClasses: { filter: byKeys("systemBar") },
-	scrimClasses: { filter: byKeys("scrim") },
-	layerClasses: { filter: byKeys("layerContainer", "layer") },
+	systemBarClasses: { filter: byClasses("systemBar") },
+	scrimClasses: { filter: byClasses("scrim") },
+	layerClasses: { filter: byClasses("layerContainer", "layer") },
 	PlusIcon: { filter: (m) => m.toString?.().includes("M13 6a1 1") },
 	ChevronDownIcon: { filter: (m) => m.toString?.().includes("M5.3 9.3a1") },
 	ReadStateStore: { filter: byStoreName("ReadStateStore") },
 	AppearanceSettingsStore: { filter: byStoreName("AccessibilityStore") },
 	ChannelStreamItemTypes: { filter: byKeys("MESSAGE", "DIVIDER"), searchExports: true },
-	ChatSelectors: { filter: byKeys("messagesWrapper", "scrollerContent") },
-	PopoutSelectors: { filter: byKeys("messagesPopoutWrap") },
+	ChatSelectors: { filter: byClasses("messagesWrapper", "scrollerContent") },
+	PopoutSelectors: { filter: byClasses("messagesPopoutWrap") },
 	UserSettingsProtoStore: { filter: byStoreName("UserSettingsProtoStore") },
 	Dispatcher: { filter: byKeys("dispatch", "subscribe", "addInterceptor"), searchExports: true },
 	FriendsIcon: { filter: byStrings("M13 10a4 4 0 1 0 0-8"), searchExports: true },
@@ -1568,7 +1580,8 @@ const SelectedGuildStore = warnModule(
 	"SelectedGuildStore",
 );
 const ChannelStore = warnModule(bulkModules.ChannelStore, "ChannelStore");
-const UserStore = warnModule(bulkModules.UserStore, "UserStore");
+// Newer Discord builds export UserStore where byStoreName does not look, so BetterDiscord's store registry is the fallback
+const UserStore = warnModule(bulkModules.UserStore ?? Webpack.getStore("UserStore"), "UserStore");
 const UserTypingStore = warnModule(
 	bulkModules.UserTypingStore,
 	"UserTypingStore",
@@ -1631,8 +1644,8 @@ const ChannelStreamItemTypes = warnModule(
 	bulkModules.ChannelStreamItemTypes,
 	"ChannelStreamItemTypes",
 );
-const ChatSelectors = bulkModules.ChatSelectors || {};
-const PopoutSelectors = bulkModules.PopoutSelectors || {};
+const ChatSelectors = classMap(bulkModules.ChatSelectors, "messagesWrapper", "scrollerContent") || {};
+const PopoutSelectors = classMap(bulkModules.PopoutSelectors, "messagesPopoutWrap") || {};
 const PinToBottomScrollerAuto = Webpack.getModule(m => Filters.byStrings('useImperativeHandle', 'getScrollerState', 'isScrolling')(m?.render), { searchExports: true })
 const MessageComponent = Webpack.getModule(m =>
 	Filters.byStrings('must not be a thread starter message')(m?.type),
@@ -1655,7 +1668,7 @@ const getChannelMessageList = () => ChannelMessageList ??= Webpack.getModule(m =
 	{ searchExports: true }
 );
 const getPopoutWrapClass = () => {
-	if (!PopoutSelectors.messagesPopoutWrap) Object.assign(PopoutSelectors, Webpack.getModule(Filters.byKeys("messagesPopoutWrap")));
+	if (!PopoutSelectors.messagesPopoutWrap) Object.assign(PopoutSelectors, classMap(Webpack.getModule(byClasses("messagesPopoutWrap")), "messagesPopoutWrap"));
 	return PopoutSelectors.messagesPopoutWrap || "";
 };
 // Discord's message list acks its channel and records its scroll position and visible messages, which a
@@ -1688,20 +1701,20 @@ const Spinner = warnModule(bulkModules.Spinner, "Spinner", {
 const Tooltip = Components.Tooltip;
 const Slider = warnModule(bulkModules.Slider, "Slider");
 const NavShortcuts = warnModule(bulkModules.NavShortcuts, "NavShortcuts");
-const [TitleBar, TitleBarKey] =
-	Webpack.getWithKey(byStrings("PlatformTypes", "leading", "trailing")) ||
-	Webpack.getWithKey(byStrings("getPlatform", "leading", "trailing")) ||
-	Webpack.getWithKey(byStrings("leading", "trailing", "windowKey")) ||
-	Webpack.getWithKey(byStrings("windowKey", "onDoubleClick", "leading")) ||
-	[null, null];
+// The current title bar comes first; Discord's minifier now renames the PlatformTypes and getPlatform the older filters relied on
+const [TitleBar, TitleBarKey] = getFirstWithKey(
+	byStrings("leading", "trailing", "windowKey"),
+	byStrings("windowKey", "onDoubleClick", "leading"),
+	byStrings("PlatformTypes", "leading", "trailing"),
+	byStrings("getPlatform", "leading", "trailing"),
+);
 if (!TitleBar) missingModule({ name: "TitleBar", fatal: true });
-const TitleBarStyles =
-	Webpack.getModule(byKeys("sidebarResizeHandle", "panels")) ??
-	Webpack.getModule(byKeys("sidebarList", "channelListHidden")) ??
-	Webpack.getModule(byKeys("guilds", "sidebar", "base")) ??
-	Webpack.getModule(byKeys("base", "activityPanel")) ??
-	Webpack.getModule(byKeys("draggingMax", "draggingMin")) ??
-	Webpack.getModule((m) => m?.sidebarResizeHandle && m?.activityPanel && m?.guilds);
+const TitleBarStyles = classMap(
+	Webpack.getModule(byClasses("sidebarResizeHandle", "panels", "base")) ??
+	Webpack.getModule(byClasses("guilds", "sidebar", "base")) ??
+	Webpack.getModule(byClasses("base", "activityPanel")),
+	"base",
+);
 if (!TitleBarStyles) Logger.warn("TitleBarStyles module not found - Discord may have updated");
 const TitleBarComponent = TitleBar?.[TitleBarKey];
 if (TitleBarComponent?.compare) TitleBarComponent.compare = () => false;
@@ -1709,17 +1722,17 @@ const IconUtilities = warnModule(
 	bulkModules.IconUtilities,
 	"IconUtilities",
 );
-const scrimClasses = warnModule(bulkModules.scrimClasses, "scrimClasses");
+const scrimClasses = warnModule(classMap(bulkModules.scrimClasses, "scrim"), "scrimClasses");
 const noDragClasses = [
 	scrimClasses?.scrim,
 ].filter(Boolean);
-const layerClasses = warnModule(bulkModules.layerClasses, "layerClasses");
+const layerClasses = warnModule(classMap(bulkModules.layerClasses, "layerContainer", "layer"), "layerClasses");
 // Exact class names, since a [class*=] parent selector makes every class change in Discord restyle everything under that element
 const noDragParentClasses = [
 	layerClasses?.layerContainer,
 ].filter(Boolean);
 const systemBarClasses = warnModule(
-	bulkModules.systemBarClasses,
+	classMap(bulkModules.systemBarClasses, "systemBar"),
 	"systemBarClasses",
 );
 const Icons = {

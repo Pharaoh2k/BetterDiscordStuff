@@ -1,5 +1,9 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+### 5.1.4
+- Fixed the plugin failing to start after a Discord update ("Could not find TitleBar module")
+- Fixed the tab bar styles, chat preview and popout classes not being found after the same update
+
 ### 5.1.3
 - Fixed the update notification staying stuck on screen after clicking Update, Dismiss or its close button, working around a BetterDiscord bug
 
