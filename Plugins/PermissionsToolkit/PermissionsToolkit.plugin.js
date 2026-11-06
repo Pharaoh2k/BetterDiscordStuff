@@ -2,7 +2,7 @@
  * @name PermissionsToolkit
  * @author Pharaoh2k
  * @description Allows you to Inspect user and role permissions, compare roles or users side-by-side, look up who has specific permissions, and scan for dangerous configurations.
- * @version 1.0.2
+ * @version 1.0.3
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/PermissionsToolkit/PermissionsToolkit.plugin.js
@@ -2267,7 +2267,8 @@ div:where(.member-perms) > div:where(.member-perm) { display: flex; align-items:
       this.GuildChannelStore = Stores.GuildChannelStore;
       // The user context menu is lazy-loaded. Pick it up when Discord loads it rather than force-loading
       // chunks: the old forceLoad trigger now matches Discord's main app module and froze Discord for minutes.
-      Webpack.waitForModule(Filters.bySource("user-context", "data-menu-migrated"), { defaultExport: false, signal: this._abortController.signal })
+      // Matched by its navId, since Discord renamed the data-menu-migrated attribute it used to carry.
+      Webpack.waitForModule(Filters.bySource('navId:"user-context"'), { defaultExport: false, signal: this._abortController.signal })
         .then(mod => { this.UserContextMenu ??= mod?.default ?? null; })
         .catch(() => {});
       const mods = Webpack.getBulkKeyed({
@@ -2310,7 +2311,12 @@ div:where(.member-perms) > div:where(.member-perm) { display: flex; align-items:
       this.LocaleManager = mods.LocaleManager;
       this.I18n = mods.I18n;
       this.LocaleData = mods.LocaleData?.default ?? null;
-      this.ModalActions = Webpack.getByKeys('openModal', 'hasModalOpen');
+      // Newer Discord builds mangle the modal store's export names; only doesTopModalAllowNavigation keeps its name
+      this.ModalActions = Webpack.getByKeys('openModal', 'hasModalOpen') ?? Webpack.getMangled(Filters.byKeys('doesTopModalAllowNavigation'), {
+        openModal: Filters.byStrings('stackingBehavior', 'onCloseRequest'),
+        closeModal: Filters.combine(Filters.byStrings('onCloseCallback', 'arguments.length>1'), Filters.not(Filters.byStrings('modalKey')))
+      });
+      if (!this.ModalActions.openModal || !this.ModalActions.closeModal) this.ModalActions = null;
       this.ManaModule = {
         Modal: Webpack.getModule(
           Filters.combine(Filters.byStrings('actionBarInput', 'notice'), Filters.not(Filters.byStrings('caretConfig'))),
@@ -2319,12 +2325,19 @@ div:where(.member-perms) > div:where(.member-perm) { display: flex; align-items:
         ConfirmModal: Webpack.getByKeys('ConfirmModal')?.ConfirmModal,
         ModalSize: Webpack.getByKeys('SMALL', 'MEDIUM', 'LARGE', 'DYNAMIC', { searchExports: true }),
       };
-      const permSpecMod = Webpack.getMangled(
-        Filters.bySource("VIEW_CHANNEL", "SEND_MESSAGES", "KICK_MEMBERS", "flag", "description"),
-        { _permSpecGetter: Filters.byStrings("VIEW_CHANNEL", "SEND_MESSAGES", "KICK_MEMBERS") }
-      );
+      const permSpecSource = Filters.bySource("VIEW_CHANNEL", "SEND_MESSAGES", "KICK_MEMBERS", "flag", "description");
+      const permSpecGetter = Filters.byStrings("VIEW_CHANNEL", "SEND_MESSAGES", "KICK_MEMBERS");
+      const permSpecMod = Webpack.getMangled(permSpecSource, { _permSpecGetter: permSpecGetter });
       this._permSpecGetter = permSpecMod?._permSpecGetter ?? null;
       this._specManager = Webpack.getByKeys("generateGuildPermissionSpec");
+      // Newer Discord builds load both with the profile and settings UI, so they are filled in once Discord loads them
+      const { signal } = this._abortController;
+      if (!this._permSpecGetter) Webpack.waitForModule(permSpecSource, { defaultExport: false, signal })
+        .then(mod => { this._permSpecGetter ??= Object.values(mod ?? {}).find(value => permSpecGetter(value)) ?? null; })
+        .catch(() => {});
+      if (!this._specManager) Webpack.waitForModule(Filters.byKeys("generateGuildPermissionSpec"), { signal })
+        .then(mod => { this._specManager ??= mod ?? null; })
+        .catch(() => {});
       this.AvatarDefaults = mods.AvatarDefaults ?? mods.AvatarDefaultsFB1 ?? mods.AvatarDefaultsFB2;
       if (mods.DiscordPermissions) {
         const normalized = {};
@@ -2747,7 +2760,7 @@ div:where(.member-perms) > div:where(.member-perm) { display: flex; align-items:
       const UserStore = this.UserStore;
       const ChannelStore = this.ChannelStore;
       const SelectedChannelStore = this.SelectedChannelStore;
-      const getUserContextMenu = () => this.UserContextMenu ??= Webpack.getBySource("user-context", "data-menu-migrated", { defaultExport: false })?.default ?? null;
+      const getUserContextMenu = () => this.UserContextMenu ??= Webpack.getBySource('navId:"user-context"', { defaultExport: false })?.default ?? null;
       const renderUserContextMenu = (UserCtxMenu, user, guildId, channel) => (menuProps) =>
         RcE(UserCtxMenu, { ...menuProps, user, guildId, channel });
       const computeTraceBound = this._computePermissionTrace.bind(this);

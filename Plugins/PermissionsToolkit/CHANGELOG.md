@@ -1,5 +1,10 @@
 # [PermissionsToolkit](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=PermissionsToolkit "PermissionsToolkit") Changelog
 
+### 1.0.3
+- Fixed the permissions window not opening after a Discord update
+- Fixed right-clicking a member in the permissions window showing only Copy ID instead of Discord's user menu
+- Fixed Discord's own permission names and descriptions not being used when Discord loads them after startup
+
 ### 1.0.2
 - Fixed the update notification staying stuck on screen after clicking Update, Dismiss or its close button, working around a BetterDiscord bug
 
