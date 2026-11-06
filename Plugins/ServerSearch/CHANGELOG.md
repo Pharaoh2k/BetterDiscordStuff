@@ -1,5 +1,8 @@
 # [ServerSearch](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=ServerSearch "ServerSearch") Changelog
 
+### 1.0.4
+- Fixed Discord crashing on startup after a Discord update, when the plugin could no longer find the server list styles
+
 ### 1.0.3
 - Fixed the update notification staying stuck on screen after clicking Update, Dismiss or its close button, working around a BetterDiscord bug
 

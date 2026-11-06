@@ -1,6 +1,6 @@
 /**
  * @name ServerSearch
- * @version 1.0.3
+ * @version 1.0.4
  * @description Adds a search button to the server list that finds your servers by name and jumps straight to them.
  * @author Pharaoh2k
  * @authorId 874825550408089610
@@ -245,15 +245,22 @@ class UpdateManager {
 		return { ok: true, version: remoteVersion };
 	}
 }
-const { GuildsBar, Popout, GuildActions, IconUtils, buttonClasses, separatorClasses, scrollerClasses } = Webpack.getBulkKeyed({
+// Discord's CSS modules now export mangled keys ({ oZ: "circleIconButton_g8YUxD" }), so they are found and read by class name
+const classOf = (module, name) => Object.values(module).find(value => typeof value === "string" && value.startsWith(`${name}_`));
+const byClasses = (...names) => module => module !== null && typeof module === "object" && names.every(name => classOf(module, name));
+const classMap = (module, ...names) => Object.fromEntries(names.map(name => [name, module ? classOf(module, name) : undefined]));
+const { GuildsBar, Popout, GuildActions, IconUtils, buttonModule, separatorModule, scrollerModule } = Webpack.getBulkKeyed({
 	GuildsBar: { filter: Filters.byComponentType(Filters.byStrings("guildsnav")), searchExports: true },
 	Popout: { filter: Filters.byStrings("Unsupported animation config:"), searchExports: true },
 	GuildActions: { filter: Filters.byKeys("transitionToGuildSync") },
 	IconUtils: { filter: Filters.byKeys("getGuildIconURL") },
-	buttonClasses: { filter: Filters.byKeys("circleIconButton", "circleIcon") },
-	separatorClasses: { filter: Filters.byKeys("guildSeparator") },
-	scrollerClasses: { filter: Filters.byKeys("thin", "fade", "scrollbarGutterStable") }
+	buttonModule: { filter: byClasses("circleIconButton", "circleIcon") },
+	separatorModule: { filter: byClasses("guildSeparator") },
+	scrollerModule: { filter: byClasses("thin", "fade", "scrollbarGutterStable") }
 });
+const buttonClasses = classMap(buttonModule, "circleIconButton", "circleIcon", "selected");
+const separatorClasses = classMap(separatorModule, "guildSeparator");
+const scrollerClasses = classMap(scrollerModule, "thin", "fade", "scrollbarGutterStable");
 const CSS = `
 .ServerSearch-dock { display: flex; flex: none; flex-direction: column; align-items: center; gap: var(--space-xs, 8px); padding-bottom: calc(var(--space-xs, 8px) + 16px); anchor-name: --ServerSearch-dock; }
 /* Discord pins its "new" unread pill to the bottom of the server list, so it is lifted to sit on the dock instead of covering it.
@@ -409,10 +416,12 @@ const SearchButton = () => {
 		className: Utils.className(buttonClasses.circleIconButton, isShown && buttonClasses.selected, "ServerSearch-button")
 	}, React.createElement(SearchIcon, { className: buttonClasses.circleIcon }))));
 };
+const DockContent = () => React.createElement("div", { className: "ServerSearch-dock" },
+	React.createElement("div", { className: separatorClasses.guildSeparator }),
+	React.createElement(SearchButton));
+// The content is its own component so anything it throws stays inside the boundary instead of crashing the server list
 const Dock = () => React.createElement(Components.ErrorBoundary, { id: "dock", name: "ServerSearch", hideError: true },
-	React.createElement("div", { className: "ServerSearch-dock" },
-		React.createElement("div", { className: separatorClasses.guildSeparator }),
-		React.createElement(SearchButton)));
+	React.createElement(DockContent));
 // Pins the dock below the scrolling server list, where Discord pins its own buttons
 const injectDock = (_, res) => {
 	const themed = Utils.findInTree(res, node => typeof node?.props?.children === "function", { walkable: ["props", "children"] });
