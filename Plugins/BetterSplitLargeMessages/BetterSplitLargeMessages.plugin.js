@@ -1,7 +1,7 @@
 /**
  * @name BetterSplitLargeMessages
  * @author Pharaoh2k
- * @version 1.0.5
+ * @version 1.0.6
  * @description Splits large messages to smaller ones (~2000/4000 chars). No Nitro spoofing. Honors server limits & slowmode, optional chunk cap, hides upsell banners/modals.
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
@@ -258,6 +258,9 @@ module.exports = class BetterSplitLargeMessages {
         this.upsellModule = null;
         this.charCountModule = null;
         this.lengthConstantKeys = [];
+        this.lengthPicker = null;
+        this.lengthPickerKeys = [];
+        this._lengthPickerUnpatches = null;
         this.upsellExportKey = null;
         this.charCountExportKey = null;
         this._typeContainer = null;
@@ -487,7 +490,13 @@ module.exports = class BetterSplitLargeMessages {
         const picker = /canUseIncreasedMessageLength\(\w+\.getCurrentUser\(\)\)\?\w+\.(\w+):\w+\.(\w+)/;
         const pickerModule = Webpack.getModule(Webpack.Filters.bySource(picker), { raw: true });
         const [, premiumKey, normalKey] = picker.exec(String(Webpack.modules[pickerModule?.id])) ?? [];
-        if (!premiumKey) return;
+        if (!premiumKey) {
+            // Newer Discord builds inline 4000/2000 into the picker, so the getters it exports are patched instead
+            const inlined = Webpack.getModule(Webpack.Filters.bySource(/canUseIncreasedMessageLength\(\w+\.getCurrentUser\(\)\)\?4e3:2e3/), { raw: true });
+            this.lengthPicker = inlined?.exports ?? null;
+            this.lengthPickerKeys = this.lengthPicker ? Object.keys(this.lengthPicker).filter(key => typeof this.lengthPicker[key] === "function") : [];
+            return;
+        }
         this.LengthConstants = Webpack.getModule(m => m?.[premiumKey] === 4000 && m[normalKey] === 2000);
         if (this.LengthConstants) this.lengthConstantKeys = [premiumKey, normalKey];
     }
@@ -627,6 +636,13 @@ module.exports = class BetterSplitLargeMessages {
         this.maxLength = configuredOrAuto;
     }
     _bypassLengthValidation() {
+        if (this.lengthPickerKeys.length) {
+            this._lengthPickerUnpatches ??= this.lengthPickerKeys.map(key =>
+                Patcher.after(this.lengthPicker, key, (_, __, limit) => typeof limit === "number" ? Math.max(limit, this.composeLimit) : limit)
+            );
+            Logger.info("Message length picker raised to", this.composeLimit, "for keys:", this.lengthPickerKeys);
+            return;
+        }
         if (!this.LengthConstants || this.lengthConstantKeys.length === 0) {
             Logger.warn("LengthConstants not found - length bypass skipped");
             return;
@@ -647,6 +663,8 @@ module.exports = class BetterSplitLargeMessages {
         );
     }
     _restoreLengthValidation() {
+        this._lengthPickerUnpatches?.forEach(unpatch => unpatch());
+        this._lengthPickerUnpatches = null;
         if (!this.LengthConstants) return;
         for (const [key, value] of Object.entries(this.originalLengthConstants)) {
             this.LengthConstants[key] = value;
@@ -830,11 +848,19 @@ module.exports = class BetterSplitLargeMessages {
         });
     }
     _patchModalActions() {
+        const { Filters } = Webpack;
+        // Newer Discord builds mangle the modal store's export names; only doesTopModalAllowNavigation keeps its name
         const ModalActions = Webpack.getByKeys("openModal", "openModalLazy")
             || Webpack.getByKeys("openModal", "closeAllModals")
             || Webpack.getByKeys("closeModal", "hasModalOpen", "useModalsStore")
-            || Webpack.getByKeys("openModalLazy", "closeAllModalsInContext");
-        if (!ModalActions) return;
+            || Webpack.getByKeys("openModalLazy", "closeAllModalsInContext")
+            || Webpack.getMangled(Filters.byKeys("doesTopModalAllowNavigation"), {
+                openModal: Filters.byStrings("stackingBehavior", "onCloseRequest"),
+                openModalLazy: Filters.byStrings("contextKey", "await"),
+                closeAllModalsInContext: Filters.byStrings("arguments.length>0", ".key,"),
+                closeAllModals: Filters.combine(Filters.byStrings(" in ", ".key,"), Filters.not(Filters.byStrings("arguments")))
+            });
+        if (!ModalActions.openModal && !ModalActions.openModalLazy) return;
         if (ModalActions.openModalLazy) {
             Patcher.instead(ModalActions, "openModalLazy", (thisObj, args, original) => {
                 if (!this.settings.hideUpsell) return original.apply(thisObj, args);

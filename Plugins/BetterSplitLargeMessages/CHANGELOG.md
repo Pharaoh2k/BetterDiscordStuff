@@ -1,5 +1,9 @@
 # [BetterSplitLargeMessages](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterSplitLargeMessages "BetterSplitLargeMessages") Changelog
 
+### 1.0.6
+- Fixed messages over the limit being blocked again after a Discord update, which now builds the 2,000 and 4,000 character limits into its code
+- Fixed the Nitro upsell blocker no longer finding Discord's modals after the same update
+
 ### 1.0.5
 - Fixed the update notification staying stuck on screen after clicking Update, Dismiss or its close button, working around a BetterDiscord bug
 
