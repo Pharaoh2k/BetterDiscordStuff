@@ -1,5 +1,8 @@
 # [BetterCharCounter](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterCharCounter "BetterCharCounter") Changelog
 
+### 1.0.2
+- Fixed the character counter not showing on the message box after a Discord update
+
 ### 1.0.1
 - Fixed the update notification staying stuck on screen after clicking Update, Dismiss or its close button, working around a BetterDiscord bug
 

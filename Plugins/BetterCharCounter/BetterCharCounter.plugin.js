@@ -1,7 +1,7 @@
 /**
  * @name BetterCharCounter
  * @author Pharaoh2k
- * @version 1.0.1
+ * @version 1.0.2
  * @description Adds a Character Counter to most Discord inputs
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
@@ -328,6 +328,8 @@ const findExportKey = mod => {
     return null;
 };
 const createBottomBarMatcher = bottomBarClass => e => e?.props?.className?.includes?.(bottomBarClass);
+// Discord's CSS modules export mangled keys now ({ Zt: "channelBottomBarArea_z_gUBg" }), so classes are found by name
+const classOf = (module, name) => Object.values(module).find(value => typeof value === "string" && value.startsWith(`${name}_`));
 const tryFilters = async (filterConfigs, signal) => {
     for (const { filter, options = {} } of filterConfigs) {
         try {
@@ -516,8 +518,8 @@ const BetterCharCounter = meta => {
             UserStore: Webpack.getStore("UserStore"),
             ...bulkModules
         };
-        const bottomBarModule = Webpack.getModule(Filters.byKeys("channelBottomBarArea"));
-        modules.bottomBarClass = bottomBarModule?.channelBottomBarArea;
+        const bottomBarModule = Webpack.getModule(m => m !== null && typeof m === "object" && classOf(m, "channelBottomBarArea"));
+        modules.bottomBarClass = bottomBarModule && classOf(bottomBarModule, "channelBottomBarArea");
         if (!modules.chatClasses) {
             modules.chatClasses = Webpack.getModule(Filters.byKeys("parentChannelName", "linkedLobby"))
                 || Webpack.getModule(Filters.byKeys("forumPostSidebarTitle", "gdm"));
