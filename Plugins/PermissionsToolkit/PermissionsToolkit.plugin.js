@@ -2,7 +2,7 @@
  * @name PermissionsToolkit
  * @author Pharaoh2k
  * @description Allows you to Inspect user and role permissions, compare roles or users side-by-side, look up who has specific permissions, and scan for dangerous configurations.
- * @version 1.0.4
+ * @version 1.0.5
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/PermissionsToolkit/PermissionsToolkit.plugin.js
@@ -1142,6 +1142,22 @@ div:where(.member-perms) > div:where(.member-perm) { display: flex; align-items:
   const PT_ROLE_DEFAULT_COLOR = "#949ba4";
   const safeBigInt = (value, fallback = 0n) => {
     try { return BigInt(value ?? 0); } catch (err) { Logger.warn("Failed to convert to BigInt:", err); return fallback; }
+  };
+  // Discord's CSS modules now export minified keys ({ Xy: "role_xL50-d" }), so a class module is found by the class
+  // names in its values and given readable keys again ({ role: "role_xL50-d" })
+  const classNameOf = (value) => (typeof value === "string" ? /^(.+)_[\w-]{6}$/.exec(value.split(" ")[0])?.[1] : undefined);
+  const getClassModule = (...names) => {
+    const module = Webpack.getModule(m => {
+      if (!m || typeof m !== "object" || m === window) return false;
+      const found = new Set(Object.values(m).map(classNameOf));
+      return names.every(name => found.has(name));
+    });
+    const classes = { ...module };
+    for (const value of Object.values(module ?? {})) {
+      const name = classNameOf(value);
+      if (name && !(name in classes)) classes[name] = value;
+    }
+    return classes;
   };
   const createIcon = (d, size = 14) => () => RcE("svg", {
     viewBox: "0 0 24 24", fill: "currentColor", width: String(size), height: String(size), "aria-hidden": "true"
@@ -2427,8 +2443,8 @@ div:where(.member-perms) > div:where(.member-perm) { display: flex; align-items:
     _resolveClasses() {
       const rc = this.RoleClasses;
       if (!rc?.role || !rc?.roleCircle || !rc?.roleName) {
-        const popoutRoleClasses = Webpack.getByKeys("roleCircle", "dot", { searchExports: true });
-        const roleClasses = Webpack.getByKeys("role", "roleName", "roleListContainer", { searchExports: true });
+        const popoutRoleClasses = getClassModule("roleCircle", "dot");
+        const roleClasses = getClassModule("role", "roleName", "roleListContainer");
         this.RoleClasses = {
           role: roleClasses?.role,
           roleCircle: popoutRoleClasses?.roleCircle,
