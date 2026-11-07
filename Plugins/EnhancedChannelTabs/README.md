@@ -45,7 +45,7 @@ EnhancedChannelTabs transforms your Discord experience with a powerful tab syste
 
 ## 📦 Installation
 
-1. Download [EnhancedChannelTabs.plugin.js](https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs.plugin.js)
+1. Download [EnhancedChannelTabs.plugin.js](https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js)
 2. Place the file in your BetterDiscord plugins folder:
    - Windows: `%appdata%\BetterDiscord\plugins`
    - macOS: `~/Library/Application Support/BetterDiscord/plugins`
