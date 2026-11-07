@@ -61,12 +61,6 @@ Every plugin has its own settings panel, so you decide exactly what it shows and
 > [!TIP]
 > Click a plugin's name for its full documentation, features and settings. The version badges always show the latest release.
 
-### 🧩 Plugin management
-
-| Plugin | What it does | Version | Get it |
-| :-- | :-- | :-: | :-: |
-| [**PluginHub**](Plugins/PluginHub) | A plugin store inside BetterDiscord's settings: browse, install, update and remove community plugins from the Plugin Hub and other sources, with hash-verified downloads and one combined update notice. | ![PluginHub version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FPharaoh2k%2FBetterDiscordStuff%2Fmain%2FPlugins%2FPluginHub%2Fplugin.json&query=%24.version&prefix=v&label=&color=5865F2&style=flat-square) | [![Download PluginHub](https://img.shields.io/badge/Download-2EA043?style=flat-square)](https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/PluginHub/PluginHub.plugin.js) |
-
 ### 💬 Messaging
 
 | Plugin | What it does | Version | Get it |

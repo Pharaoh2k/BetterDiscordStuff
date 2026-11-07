@@ -2,11 +2,6 @@
   "lastUpdated": "2026-11-07",
   "plugins": [
     {
-      "id": "Plugin Hub",
-      "name": "PluginHub",
-      "enabled": true
-    },
-    {
       "id": "enhanced-channel-tabs",
       "name": "EnhancedChannelTabs",
       "enabled": true
