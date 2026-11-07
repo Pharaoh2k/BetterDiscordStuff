@@ -3,7 +3,7 @@
  * @author Pharaoh2k
  * @authorId 874825550408089610
  * @description Enables uploading and downloading very large files (~4GB without Nitro, ~20GB with Nitro) by splitting them into chunks and reassembling them automatically. Both sender and receiver need the plugin. Includes automatic chunk sending, low‑memory mode, and other conveniences. Like BetterSplitLargeMessages, it doesn’t bypass Discord’s limits or Nitro, it simply works within them to make large transfers possible.
- * @version 1.0.9
+ * @version 1.0.10
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BigFileTransfers/BigFileTransfers.plugin.js
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BigFileTransfers/BigFileTransfers.plugin.js
@@ -25,6 +25,85 @@ const DEFAULT_MAX_ATTACHMENTS = 10; /* Fallback attachments per message */
 const UPLOAD_OVERHEAD = 4096; /* Reserved bytes for Discord's upload metadata/headers */
 const STORE_NAMES = ["UserStore", "MessageStore", "ChannelStore", "SelectedChannelStore"];
 const GITHUB_REPO = "Pharaoh2k/BetterDiscordStuff";
+// Shared by Pharaoh2k's plugins: one "Plugin Updater" notification that lists every pending update, like
+// BetterDiscord's own addon updater, instead of one popup per plugin. The first plugin to load creates it, the
+// others reuse it, and a newer copy replaces an older one.
+const SharedUpdateNotice = (() => {
+    const VERSION = 1;
+    const previous = globalThis.__pharaohUpdateNotice;
+    if (previous?.version >= VERSION) return previous;
+    const TITLE = "Plugin Updater";
+    const h = BdApi.React.createElement;
+    const notice = { version: VERSION, pending: new Map(), dismissed: new Map(), timer: null, handle: null, shown: "" };
+    const close = () => {
+        const handle = notice.handle;
+        notice.handle = null;
+        if (!handle || handle.isVisible?.() === false) return;
+        // handle.close() can leave the notice on screen with dead buttons; its own X closes it through BetterDiscord's working path
+        const element = [...document.querySelectorAll(".bd-notification")].find(el => el.querySelector(".bd-notification-title")?.textContent === TITLE);
+        const button = element?.querySelector(".bd-notification-close");
+        if (button) button.click();
+        else handle.close?.();
+    };
+    const render = () => {
+        notice.timer = null;
+        const items = [...notice.pending.values()].sort((a, b) => a.name.localeCompare(b.name));
+        const signature = items.map(p => `${p.name}@${p.version}`).join(",");
+        if (!items.length) { notice.shown = ""; close(); return; }
+        if (signature === notice.shown && notice.handle) return;
+        close();
+        notice.shown = signature;
+        const count = items.length === 1 ? "One plugin has an update!" : `${items.length} plugins have updates!`;
+        const list = h("ul", { className: "bd-notification-updates-list" }, items.map(p => h("li", { key: p.name }, p.name, " ", h("i", null, `(${p.version})`))));
+        const updateAll = () => {
+            notice.pending.clear();
+            notice.shown = "";
+            for (const p of items) { try { p.apply(); } catch (e) { BdApi.Logger.error(p.name, "Update failed:", e); } }
+        };
+        const dismiss = () => {
+            for (const p of items) notice.dismissed.set(p.name, p.version);
+            notice.pending.clear();
+            notice.shown = "";
+        };
+        // BetterDiscord closes the notice itself after an action runs, so the actions must not close it too
+        const actions = [{ label: "Update All!", onClick: updateAll }, { label: "Dismiss", onClick: dismiss }];
+        const handle = BdApi.UI.showNotification({
+            id: `pharaoh-plugin-updates:${Date.now()}`,
+            title: TITLE,
+            content: [count, list],
+            type: "info",
+            duration: Infinity,
+            actions,
+            onClose: () => { if (notice.handle === handle) notice.handle = null; }
+        });
+        notice.handle = handle || null;
+        // notifications can be switched off in BetterDiscord's settings; fall back to the notice bar
+        if (!handle) BdApi.UI.showNotice(`${count} ${items.map(p => p.name).join(", ")}`, { type: "info", buttons: actions });
+    };
+    const schedule = (delay) => { clearTimeout(notice.timer); notice.timer = setTimeout(render, delay); };
+    notice.add = (entry) => {
+        if (notice.dismissed.get(entry.name) === entry.version) return false;
+        notice.pending.set(entry.name, entry);
+        schedule(notice.handle ? 500 : 2500); // give the other plugins' checks a moment so they land in the same notice
+        return true;
+    };
+    notice.remove = (name) => {
+        if (!notice.pending.delete(name)) return;
+        if (notice.handle) schedule(500);
+        else notice.shown = "";
+    };
+    notice.has = (name) => notice.pending.has(name);
+    notice.close = close;
+    if (previous) {
+        clearTimeout(previous.timer);
+        previous.close?.();
+        for (const [name, entry] of previous.pending ?? []) notice.pending.set(name, entry);
+        if (notice.pending.size) schedule(2500);
+    }
+    globalThis.__pharaohUpdateNotice = notice;
+    return notice;
+})();
+
 class UpdateManager {
     /* using Net, UI, Logger, Data, Plugins, Utils from BdApi */
     constructor(pluginName, version, github = GITHUB_REPO) {
@@ -73,6 +152,12 @@ class UpdateManager {
         else handle.close?.();
     }
     async check(silent = false) {
+        // Plugin Hub reviews and delivers updates for the plugins it manages, so this updater steps aside while it runs
+        const hub = BdApi.Plugins.isEnabled("PluginHub") ? BdApi.Plugins.get("PluginHub")?.instance : null;
+        if (hub && (typeof hub.manages !== "function" || hub.manages(this.name))) {
+            if (!silent) BdApi.UI.showToast(`[${this.name}] Updates are handled by Plugin Hub`, { type: "info" });
+            return;
+        }
         try {
             const res = await Net.fetch(this.urls.plugin);
             if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
@@ -93,46 +178,10 @@ class UpdateManager {
     showUpdateNotice(version, text) {
         this._closeNotification();
         this._noticeContent = `v${version} is available`;
-        const handle = UI.showNotification?.({
-            id: `bd-plugin-update:${this.name}`,
-            title: `${this.name}`,
-            content: this._noticeContent,
-            type: "info",
-            duration: 6000000,
-            // BetterDiscord closes the notice itself after an action runs, so the actions must not close it too
-            actions: [
-                {
-                    label: "Update",
-                    onClick: () => this.applyUpdate(text, version),
-                },
-                {
-                    label: "Dismiss",
-                },
-            ],
-            onClose: () => {
-                if (this.notification === handle) this.notification = null;
-            },
-        }) ?? UI.showNotice(`${this.name} v${version} is available`, {
-            type: "info",
-            buttons: [
-                {
-                    label: "Update",
-                    onClick: (closeOrEvent) => {
-                        if (typeof closeOrEvent === "function") closeOrEvent();
-                        else this._closeNotification();
-                        this.applyUpdate(text, version);
-                    },
-                },
-                {
-                    label: "Dismiss",
-                    onClick: (closeOrEvent) => {
-                        if (typeof closeOrEvent === "function") closeOrEvent();
-                        else this._closeNotification();
-                    },
-                },
-            ],
-        });
-        this.notification = handle;
+        const name = this.name;
+        if (!SharedUpdateNotice.add({ name, version, apply: () => this.applyUpdate(text, version) })) return;
+        // shaped like a BetterDiscord notification handle so _closeNotification() drops this plugin from the shared notice
+        this.notification = { close: () => SharedUpdateNotice.remove(name), isVisible: () => SharedUpdateNotice.has(name) };
     }
     applyUpdate(text, version) {
         try {

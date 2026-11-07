@@ -1,5 +1,9 @@
 # [ServerSearch](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=ServerSearch "ServerSearch") Changelog
 
+### 1.0.5
+- Update notices from Pharaoh2k's plugins are now combined into one "Plugin Updater" notification with an Update All button, like BetterDiscord's own addon updater, instead of one popup per plugin
+- The built-in updater steps aside while Plugin Hub is enabled and manages the plugin, so updates arrive reviewed through the hub
+
 ### 1.0.4
 - Fixed Discord crashing on startup after a Discord update, when the plugin could no longer find the server list styles
 

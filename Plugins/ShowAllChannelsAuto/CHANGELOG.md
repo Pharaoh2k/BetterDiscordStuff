@@ -1,5 +1,9 @@
 # [ShowAllChannelsAuto](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=ShowAllChannelsAuto "ShowAllChannelsAuto") Changelog
 
+### 1.0.7
+- Update notices from Pharaoh2k's plugins are now combined into one "Plugin Updater" notification with an Update All button, like BetterDiscord's own addon updater, instead of one popup per plugin
+- The built-in updater steps aside while Plugin Hub is enabled and manages the plugin, so updates arrive reviewed through the hub
+
 ### 1.0.6
 - Fixed the update notification staying stuck on screen after clicking Update, Dismiss or its close button, working around a BetterDiscord bug
 

@@ -1,5 +1,9 @@
 # [BetterSplitLargeMessages](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterSplitLargeMessages "BetterSplitLargeMessages") Changelog
 
+### 1.0.7
+- Update notices from Pharaoh2k's plugins are now combined into one "Plugin Updater" notification with an Update All button, like BetterDiscord's own addon updater, instead of one popup per plugin
+- The built-in updater steps aside while Plugin Hub is enabled and manages the plugin, so updates arrive reviewed through the hub
+
 ### 1.0.6
 - Fixed messages over the limit being blocked again after a Discord update, which now builds the 2,000 and 4,000 character limits into its code
 - Fixed the Nitro upsell blocker no longer finding Discord's modals after the same update

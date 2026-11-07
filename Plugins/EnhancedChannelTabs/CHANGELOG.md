@@ -1,5 +1,9 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+### 5.1.5
+- Update notices from Pharaoh2k's plugins are now combined into one "Plugin Updater" notification with an Update All button, like BetterDiscord's own addon updater, instead of one popup per plugin
+- The built-in updater steps aside while Plugin Hub is enabled and manages the plugin, so updates arrive reviewed through the hub
+
 ### 5.1.4
 - Fixed the plugin failing to start after a Discord update ("Could not find TitleBar module")
 - Fixed the tab bar styles, chat preview and popout classes not being found after the same update
