@@ -1,7 +1,7 @@
 /**
  * @name BetterCharCounter
  * @author Pharaoh2k
- * @version 1.0.3
+ * @version 1.0.4
  * @description Adds a Character Counter to most Discord inputs
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
@@ -559,8 +559,7 @@ const BetterCharCounter = meta => {
     const loadModules = () => {
         const bulkModules = Webpack.getBulkKeyed({
             DraftType: { filter: Filters.byKeys("ChannelMessage", "ThreadSettings"), searchExports: true },
-            NitroUtils: { filter: Filters.byKeys("canUseIncreasedMessageLength") },
-            chatClasses: { filter: Filters.byKeys("form", "chatContent", "shaker") }
+            NitroUtils: { filter: Filters.byKeys("canUseIncreasedMessageLength") }
         });
         modules = {
             DraftStore: Webpack.getStore("DraftStore"),
@@ -569,10 +568,6 @@ const BetterCharCounter = meta => {
         };
         const bottomBarModule = Webpack.getModule(m => m !== null && typeof m === "object" && classOf(m, "channelBottomBarArea"));
         modules.bottomBarClass = bottomBarModule && classOf(bottomBarModule, "channelBottomBarArea");
-        if (!modules.chatClasses) {
-            modules.chatClasses = Webpack.getModule(Filters.byKeys("parentChannelName", "linkedLobby"))
-                || Webpack.getModule(Filters.byKeys("forumPostSidebarTitle", "gdm"));
-        }
         if (!modules.NitroUtils) {
             modules.NitroUtils = Webpack.getModule(Filters.byKeys("canUseIncreasedMessageLength", "getPremiumType"))
                 || Webpack.getModule(m => m?.canUseAnimatedEmojis);
