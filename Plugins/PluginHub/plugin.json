@@ -1,0 +1,27 @@
+{
+  "name": "PluginHub",
+  "description": "A plugin store inside BetterDiscord's settings - browse, install, update and remove unofficial plugins from Pharaoh2k's hub and other sources, with hash-verified downloads.",
+  "author": "Pharaoh2k",
+  "version": "1.0.1",
+  "status": "Active",
+  "workingStatus": "Working",
+  "lastUpdated": "2026-11-07",
+  "releaseDate": "2026-11-06",
+  "features": [
+    "Adds a Plugin Hub page under the BetterDiscord header in Discord's settings",
+    "Browse, search, sort and filter plugins by tag; cards show author, version, size and last update",
+    "Install, update, enable/disable and uninstall plugins without leaving Discord",
+    "Every download is verified against the index (size, SHA-256, @name, @version) before anything is written",
+    "Downloads are pinned to a specific commit, with a jsDelivr mirror as fallback",
+    "Backups of replaced files are kept and can be restored from a card's menu",
+    "Update checks on startup and on an interval, with a notification offering Update all",
+    "Optional auto-update for first-party plugins or individual plugins",
+    "NEW and UPDATED badges for plugins added or changed since your last visit",
+    "Changelog viewer using BetterDiscord's changelog modal",
+    "Additional index sources (shown as third-party) and a local-path source for development",
+    "Deep link into the hub page from the plugin's own settings"
+  ],
+  "sourceUrl": "https://github.com/Pharaoh2k/BetterDiscordStuff/tree/main/Plugins/PluginHub",
+  "changelogUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/PluginHub/CHANGELOG.md",
+  "downloadUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/PluginHub/PluginHub.plugin.js"
+}
