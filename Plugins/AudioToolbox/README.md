@@ -218,7 +218,7 @@ Contributions are welcome via GitHub pull requests. Please ensure submissions al
 
 - [GitHub Repository](https://github.com/Pharaoh2k/BetterDiscordStuff)
 - [Plugin Website](https://pharaoh2k.github.io/BetterDiscordStuff/)
-- [Download Plugin](https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/AudioToolbox/AudioToolbox.plugin.js)
+- [Download Plugin](https://github.com/Pharaoh2k/BetterDiscordStuff/releases/download/plugins/AudioToolbox.plugin.js)
 - [Changelog](https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/AudioToolbox/CHANGELOG.md)
 
 ## 👥 Author
