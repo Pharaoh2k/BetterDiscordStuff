@@ -2,9 +2,12 @@
 
 A comprehensive audio toolkit for Discord voice messages and audio attachments - featuring download capabilities with instant format conversions, EQ presets, playback speed control, advanced looping, queue mode, batch operations, and auto-download.
 
-![Version](https://img.shields.io/badge/version-2.0.4-blue.svg)
+![Version](https://img.shields.io/badge/version-2.0.6-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Discord](https://img.shields.io/badge/discord-BetterDiscord-7289DA.svg)
+[![GitHub stars](https://img.shields.io/github/stars/Pharaoh2k/BetterDiscordStuff?style=social)](https://github.com/Pharaoh2k/BetterDiscordStuff)
+
+### If you use AudioToolbox, please star ⭐ the repo. It's free of charge and only takes a moment. :)
 
 ## 📖 Description
 
@@ -45,7 +48,7 @@ AudioToolbox (formerly AudioDownloader) transforms how you interact with audio i
 
 ## 📦 Installation
 
-1. Download [AudioToolbox.plugin.js](https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/AudioToolbox/AudioToolbox.plugin.js)
+1. Download [AudioToolbox.plugin.js](https://github.com/Pharaoh2k/BetterDiscordStuff/releases/download/plugins/AudioToolbox.plugin.js)
 2. Place the file in your BetterDiscord plugins folder:
    - Windows: `%appdata%\BetterDiscord\plugins`
    - macOS: `~/Library/Application Support/BetterDiscord/plugins`

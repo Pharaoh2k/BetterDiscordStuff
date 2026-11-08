@@ -1,5 +1,8 @@
 # [BetterCharCounter](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterCharCounter "BetterCharCounter") Changelog
 
+### 1.0.5
+- Added a link to star the repository on GitHub at the bottom of the changelog popup
+
 ### 1.0.4
 - Removed an unused lookup of Discord's chat styles that stopped finding anything after a Discord update and only slowed down startup
 

@@ -3,7 +3,7 @@
  * @author Pharaoh2k
  * @authorId 874825550408089610
  * @description Displays various hidden & moderator-only things regardless of permissions. Shows member timeout icons in chat, invites paused tooltip in server list, and mod view context menu item in all servers.
- * @version 1.0.5
+ * @version 1.0.6
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/ShowHiddenThings/ShowHiddenThings.plugin.js
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/ShowHiddenThings/ShowHiddenThings.plugin.js
@@ -190,6 +190,15 @@ class UpdateManager {
             UI.showToast(`[${this.name}] Update failed`, { type: "error" });
         }
     }
+    // A short request to star the repository, shown under every changelog
+    changelogFooter() {
+        const { createElement } = BdApi.React;
+        return createElement("div", { style: { color: "var(--text-default)", fontSize: "14px", lineHeight: "18px" } },
+            `If you use ${this.name}, please `,
+            createElement("a", { href: "https://github.com/Pharaoh2k/BetterDiscordStuff", target: "_blank", rel: "noreferrer noopener" }, "star ⭐ the repo"),
+            ". It's free of charge and only takes a moment. :)"
+        );
+    }
     async showChangelog() {
         const last = Data.load('version');
         if (last === this.version) return;
@@ -201,7 +210,7 @@ class UpdateManager {
             const md = await res.text();
             const changes = this.parseChangelog(md, last, this.version);
             if (changes.length === 0) return;
-            UI.showChangelogModal({ title: this.name, subtitle: `Version ${this.version}`, changes });
+            UI.showChangelogModal({ title: this.name, subtitle: `Version ${this.version}`, changes, footer: this.changelogFooter() });
         } catch (e) { Logger.error("Changelog error:", e); }
     }
     async showFullChangelog() {
@@ -213,7 +222,8 @@ class UpdateManager {
             UI.showChangelogModal({
                 title: this.name,
                 subtitle: `All Changes`,
-                changes: changes.length ? changes : [{ title: "No changes found", items: [] }]
+                changes: changes.length ? changes : [{ title: "No changes found", items: [] }],
+                footer: this.changelogFooter()
             });
         } catch {
             UI.showToast("Could not fetch changelog", { type: "error" });

@@ -2,9 +2,12 @@
 
 A BetterDiscord plugin that adds live character counters to the message box and other Discord inputs, so you always know how close you are to the limit.
 
-![Version](https://img.shields.io/badge/version-1.0.4-blue.svg)
+![Version](https://img.shields.io/badge/version-1.0.5-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Discord](https://img.shields.io/badge/discord-BetterDiscord-7289DA.svg)
+[![GitHub stars](https://img.shields.io/github/stars/Pharaoh2k/BetterDiscordStuff?style=social)](https://github.com/Pharaoh2k/BetterDiscordStuff)
+
+### If you use BetterCharCounter, please star ⭐ the repo. It's free of charge and only takes a moment. :)
 
 ## 📖 Description
 
@@ -24,7 +27,7 @@ BetterCharCounter shows how many characters you have typed next to your limit, r
 
 ## 📦 Installation
 
-1. Download [BetterCharCounter.plugin.js](https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BetterCharCounter/BetterCharCounter.plugin.js)
+1. Download [BetterCharCounter.plugin.js](https://github.com/Pharaoh2k/BetterDiscordStuff/releases/download/plugins/BetterCharCounter.plugin.js)
 2. Place the file in your BetterDiscord plugins folder:
    - Windows: `%appdata%\BetterDiscord\plugins`
    - macOS: `~/Library/Application Support/BetterDiscord/plugins`

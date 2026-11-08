@@ -2,9 +2,12 @@
 
 A BetterDiscord plugin that allows you to send longer messages by automatically splitting them into multiple chunks. No Nitro spoofing, respects server limits and slowmode.
 
-![Version](https://img.shields.io/badge/version-1.0.6-blue.svg)
+![Version](https://img.shields.io/badge/version-1.0.8-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Discord](https://img.shields.io/badge/discord-BetterDiscord-7289DA.svg)
+[![GitHub stars](https://img.shields.io/github/stars/Pharaoh2k/BetterDiscordStuff?style=social)](https://github.com/Pharaoh2k/BetterDiscordStuff)
+
+### If you use BetterSplitLargeMessages, please star ⭐ the repo. It's free of charge and only takes a moment. :)
 
 ## 📖 Description
 
@@ -25,7 +28,7 @@ BetterSplitLargeMessages enhances your Discord experience by intelligently split
 
 ## 📦 Installation
 
-1. Download [BetterSplitLargeMessages.plugin.js](https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/refs/heads/main/Plugins/BetterSplitLargeMessages/BetterSplitLargeMessages.plugin.js)
+1. Download [BetterSplitLargeMessages.plugin.js](https://github.com/Pharaoh2k/BetterDiscordStuff/releases/download/plugins/BetterSplitLargeMessages.plugin.js)
 2. Place the file in your BetterDiscord plugins folder:
    - Windows: `%appdata%\BetterDiscord\plugins`
    - macOS: `~/Library/Application Support/BetterDiscord/plugins`

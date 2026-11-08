@@ -1,5 +1,8 @@
 # [PermissionsToolkit](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=PermissionsToolkit "PermissionsToolkit") Changelog
 
+### 1.0.6
+- Added a link to star the repository on GitHub at the bottom of the changelog popup
+
 ### 1.0.5
 - Fixed the permission list in profile popouts no longer using Discord's own role pill style after a Discord update
 

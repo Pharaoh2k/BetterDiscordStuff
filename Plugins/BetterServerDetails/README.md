@@ -2,9 +2,12 @@
 
 A BetterDiscord plugin that displays detailed server information in a beautiful custom tooltip when hovering over servers in the server list.
 
-![Version](https://img.shields.io/badge/version-1.0.6-blue.svg)
+![Version](https://img.shields.io/badge/version-1.0.8-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Discord](https://img.shields.io/badge/discord-BetterDiscord-7289DA.svg)
+[![GitHub stars](https://img.shields.io/github/stars/Pharaoh2k/BetterDiscordStuff?style=social)](https://github.com/Pharaoh2k/BetterDiscordStuff)
+
+### If you use BetterServerDetails, please star ⭐ the repo. It's free of charge and only takes a moment. :)
 
 ## 📖 Description
 
@@ -29,7 +32,7 @@ Inspired by ServerDetails by mwittrien/Devilbro, rebuilt from scratch using mode
 
 ## 📦 Installation
 
-1. Download [BetterServerDetails.plugin.js](https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BetterServerDetails/BetterServerDetails.plugin.js)
+1. Download [BetterServerDetails.plugin.js](https://github.com/Pharaoh2k/BetterDiscordStuff/releases/download/plugins/BetterServerDetails.plugin.js)
 2. Place the file in your BetterDiscord plugins folder:
    - Windows: `%appdata%\BetterDiscord\plugins`
    - macOS: `~/Library/Application Support/BetterDiscord/plugins`

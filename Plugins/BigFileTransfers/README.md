@@ -4,9 +4,12 @@
 
 A BetterDiscord plugin that allows you to upload and download very large files (~4GB without Nitro, ~20GB with Nitro) by seamlessly splitting them into smaller chunks and merging them back together.
 
-![Version](https://img.shields.io/badge/version-1.0.9-blue.svg)
+![Version](https://img.shields.io/badge/version-1.0.11-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Discord](https://img.shields.io/badge/discord-BetterDiscord-7289DA.svg)
+[![GitHub stars](https://img.shields.io/github/stars/Pharaoh2k/BetterDiscordStuff?style=social)](https://github.com/Pharaoh2k/BetterDiscordStuff)
+
+### If you use BigFileTransfers, please star ⭐ the repo. It's free of charge and only takes a moment. :)
 
 ## 📖 Description
 
@@ -32,7 +35,7 @@ https://pharaoh2k.github.io/BetterDiscordStuff/Merger/
 
 ## 📦 Installation
 
-1. Download [BigFileTransfers.plugin.js](https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BigFileTransfers/BigFileTransfers.plugin.js)
+1. Download [BigFileTransfers.plugin.js](https://github.com/Pharaoh2k/BetterDiscordStuff/releases/download/plugins/BigFileTransfers.plugin.js)
 2. Place the file in your BetterDiscord plugins folder:
    - Windows: `%appdata%\BetterDiscord\plugins`
    - macOS: `~/Library/Application Support/BetterDiscord/plugins`

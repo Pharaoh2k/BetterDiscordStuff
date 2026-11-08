@@ -2,9 +2,12 @@
 
 A BetterDiscord plugin that enhances DM pinning with category organization, drag & drop, unread tracking, keyboard shortcuts, and import/export functionality.
 
-![Version](https://img.shields.io/badge/version-3.0.4-blue.svg)
+![Version](https://img.shields.io/badge/version-3.0.6-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Discord](https://img.shields.io/badge/discord-BetterDiscord-7289DA.svg)
+[![GitHub stars](https://img.shields.io/github/stars/Pharaoh2k/BetterDiscordStuff?style=social)](https://github.com/Pharaoh2k/BetterDiscordStuff)
+
+### If you use BetterPinDMs, please star ⭐ the repo. It's free of charge and only takes a moment. :)
 
 ## 📖 Description
 
@@ -29,7 +32,7 @@ BetterPinDMs transforms how you manage your Discord Direct Messages by adding a 
 
 ## 📦 Installation
 
-1. Download [BetterPinDMs.plugin.js](https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BetterPinDMs/BetterPinDMs.plugin.js)
+1. Download [BetterPinDMs.plugin.js](https://github.com/Pharaoh2k/BetterDiscordStuff/releases/download/plugins/BetterPinDMs.plugin.js)
 2. Place the file in your BetterDiscord plugins folder:
    - Windows: `%appdata%\BetterDiscord\plugins`
    - macOS: `~/Library/Application Support/BetterDiscord/plugins`

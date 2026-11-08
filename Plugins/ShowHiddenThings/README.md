@@ -2,9 +2,12 @@
 
 A BetterDiscord plugin that displays various hidden and moderator-only elements regardless of your permissions.
 
-![Version](https://img.shields.io/badge/version-1.0.4-blue.svg)
+![Version](https://img.shields.io/badge/version-1.0.6-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Discord](https://img.shields.io/badge/discord-BetterDiscord-7289DA.svg)
+[![GitHub stars](https://img.shields.io/github/stars/Pharaoh2k/BetterDiscordStuff?style=social)](https://github.com/Pharaoh2k/BetterDiscordStuff)
+
+### If you use ShowHiddenThings, please star ⭐ the repo. It's free of charge and only takes a moment. :)
 
 ## 📖 Description
 
@@ -22,7 +25,7 @@ ShowHiddenThings enhances your Discord experience by revealing typically hidden 
 
 ## 📦 Installation
 
-1. Download [ShowHiddenThings.plugin.js](https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/ShowHiddenThings/ShowHiddenThings.plugin.js)
+1. Download [ShowHiddenThings.plugin.js](https://github.com/Pharaoh2k/BetterDiscordStuff/releases/download/plugins/ShowHiddenThings.plugin.js)
 2. Place the file in your BetterDiscord plugins folder:
    - Windows: `%appdata%\BetterDiscord\plugins`
    - macOS: `~/Library/Application Support/BetterDiscord/plugins`

@@ -1,5 +1,8 @@
 # [BetterFriendsSince](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=BetterFriendsSince "BetterFriendsSince") Changelog
 
+### 1.3.12
+- Added a link to star the repository on GitHub at the bottom of the changelog popup
+
 ### 1.3.11
 - Update notices from Pharaoh2k's plugins are now combined into one "Plugin Updater" notification with an Update All button, like BetterDiscord's own addon updater, instead of one popup per plugin
 - The built-in updater steps aside while Plugin Hub is enabled and manages the plugin, so updates arrive reviewed through the hub

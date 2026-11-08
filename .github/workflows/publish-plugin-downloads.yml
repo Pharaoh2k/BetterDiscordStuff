@@ -1,0 +1,64 @@
+# Keeps the "plugins" release holding the newest .plugin.js of every plugin, so README download links download the
+# file instead of opening it as text. Only changed plugins are re-uploaded, so the others keep their download counts.
+name: Publish plugin downloads
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Plugins/*/*.plugin.js"
+      - "Plugins/*/plugin.json"
+      - ".github/scripts/plugin-release-notes.mjs"
+      - ".github/workflows/publish-plugin-downloads.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-plugin-downloads
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: plugins
+      TITLE: BetterDiscordStuff plugins (always up to date)
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Write the release description
+        run: node .github/scripts/plugin-release-notes.mjs > "$RUNNER_TEMP/notes.md"
+
+      - name: Create or update the release
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release edit "$TAG" --title "$TITLE" --notes-file "$RUNNER_TEMP/notes.md" --latest
+          else
+            gh release create "$TAG" --title "$TITLE" --notes-file "$RUNNER_TEMP/notes.md" --latest --target "$GITHUB_SHA"
+            echo "UPLOAD_ALL=1" >> "$GITHUB_ENV"
+          fi
+
+      - name: Upload the changed plugins
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$UPLOAD_ALL" = "1" ] || [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] || ! git cat-file -e "$BEFORE^{commit}" 2> /dev/null; then
+            files=$(ls Plugins/*/*.plugin.js)
+          else
+            files=$(git diff --name-only "$BEFORE" "$GITHUB_SHA" -- 'Plugins/*/*.plugin.js')
+          fi
+          for file in $files; do
+            if [ -f "$file" ]; then
+              gh release upload "$TAG" "$file" --clobber
+            fi
+          done
+
+      - name: Move the tag to this commit
+        run: |
+          git tag -f "$TAG" "$GITHUB_SHA"
+          git push -f origin "refs/tags/$TAG"

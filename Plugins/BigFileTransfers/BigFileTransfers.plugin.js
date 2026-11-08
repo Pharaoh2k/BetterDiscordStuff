@@ -3,7 +3,7 @@
  * @author Pharaoh2k
  * @authorId 874825550408089610
  * @description Enables uploading and downloading very large files (~4GB without Nitro, ~20GB with Nitro) by splitting them into chunks and reassembling them automatically. Both sender and receiver need the plugin. Includes automatic chunk sending, low‑memory mode, and other conveniences. Like BetterSplitLargeMessages, it doesn’t bypass Discord’s limits or Nitro, it simply works within them to make large transfers possible.
- * @version 1.0.10
+ * @version 1.0.11
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BigFileTransfers/BigFileTransfers.plugin.js
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BigFileTransfers/BigFileTransfers.plugin.js
@@ -207,6 +207,15 @@ class UpdateManager {
             UI.showToast("Update failed", { type: "error" });
         }
     }
+    // A short request to star the repository, shown under every changelog
+    changelogFooter() {
+        const { createElement } = BdApi.React;
+        return createElement("div", { style: { color: "var(--text-default)", fontSize: "14px", lineHeight: "18px" } },
+            `If you use ${this.name}, please `,
+            createElement("a", { href: "https://github.com/Pharaoh2k/BetterDiscordStuff", target: "_blank", rel: "noreferrer noopener" }, "star ⭐ the repo"),
+            ". It's free of charge and only takes a moment. :)"
+        );
+    }
     async showChangelog() {
         const last = Data.load('version');
         Logger.info(`showChangelog: last=${last}, current=${this.version}`);
@@ -233,7 +242,8 @@ class UpdateManager {
             UI.showChangelogModal({
                 title: this.name,
                 subtitle,
-                changes: changes.length ? changes : [{ title: "No changes found", items: [] }]
+                changes: changes.length ? changes : [{ title: "No changes found", items: [] }],
+                footer: this.changelogFooter()
             });
         } catch (e) {
             Logger.error("Changelog error:", e);

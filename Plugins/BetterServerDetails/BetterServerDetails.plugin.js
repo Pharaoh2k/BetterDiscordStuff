@@ -2,7 +2,7 @@
  * @name BetterServerDetails
  * @author Pharaoh2k
  * @description Shows Server Details (owner, creation/join date, members, etc.) in a custom tooltip on the server list.
- * @version 1.0.7
+ * @version 1.0.8
  * @authorId 874825550408089610
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/BetterServerDetails/BetterServerDetails.plugin.js
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
@@ -231,6 +231,15 @@ class UpdateManager {
 			BdApi.UI.showToast("Update failed", { type: "error" });
 		}
 	}
+	// A short request to star the repository, shown under every changelog
+	changelogFooter() {
+		const { createElement } = BdApi.React;
+		return createElement("div", { style: { color: "var(--text-default)", fontSize: "14px", lineHeight: "18px" } },
+			`If you use ${this.name}, please `,
+			createElement("a", { href: "https://github.com/Pharaoh2k/BetterDiscordStuff", target: "_blank", rel: "noreferrer noopener" }, "star ⭐ the repo"),
+			". It's free of charge and only takes a moment. :)"
+		);
+	}
 	async showChangelog() {
 		const last = BdApi.Data.load(this.name, 'version');
 		console.log(`[${this.name}] showChangelog: last=${last}, current=${this.version}`);
@@ -245,7 +254,7 @@ class UpdateManager {
 			const changes = this.parseChangelog(md, last, this.version);
 			console.log(`[${this.name}] Parsed changes:`, changes);
 			if (changes.length === 0) return;
-			BdApi.UI.showChangelogModal({ title: this.name, subtitle: `Version ${this.version}`, changes });
+			BdApi.UI.showChangelogModal({ title: this.name, subtitle: `Version ${this.version}`, changes, footer: this.changelogFooter() });
 		} catch (e) { console.error(`[${this.name}] Changelog error:`, e); }
 	}
 	async showFullChangelog() {
@@ -257,7 +266,8 @@ class UpdateManager {
 			BdApi.UI.showChangelogModal({
 				title: this.name,
 				subtitle: `All Changes`,
-				changes: changes.length ? changes : [{ title: "No changes found", items: [] }]
+				changes: changes.length ? changes : [{ title: "No changes found", items: [] }],
+				footer: this.changelogFooter()
 			});
 		} catch {
 			BdApi.UI.showToast("Could not fetch changelog", { type: "error" });

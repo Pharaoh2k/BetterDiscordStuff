@@ -1,6 +1,6 @@
 /**
  * @name ShowAllChannelsAuto
- * @version 1.0.7
+ * @version 1.0.8
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/ShowAllChannelsAuto/ShowAllChannelsAuto.plugin.js
  * @updateUrl https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/ShowAllChannelsAuto/ShowAllChannelsAuto.plugin.js
@@ -202,6 +202,15 @@ class UpdateManager {
 			UI.showToast(`[${this.name}] Update failed`, { type: "error" });
 		}
 	}
+	// A short request to star the repository, shown under every changelog
+	changelogFooter() {
+		const { createElement } = BdApi.React;
+		return createElement("div", { style: { color: "var(--text-default)", fontSize: "14px", lineHeight: "18px" } },
+			`If you use ${this.name}, please `,
+			createElement("a", { href: "https://github.com/Pharaoh2k/BetterDiscordStuff", target: "_blank", rel: "noreferrer noopener" }, "star ⭐ the repo"),
+			". It's free of charge and only takes a moment. :)"
+		);
+	}
 	async showChangelog() {
 		const last = Data.load('version');
 		Logger.info(`showChangelog: last=${last}, current=${this.version}`);
@@ -219,7 +228,7 @@ class UpdateManager {
 			const changes = this.parseChangelog(md, last, this.version);
 			Logger.info("Parsed changes:", changes);
 			if (changes.length === 0) { Data.save('version', this.version); return; }
-			UI.showChangelogModal({ title: this.name, subtitle: `Version ${this.version}`, changes });
+			UI.showChangelogModal({ title: this.name, subtitle: `Version ${this.version}`, changes, footer: this.changelogFooter() });
 			Data.save('version', this.version);
 		} catch (e) { Logger.error("Changelog error:", e); }
 	}
@@ -232,7 +241,8 @@ class UpdateManager {
 			UI.showChangelogModal({
 				title: this.name,
 				subtitle: `All Changes`,
-				changes: changes.length ? changes : [{ title: "No changes found", items: [] }]
+				changes: changes.length ? changes : [{ title: "No changes found", items: [] }],
+				footer: this.changelogFooter()
 			});
 		} catch {
 			UI.showToast("Could not fetch changelog", { type: "error" });

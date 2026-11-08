@@ -1,9 +1,12 @@
 # BetterTypingIndicator
 A BetterDiscord plugin that enhances Discord's typing indicators with visual indicators in channel lists, server icons, folders, and DMs.
 
-![Version](https://img.shields.io/badge/version-2.9.10-blue.svg)
+![Version](https://img.shields.io/badge/version-2.9.12-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Discord](https://img.shields.io/badge/discord-BetterDiscord-7289DA.svg)
+[![GitHub stars](https://img.shields.io/github/stars/Pharaoh2k/BetterDiscordStuff?style=social)](https://github.com/Pharaoh2k/BetterDiscordStuff)
+
+### If you use BetterTypingIndicator, please star ⭐ the repo. It's free of charge and only takes a moment. :)
 
 ## 📖 Description
 
@@ -36,7 +39,7 @@ BetterTypingIndicator revolutionizes how you see typing activity across Discord.
 
 ## 📦 Installation
 
-1. Download [BetterTypingIndicator.plugin.js](https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/refs/heads/main/Plugins/BetterTypingIndicator/BetterTypingIndicator.plugin.js)
+1. Download [BetterTypingIndicator.plugin.js](https://github.com/Pharaoh2k/BetterDiscordStuff/releases/download/plugins/BetterTypingIndicator.plugin.js)
 2. Place the file in your BetterDiscord plugins folder:
    - Windows: `%appdata%\BetterDiscord\plugins`
    - macOS: `~/Library/Application Support/BetterDiscord/plugins`

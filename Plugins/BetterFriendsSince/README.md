@@ -2,9 +2,12 @@
 
 A BetterDiscord plugin that displays when you and another user became friends directly in their profile and their sidebar.
 
-![Version](https://img.shields.io/badge/version-1.3.10-blue.svg)
+![Version](https://img.shields.io/badge/version-1.3.12-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Discord](https://img.shields.io/badge/discord-BetterDiscord-7289DA.svg)
+[![GitHub stars](https://img.shields.io/github/stars/Pharaoh2k/BetterDiscordStuff?style=social)](https://github.com/Pharaoh2k/BetterDiscordStuff)
+
+### If you use BetterFriendsSince, please star ⭐ the repo. It's free of charge and only takes a moment. :)
 
 ## 📖 Description
 
@@ -21,7 +24,7 @@ BetterFriendsSince enhances Discord's user profile modal by adding a "Friends si
 
 ## 📦 Installation
 
-1. Download [BetterFriendsSince.plugin.js](https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BetterFriendsSince/BetterFriendsSince.plugin.js)
+1. Download [BetterFriendsSince.plugin.js](https://github.com/Pharaoh2k/BetterDiscordStuff/releases/download/plugins/BetterFriendsSince.plugin.js)
 2. Place the file in your BetterDiscord plugins folder:
    - Windows: `%appdata%\BetterDiscord\plugins`
    - macOS: `~/Library/Application Support/BetterDiscord/plugins`

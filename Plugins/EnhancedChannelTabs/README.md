@@ -1,9 +1,12 @@
 # EnhancedChannelTabs
 A BetterDiscord plugin that brings browser-style tabs and bookmarks to Discord.
 
-![Version](https://img.shields.io/badge/version-5.1.4-blue.svg)
+![Version](https://img.shields.io/badge/version-5.1.6-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Discord](https://img.shields.io/badge/discord-BetterDiscord-7289DA.svg)
+[![GitHub stars](https://img.shields.io/github/stars/Pharaoh2k/BetterDiscordStuff?style=social)](https://github.com/Pharaoh2k/BetterDiscordStuff)
+
+### If you use EnhancedChannelTabs, please star ⭐ the repo. It's free of charge and only takes a moment. :)
 
 ## 📖 Description
 
@@ -45,7 +48,7 @@ EnhancedChannelTabs transforms your Discord experience with a powerful tab syste
 
 ## 📦 Installation
 
-1. Download [EnhancedChannelTabs.plugin.js](https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js)
+1. Download [EnhancedChannelTabs.plugin.js](https://github.com/Pharaoh2k/BetterDiscordStuff/releases/download/plugins/EnhancedChannelTabs.plugin.js)
 2. Place the file in your BetterDiscord plugins folder:
    - Windows: `%appdata%\BetterDiscord\plugins`
    - macOS: `~/Library/Application Support/BetterDiscord/plugins`

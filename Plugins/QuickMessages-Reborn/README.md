@@ -4,9 +4,12 @@
 
 A BetterDiscord plugin that allows you to save and quickly reuse messages. Organize your frequently used text with categories and send them instantly with a right-click.
 
-![Version](https://img.shields.io/badge/version-1.0.4-blue.svg)
+![Version](https://img.shields.io/badge/version-1.0.6-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Discord](https://img.shields.io/badge/discord-BetterDiscord-7289DA.svg)
+[![GitHub stars](https://img.shields.io/github/stars/Pharaoh2k/BetterDiscordStuff?style=social)](https://github.com/Pharaoh2k/BetterDiscordStuff)
+
+### If you use QuickMessages-Reborn, please star ⭐ the repo. It's free of charge and only takes a moment. :)
 
 ## 📖 Description
 
@@ -29,7 +32,7 @@ QuickMessages-Reborn enhances your Discord messaging experience by letting you s
 
 ## 📦 Installation
 
-1. Download [QuickMessages-Reborn.plugin.js](https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/QuickMessages-Reborn/QuickMessages-Reborn.plugin.js)
+1. Download [QuickMessages-Reborn.plugin.js](https://github.com/Pharaoh2k/BetterDiscordStuff/releases/download/plugins/QuickMessages-Reborn.plugin.js)
 2. Place the file in your BetterDiscord plugins folder:
    - Windows: `%appdata%\BetterDiscord\plugins`
    - macOS: `~/Library/Application Support/BetterDiscord/plugins`
