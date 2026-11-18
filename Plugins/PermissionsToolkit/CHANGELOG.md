@@ -1,5 +1,8 @@
 # [PermissionsToolkit](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=PermissionsToolkit "PermissionsToolkit") Changelog
 
+### 1.0.7
+- Fixed an empty strip along the right side of the permissions popup after a Discord update
+
 ### 1.0.6
 - Added a link to star the repository on GitHub at the bottom of the changelog popup
 

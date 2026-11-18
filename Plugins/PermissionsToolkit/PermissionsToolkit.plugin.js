@@ -2,7 +2,7 @@
  * @name PermissionsToolkit
  * @author Pharaoh2k
  * @description Allows you to Inspect user and role permissions, compare roles or users side-by-side, look up who has specific permissions, and scan for dangerous configurations.
- * @version 1.0.6
+ * @version 1.0.7
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/PermissionsToolkit/PermissionsToolkit.plugin.js
@@ -889,7 +889,7 @@ div:where(.member-perms) > div:where(.member-perm) { display: flex; align-items:
 /* Permission Viewer Modal */
 .pt-unified-modal * { box-sizing: border-box; }
 .pt-unified-modal > header { display: none; }
-.pt-unified-modal > [class*="body__"] { overflow: hidden !important; scrollbar-gutter: auto !important; }
+.pt-unified-modal > .pt-unified-body { overflow: hidden !important; scrollbar-gutter: auto !important; }
 .pt-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px; background: var(--background-mod-subtle, rgba(151,151,159,0.08)); border-bottom: 1px solid var(--background-accent, #393a41); }
 .pt-header-title { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .pt-header-avatar { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; object-fit: cover; }
@@ -3009,7 +3009,13 @@ div:where(.member-perms) > div:where(.member-perm) { display: flex; align-items:
         const tabBar = RcE("div", { className: "pt-tab-bar", role: "tablist", onKeyDown: handleTabBarKeyDown },
           tabDefs.map(tab => renderTab(tab))
         );
-        return RcE("div", { style: { height: "72vh", display: "flex", flexDirection: "column", overflow: "hidden" } }, header, tabBar, panel);
+        const rootRef = React.useRef(null);
+        // The panes scroll on their own, so turn off the scrolling and scrollbar gutter of the modal body holding them before the first paint
+        React.useLayoutEffect(() => {
+          rootRef.current?.closest('[data-mana-component="modal"]')?.classList.add("pt-unified-modal");
+          rootRef.current?.closest(".pt-unified-modal > *")?.classList.add("pt-unified-body");
+        }, []);
+        return RcE("div", { ref: rootRef, style: { height: "72vh", display: "flex", flexDirection: "column", overflow: "hidden" } }, header, tabBar, panel);
       };
     }
     createModalUser(name, member, guild) {
@@ -3135,11 +3141,6 @@ div:where(.member-perms) > div:where(.member-perm) { display: flex; align-items:
           RcE(Component, { ...props, onClose: manaProps.onClose })
         )
       , { modalKey: this._modalKey });
-      requestAnimationFrame(() => {
-        const containers = document.querySelectorAll('[data-mana-component="modal"]');
-        const container = containers[containers.length - 1];
-        if (container) container.classList.add('pt-unified-modal');
-      });
     }
     async _patchModule(flag, filter, name, callback) {
       if (this.stopped || this[flag]) return;
