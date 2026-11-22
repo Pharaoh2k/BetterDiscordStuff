@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-11-07",
+  "lastUpdated": "2026-11-22",
   "plugins": [
     {
       "id": "enhanced-channel-tabs",
@@ -84,6 +84,11 @@
     {
       "id": "Server Search",
       "name": "ServerSearch",
+      "enabled": true
+    },
+    {
+      "id": "Booster Context Menu",
+      "name": "BoosterContextMenu",
       "enabled": true
     }
   ]

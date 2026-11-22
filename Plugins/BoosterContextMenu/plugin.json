@@ -1,0 +1,21 @@
+{
+  "name": "BoosterContextMenu",
+  "description": "Right-click a booster in a server's Server Boosts activity to open their user menu, just like in chat.",
+  "author": "Pharaoh2k",
+  "version": "1.0.0",
+  "status": "Active",
+  "workingStatus": "Working",
+  "lastUpdated": "2026-11-22",
+  "releaseDate": "2026-11-22",
+  "features": [
+    "Right-click boosters in the Server Boosts Recent Activity",
+    "Opens Discord's own user menu, the same as in chat",
+    "Profile, message, roles, moderation and Copy User ID in reach",
+    "Works on given, expiring and expired boosts",
+    "Automatic update checking with changelog display",
+    "Modern BdApi based (no BDFDB dependency)"
+  ],
+  "sourceUrl": "https://github.com/Pharaoh2k/BetterDiscordStuff/tree/main/Plugins/BoosterContextMenu",
+  "changelogUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BoosterContextMenu/CHANGELOG.md",
+  "downloadUrl": "https://raw.githubusercontent.com/Pharaoh2k/BetterDiscordStuff/main/Plugins/BoosterContextMenu/BoosterContextMenu.plugin.js"
+}

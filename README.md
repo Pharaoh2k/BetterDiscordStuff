@@ -6,7 +6,7 @@
 
 ### Polished, self-updating plugins for BetterDiscord
 
-**17 plugins** that make Discord faster to use, easier to organize and more informative.<br>
+**18 plugins** that make Discord faster to use, easier to organize and more informative.<br>
 Built on BetterDiscord's own API, with **zero library dependencies**.
 
 [![Website](https://img.shields.io/badge/Website-pharaoh2k.github.io-5865F2?style=for-the-badge&logo=githubpages&logoColor=white)](https://pharaoh2k.github.io/BetterDiscordStuff/)
@@ -95,6 +95,7 @@ Every plugin has its own settings panel, so you decide exactly what it shows and
 | [**PermissionsToolkit**](Plugins/PermissionsToolkit) | Inspect, compare and audit permissions. See where every permission comes from, compare roles or users side by side and scan for dangerous setups. | ![PermissionsToolkit version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FPharaoh2k%2FBetterDiscordStuff%2Fmain%2FPlugins%2FPermissionsToolkit%2Fplugin.json&query=%24.version&prefix=v&label=&color=5865F2&style=flat-square) | [![Download PermissionsToolkit](https://img.shields.io/badge/Download-2EA043?style=flat-square)](https://github.com/Pharaoh2k/BetterDiscordStuff/releases/download/plugins/PermissionsToolkit.plugin.js) |
 | [**BetterServerDetails**](Plugins/BetterServerDetails) | Hover a server icon to see its owner, creation and join dates, member, channel and role counts, boosts and more. | ![BetterServerDetails version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FPharaoh2k%2FBetterDiscordStuff%2Fmain%2FPlugins%2FBetterServerDetails%2Fplugin.json&query=%24.version&prefix=v&label=&color=5865F2&style=flat-square) | [![Download BetterServerDetails](https://img.shields.io/badge/Download-2EA043?style=flat-square)](https://github.com/Pharaoh2k/BetterDiscordStuff/releases/download/plugins/BetterServerDetails.plugin.js) |
 | [**ShowHiddenThings**](Plugins/ShowHiddenThings) | Shows moderator-only details regardless of your permissions: timeout icons in chat, the paused invites tooltip and Mod View in every server. | ![ShowHiddenThings version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FPharaoh2k%2FBetterDiscordStuff%2Fmain%2FPlugins%2FShowHiddenThings%2Fplugin.json&query=%24.version&prefix=v&label=&color=5865F2&style=flat-square) | [![Download ShowHiddenThings](https://img.shields.io/badge/Download-2EA043?style=flat-square)](https://github.com/Pharaoh2k/BetterDiscordStuff/releases/download/plugins/ShowHiddenThings.plugin.js) |
+| [**BoosterContextMenu**](Plugins/BoosterContextMenu) | Right-click boosters on a server's Server Boosts page to open their user menu, with their profile, roles and moderation actions, just like in chat. | ![BoosterContextMenu version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FPharaoh2k%2FBetterDiscordStuff%2Fmain%2FPlugins%2FBoosterContextMenu%2Fplugin.json&query=%24.version&prefix=v&label=&color=5865F2&style=flat-square) | [![Download BoosterContextMenu](https://img.shields.io/badge/Download-2EA043?style=flat-square)](https://github.com/Pharaoh2k/BetterDiscordStuff/releases/download/plugins/BoosterContextMenu.plugin.js) |
 
 ### 👥 Social
 
