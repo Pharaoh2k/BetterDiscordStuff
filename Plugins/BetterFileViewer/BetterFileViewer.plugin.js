@@ -342,10 +342,11 @@ class UpdateManager {
 			if (lower.includes("improv") || lower.includes("updat")) return "improved";
 			return "other";
 		};
+		const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 		for (const v of relevant) {
 			for (const item of v.items) {
 				const lower = item.toLowerCase();
-				const tagged = `${item} (v${v.version})`;
+				const tagged = `${escapeHtml(item)} (v${v.version})`;
 				grouped[getType(lower)].push(tagged);
 			}
 		}
