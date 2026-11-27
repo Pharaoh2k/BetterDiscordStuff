@@ -5192,9 +5192,12 @@ const TopBar = (props) => {
 		tabWidthMin = props.tabWidthMin,
 		showQuickSettings = props.showQuickSettings,
 		useStandardNav = props.useStandardNav,
+		showNavButtons = props.showNavButtons,
 		favBarOverflow,
 		showDiscordTitle,
 	} = storeState;
+	// ECT's arrows also reach Discord's own back and forward (right-click, or left-click with Primary Forward/Back Navigation), so the title row drops Discord's while they are shown
+	const showOwnNav = showTabBar && (showNavButtons === true || tabLayoutMode === "stacked");
 	const toggleTabLayoutMode = React.useCallback(() => {
 		TabActions.toggleTabLayoutMode({ tabBarRef: tabBarRef.current });
 	}, []);
@@ -5246,7 +5249,7 @@ const TopBar = (props) => {
 		showDiscordTitle && React.createElement(
 			"div",
 			{ className: "enhancedChannelTabs-titleRow" },
-			React.createElement("div", { className: "enhancedChannelTabs-titleCenter" }, props.discordTitle),
+			React.createElement("div", { className: "enhancedChannelTabs-titleCenter" }, !showOwnNav && props.discordLeading, props.discordTitle),
 			React.createElement("div", { className: "enhancedChannelTabs-titleTrailing" }, props.trailing),
 		),
 		showTabBar
@@ -5529,7 +5532,8 @@ module.exports = class EnhancedChannelTabs {
 				React.createElement(HookedTopBar, {
 					leading: null,
 					trailing: trailing,
-					discordTitle: React.createElement(React.Fragment, null, props.leading, props.title),
+					discordLeading: props.leading,
+					discordTitle: props.title,
 					reopenLastChannel: this.settings.reopenLastChannel,
 					showTabBar: this.settings.showTabBar,
 					showFavBar: this.settings.showFavBar,
