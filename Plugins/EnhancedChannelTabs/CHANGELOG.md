@@ -1,5 +1,8 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
+### 5.1.7
+- With "Show Discord's Title Bar" on, Discord's window buttons, inbox and help button now sit at the right end of the title row, so the close button is back in the window's top-right corner
+
 ### 5.1.6
 - Added a link to star the repository on GitHub at the bottom of the changelog popup
 

@@ -1,7 +1,7 @@
 # EnhancedChannelTabs
 A BetterDiscord plugin that brings browser-style tabs and bookmarks to Discord.
 
-![Version](https://img.shields.io/badge/version-5.1.6-blue.svg)
+![Version](https://img.shields.io/badge/version-5.1.7-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Discord](https://img.shields.io/badge/discord-BetterDiscord-7289DA.svg)
 [![GitHub stars](https://img.shields.io/github/stars/Pharaoh2k/BetterDiscordStuff?style=social)](https://github.com/Pharaoh2k/BetterDiscordStuff)
@@ -37,7 +37,7 @@ EnhancedChannelTabs transforms your Discord experience with a powerful tab syste
 - **🧭 Page Icons**: Friends, Nitro, Shop, Quests and Discover tabs use Discord's own icons and names
 - **📏 Sizing**: Set the minimum and maximum tab width and scale the whole bar
 - **⭐ One-Row Favorites**: Keep favorites on one row and reach the rest from an overflow menu
-- **🪟 Discord Title Bar**: Optionally keep Discord's own title row above the tabs
+- **🪟 Discord Title Bar**: Optionally keep Discord's own title row, with its window buttons, above the tabs
 
 ### Navigation
 - **⌨️ Keyboard Shortcuts**: Full keyboard navigation support
@@ -97,7 +97,7 @@ EnhancedChannelTabs transforms your Discord experience with a powerful tab syste
 - **Maximum Tab Width**: How wide a tab can grow in flexible mode (100-400px)
 - **Bar Size**: Scale the tab and favorites bars (80-120%)
 - **Favorites That Don't Fit**: Wrap them onto more rows, or keep one row and list the rest in a menu
-- **Show Discord's Title Bar**: Keep Discord's own title row above the tabs
+- **Show Discord's Title Bar**: Keep Discord's own title row, with its window buttons, above the tabs
 
 ### Behavior
 - **Always Focus New Tabs**: Auto-switch to newly created tabs

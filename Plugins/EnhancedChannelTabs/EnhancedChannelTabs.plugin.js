@@ -2,7 +2,7 @@
  * @name EnhancedChannelTabs
  * @author Pharaoh2k, samfundev, l0c4lh057, CarJem Generations
  * @description Allows you to have multiple tabs and bookmark channels.
- * @version 5.1.6
+ * @version 5.1.7
  * @authorId 874825550408089610
  * @website https://pharaoh2k.github.io/BetterDiscordStuff/
  * @source https://github.com/Pharaoh2k/BetterDiscordStuff/blob/main/Plugins/EnhancedChannelTabs/EnhancedChannelTabs.plugin.js
@@ -396,7 +396,7 @@ class StyleManager {
 			.enhancedChannelTabs-tabNav { display:none; }
 			.ect-app-grid { grid-template-rows: [top] auto [titleBarEnd] min-content [noticeEnd] 1fr [end]; }
 			${noDragClasses.map((x) => `.${x}`).join(", ")} { -webkit-app-region: no-drag; }
-			.${systemBarClasses?.systemBar}, .enhancedChannelTabs-trailing { --custom-app-top-bar-height: 2rem; }
+			.${systemBarClasses?.systemBar}, .enhancedChannelTabs-trailing, .enhancedChannelTabs-titleTrailing { --custom-app-top-bar-height: 2rem; }
 			#enhancedChannelTabs-container { z-index: 1000; background: none; flex: 1; max-width: 100vw; }
 			.enhancedChannelTabs-tabContainer { display: flex; align-items: center; }
 			.enhancedChannelTabs-trailing { display: flex; align-items: center; gap: var(--space-12); margin-left: auto; }
@@ -418,7 +418,9 @@ class StyleManager {
 			.enhancedChannelTabs-dragging { opacity: 0.5; }
 			.enhancedChannelTabs-tab.enhancedChannelTabs-drop-inside { box-shadow: inset 0 0 0 2px var(--brand-500); }
 			.enhancedChannelTabs-pageIcon { display: block; width: 1.25rem; height: 1.25rem; color: var(--interactive-text-default); }
-			.enhancedChannelTabs-titleRow { display: flex; align-items: center; justify-content: center; gap: var(--space-8); min-height: 1.75rem; -webkit-app-region: drag; }
+			.enhancedChannelTabs-titleRow { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; min-height: 1.75rem; -webkit-app-region: drag; }
+			.enhancedChannelTabs-titleCenter { grid-column: 2; display: flex; align-items: center; gap: var(--space-8); min-width: 0; }
+			.enhancedChannelTabs-titleTrailing { grid-column: 3; justify-self: end; display: flex; align-items: center; }
 			.enhancedChannelTabs-titleRow button, .enhancedChannelTabs-titleRow [role="button"] { -webkit-app-region: no-drag; }
 			.enhancedChannelTabs-favContainer[data-overflow="menu"] { flex-wrap: nowrap; }
 			.enhancedChannelTabs-favContainer[data-overflow="menu"] > [data-entry] { flex-shrink: 0; }
@@ -5213,7 +5215,8 @@ const TopBar = (props) => {
 			},
 			SettingsMenuIcon,
 		),
-		props.trailing,
+		// With Discord's title row shown, its buttons move up there so the window controls stay in the top-right corner
+		showDiscordTitle ? null : props.trailing,
 	);
 	React.useEffect(() => {
 		const container = containerRef.current;
@@ -5240,7 +5243,12 @@ const TopBar = (props) => {
 		"div",
 		{ id: "enhancedChannelTabs-container", ref: containerRef, onDragEnter: stopOwnDrag, onDragOver: stopOwnDrag, onDrop: stopOwnDrag },
 		React.createElement(TabPeekPortal, null),
-		showDiscordTitle && React.createElement("div", { className: "enhancedChannelTabs-titleRow" }, props.discordTitle),
+		showDiscordTitle && React.createElement(
+			"div",
+			{ className: "enhancedChannelTabs-titleRow" },
+			React.createElement("div", { className: "enhancedChannelTabs-titleCenter" }, props.discordTitle),
+			React.createElement("div", { className: "enhancedChannelTabs-titleTrailing" }, props.trailing),
+		),
 		showTabBar
 			? /* @__PURE__ */ React.createElement(TabBar, {
 				leading: props.leading,
@@ -6113,7 +6121,7 @@ module.exports = class EnhancedChannelTabs {
 							id: "showDiscordTitle",
 							type: "switch",
 							name: "Show Discord's Title Bar",
-							note: "Keeps Discord's own title row above the tabs",
+							note: "Keeps Discord's own title row, with its window buttons, above the tabs",
 							value: this.settings.showDiscordTitle,
 							onChange: (checked) => this.updateSettings({ showDiscordTitle: checked }),
 						},
