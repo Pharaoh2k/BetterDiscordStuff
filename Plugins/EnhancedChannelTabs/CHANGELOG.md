@@ -1,8 +1,8 @@
 # [EnhancedChannelTabs](https://pharaoh2k.github.io/BetterDiscordStuff/?plugin=EnhancedChannelTabs "EnhancedChannelTabs") Changelog
 
 ### 5.1.7
-- With "Show Discord's Title Bar" on, Discord's window buttons, inbox and help button now sit at the right end of the title row, so the close button is back in the window's top-right corner
-- With "Show Discord's Title Bar" on, the title row no longer repeats Discord's back and forward buttons while ECT's navigation buttons are shown, since those already reach Discord's history (right-click, or left-click with "Primary Forward/Back Navigation"). Discord's buttons still show when the navigation buttons are off or only the favorites bar is shown
+- "Show Discord's Title Bar" now keeps the window buttons in the title row, in the top-right corner
+- Discord's back and forward buttons are hidden from the title row while ECT's own are shown
 
 ### 5.1.6
 - Added a link to star the repository on GitHub at the bottom of the changelog popup
